@@ -445,7 +445,7 @@ else:
             "visible": True,
             "timeVisible": True,
             "secondsVisible": False,
-            "barSpacing": 8,
+            "barSpacing": 3,
             "rightOffset": 2,
             "fixLeftEdge": False,
             "fixRightEdge": False
