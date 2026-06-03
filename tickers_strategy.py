@@ -969,6 +969,30 @@ st.write("- SMDT ngành vừa giảm dưới ngưỡng 70 trong 2 phiên liên t
 st.write(f"- SMDT mã {ticker_input} vừa giảm dưới ngưỡng 70 trong 2 phiên liên tiếp.")
 
 # =========================
+# KIỂM TRA DỮ LIỆU TRƯỚC KHI BACKTEST
+# =========================
+
+if price_df.empty:
+    st.error(f"Không có dữ liệu giá cho mã {ticker_input}")
+    st.stop()
+
+if cashflow_selected.empty:
+    st.error(f"Không có dữ liệu dòng tiền ngành cho mã {ticker_input}")
+    st.stop()
+
+if df_smdt_selected.empty:
+    st.error(f"Không có dữ liệu SMDT ngành cho mã {ticker_input}")
+    st.stop()
+
+if cashflow_ticker_selected.empty:
+    st.error(f"Không có dữ liệu dòng tiền mã {ticker_input}")
+    st.stop()
+
+if df_smdt_ticker_selected.empty:
+    st.error(f"Không có dữ liệu SMDT mã {ticker_input}")
+    st.stop()
+
+# =========================
 # BUILD DF_SIGNAL
 # =========================
 
