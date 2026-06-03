@@ -367,8 +367,14 @@ ticker_input = st.text_input(
 
 ticker_input = ticker_input.upper().strip()
 
+run_button = st.button("Chạy phân tích")
+
 if ticker_input == "":
     st.warning("Vui lòng nhập mã cổ phiếu")
+    st.stop()
+
+if not run_button:
+    st.info("Nhập mã cổ phiếu rồi bấm Chạy phân tích để bắt đầu.")
     st.stop()
 
 
