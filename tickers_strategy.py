@@ -1803,3 +1803,123 @@ st.write("Chú thích:")
 st.write("1 là tín hiệu dòng tiền nhen nhóm/tiếp tục đổ vào.")
 st.write("-1 là tín hiệu dòng tiền đang/tiếp tục thoát ra.")
 st.write("Lưu ý: phải đạt điều kiện 2 phiên liên tiếp thì mới ghi nhận Buy/Sell.")
+
+# =========================
+# BẢNG KIỂM ĐỊNH RETURN SAU 2 NGÀY BUY
+# =========================
+
+price_2day = df_signal[[
+    "date",
+    "close"
+]].copy()
+
+price_2day["date"] = pd.to_datetime(price_2day["date"])
+price_2day = price_2day.sort_values("date").reset_index(drop=True)
+
+price_2day["close_2day_after"] = price_2day["close"].shift(-2)
+
+price_2day["return_2day_after_pct"] = (
+    price_2day["close_2day_after"]
+    / price_2day["close"]
+    - 1
+) * 100
+
+trade_reason_table["Ngày mua"] = pd.to_datetime(trade_reason_table["Ngày mua"])
+
+trade_2day = trade_reason_table.merge(
+    price_2day[[
+        "date",
+        "close",
+        "close_2day_after",
+        "return_2day_after_pct"
+    ]],
+    left_on="Ngày mua",
+    right_on="date",
+    how="left"
+).drop(columns=["date"])
+
+trade_2day = trade_2day.rename(columns={
+    "close": "Giá close ngày mua",
+    "close_2day_after": "Giá close sau 2 ngày",
+    "return_2day_after_pct": "Return sau 2 ngày BUY (%)"
+})
+
+trade_2day["Sau 2 ngày tăng"] = (
+    trade_2day["Return sau 2 ngày BUY (%)"] > 0
+)
+
+twoday_detail = trade_2day[[
+    "Lệnh",
+    "Ngày mua",
+    "Buy vì",
+    "Giá mua",
+    "Giá close ngày mua",
+    "Giá close sau 2 ngày",
+    "Return sau 2 ngày BUY (%)",
+    "Sau 2 ngày tăng",
+    "Ngày bán",
+    "Sell vì",
+    "PnL %",
+    "Kết quả"
+]].copy()
+
+twoday_detail["Ngày mua"] = twoday_detail["Ngày mua"].dt.strftime("%Y-%m-%d")
+twoday_detail["Ngày bán"] = pd.to_datetime(twoday_detail["Ngày bán"]).dt.strftime("%Y-%m-%d")
+
+twoday_detail["Giá mua"] = twoday_detail["Giá mua"].round(2)
+twoday_detail["Giá close ngày mua"] = twoday_detail["Giá close ngày mua"].round(2)
+twoday_detail["Giá close sau 2 ngày"] = twoday_detail["Giá close sau 2 ngày"].round(2)
+twoday_detail["Return sau 2 ngày BUY (%)"] = twoday_detail["Return sau 2 ngày BUY (%)"].round(2)
+
+st.subheader("Kiểm định phản ứng giá sau 2 ngày BUY")
+
+st.dataframe(
+    twoday_detail.sort_values("Ngày mua"),
+    hide_index=True,
+    use_container_width=True,
+    height=500
+)
+
+# =========================
+# BẢNG TỔNG HỢP WIN/LOSS
+# =========================
+
+twoday_summary = pd.crosstab(
+    trade_2day["Sau 2 ngày tăng"],
+    trade_2day["Kết quả"],
+    margins=True
+)
+
+st.write("Tổng hợp WIN/LOSS theo phản ứng giá sau 2 ngày BUY")
+st.dataframe(
+    twoday_summary,
+    use_container_width=True
+)
+
+# =========================
+# WIN RATE
+# =========================
+
+twoday_winrate = (
+    trade_2day
+    .groupby(["Sau 2 ngày tăng", "Kết quả"])
+    .size()
+    .unstack(fill_value=0)
+)
+
+twoday_winrate["Tổng"] = (
+    twoday_winrate.get("WIN", 0)
+    + twoday_winrate.get("LOSS", 0)
+)
+
+twoday_winrate["Win Rate (%)"] = (
+    twoday_winrate.get("WIN", 0)
+    / twoday_winrate["Tổng"]
+    * 100
+).round(2)
+
+st.write("Win Rate theo phản ứng giá sau 2 ngày BUY")
+st.dataframe(
+    twoday_winrate,
+    use_container_width=True
+)
