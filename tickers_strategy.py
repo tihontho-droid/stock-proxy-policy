@@ -2375,3 +2375,63 @@ st.dataframe(
     hide_index=True,
     use_container_width=True
 )
+
+# =========================
+# LỊCH SỬ GIAO DỊCH BẢN CẮT 2 NGÀY
+# =========================
+
+st.subheader("Lịch sử giao dịch - Cắt nếu sau 2 phiên giá không tăng")
+
+if trades_cut2.empty:
+
+    st.warning("Không phát sinh giao dịch.")
+
+else:
+
+    trades_cut2_show = trades_cut2.copy()
+
+    trades_cut2_show["date"] = pd.to_datetime(
+        trades_cut2_show["date"]
+    ).dt.strftime("%Y-%m-%d")
+
+    if "buy_date" in trades_cut2_show.columns:
+        trades_cut2_show["buy_date"] = pd.to_datetime(
+            trades_cut2_show["buy_date"]
+        ).dt.strftime("%Y-%m-%d")
+
+    num_cols = [
+        f"price_{ticker_input}",
+        "buy_price",
+        "shares",
+        "value",
+        "cash_after",
+        "profit_pct",
+        "profit_value"
+    ]
+
+    for col in num_cols:
+        if col in trades_cut2_show.columns:
+            trades_cut2_show[col] = pd.to_numeric(
+                trades_cut2_show[col],
+                errors="coerce"
+            ).round(2)
+
+    trades_cut2_show = trades_cut2_show.rename(columns={
+        "date": "Date",
+        "action": "Action",
+        "buy_date": "Buy Date",
+        "buy_price": "Buy Price",
+        f"price_{ticker_input}": "Price",
+        "shares": "Shares",
+        "value": "Value",
+        "cash_after": "Cash After",
+        "profit_pct": "PnL %",
+        "profit_value": "PnL"
+    })
+
+    st.dataframe(
+        trades_cut2_show,
+        hide_index=True,
+        use_container_width=True,
+        height=400
+    )
