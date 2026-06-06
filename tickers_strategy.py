@@ -2095,7 +2095,78 @@ else:
 
 # =========================
 # CHIẾN LƯỢC: MUA GỐC, CẮT NẾU SAU 2 PHIÊN GIÁ KHÔNG TĂNG
+# CHỈ TÍNH HIỆU SUẤT TRÊN LỆNH ĐÃ SELL HOÀN CHỈNH
 # =========================
+
+def calc_closed_summary(trades_df, initial_cash=1_000_000):
+
+    if trades_df.empty:
+        sell_trades = pd.DataFrame()
+    else:
+        sell_trades = trades_df[
+            trades_df["action"].isin(["SELL", "SELL_CUT_2D"])
+        ].copy()
+
+    if sell_trades.empty:
+
+        closed_final_nav = initial_cash
+        total_return_pct = 0
+        num_trades = 0
+        num_win = 0
+        num_loss = 0
+        win_rate_pct = 0
+        avg_win_pct = 0
+        avg_loss_pct = 0
+        payoff = 0
+        expectancy = 0
+        max_profit_pct = 0
+        max_loss_pct = 0
+
+    else:
+
+        closed_final_nav = initial_cash + sell_trades["profit_value"].sum()
+        total_return_pct = ((closed_final_nav - initial_cash) / initial_cash) * 100
+
+        num_trades = len(sell_trades)
+
+        win_trades = sell_trades[sell_trades["profit_pct"] > 0]
+        loss_trades = sell_trades[sell_trades["profit_pct"] <= 0]
+
+        num_win = len(win_trades)
+        num_loss = len(loss_trades)
+
+        win_rate_pct = (num_win / num_trades) * 100
+
+        avg_win_pct = win_trades["profit_pct"].mean() if num_win > 0 else 0
+        avg_loss_pct = loss_trades["profit_pct"].mean() if num_loss > 0 else 0
+
+        payoff = abs(avg_win_pct / avg_loss_pct) if avg_loss_pct != 0 else 0
+
+        expectancy = (
+            (win_rate_pct / 100) * avg_win_pct
+            + (1 - win_rate_pct / 100) * avg_loss_pct
+        )
+
+        max_profit_pct = sell_trades["profit_pct"].max()
+        max_loss_pct = sell_trades["profit_pct"].min()
+
+    summary = {
+        "final_nav": closed_final_nav,
+        "total_return_pct": total_return_pct,
+        "num_trades": num_trades,
+        "num_win": num_win,
+        "num_loss": num_loss,
+        "win_rate_pct": win_rate_pct,
+        "avg_win_pct": avg_win_pct,
+        "avg_loss_pct": avg_loss_pct,
+        "payoff": payoff,
+        "expectancy": expectancy,
+        "max_profit_pct": max_profit_pct,
+        "max_loss_pct": max_loss_pct
+    }
+
+    return summary
+
 
 def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
 
@@ -2127,7 +2198,6 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
         if pd.isna(price):
             continue
 
-        # BUY như chiến lược gốc
         if position == 0 and row["buy_signal"] == True:
 
             shares = cash // price
@@ -2169,11 +2239,7 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
                 profit_pct = ((price - buy_price) / buy_price) * 100
                 profit_value = sell_value - shares * buy_price
 
-                action_name = (
-                    "SELL_CUT_2D"
-                    if cutloss_2day
-                    else "SELL"
-                )
+                action_name = "SELL_CUT_2D" if cutloss_2day else "SELL"
 
                 trades.append({
                     "date": date,
@@ -2207,90 +2273,10 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
     nav_df = pd.DataFrame(nav_list)
     trades_df = pd.DataFrame(trades)
 
-    final_nav = nav_df["NAV"].iloc[-1] if not nav_df.empty else initial_cash
-    total_return_pct = ((final_nav - initial_cash) / initial_cash) * 100
-
-    sell_trades = (
-        trades_df[
-            trades_df["action"].isin(["SELL", "SELL_CUT_2D"])
-        ].copy()
-        if not trades_df.empty
-        else pd.DataFrame()
+    summary = calc_closed_summary(
+        trades_df=trades_df,
+        initial_cash=initial_cash
     )
-
-    if sell_trades.empty:
-
-        num_trades = 0
-        num_win = 0
-        num_loss = 0
-        win_rate_pct = 0
-        avg_win_pct = 0
-        avg_loss_pct = 0
-        payoff = 0
-        expectancy = 0
-        max_profit_pct = 0
-        max_loss_pct = 0
-
-    else:
-
-        num_trades = len(sell_trades)
-
-        win_trades = sell_trades[
-            sell_trades["profit_pct"] > 0
-        ]
-
-        loss_trades = sell_trades[
-            sell_trades["profit_pct"] <= 0
-        ]
-
-        num_win = len(win_trades)
-        num_loss = len(loss_trades)
-
-        win_rate_pct = (num_win / num_trades) * 100
-
-        avg_win_pct = (
-            win_trades["profit_pct"].mean()
-            if num_win > 0
-            else 0
-        )
-
-        avg_loss_pct = (
-            loss_trades["profit_pct"].mean()
-            if num_loss > 0
-            else 0
-        )
-
-        payoff = (
-            abs(avg_win_pct / avg_loss_pct)
-            if avg_loss_pct != 0
-            else 0
-        )
-
-        expectancy = (
-            (win_rate_pct / 100) * avg_win_pct
-            + (1 - win_rate_pct / 100) * avg_loss_pct
-        )
-
-        max_profit_pct = sell_trades["profit_pct"].max()
-        max_loss_pct = sell_trades["profit_pct"].min()
-
-    summary = {
-        "final_nav": final_nav,
-        "final_cash": cash,
-        "final_shares": shares,
-        "final_position": position,
-        "total_return_pct": total_return_pct,
-        "num_trades": num_trades,
-        "num_win": num_win,
-        "num_loss": num_loss,
-        "win_rate_pct": win_rate_pct,
-        "avg_win_pct": avg_win_pct,
-        "avg_loss_pct": avg_loss_pct,
-        "payoff": payoff,
-        "expectancy": expectancy,
-        "max_profit_pct": max_profit_pct,
-        "max_loss_pct": max_loss_pct
-    }
 
     return summary, trades_df, nav_df
 
@@ -2307,10 +2293,15 @@ summary_cut2, trades_cut2, nav_cut2 = backtest_strategy_cutloss_2day(
     initial_cash=1_000_000
 )
 
+summary_base_closed = calc_closed_summary(
+    trades_df=results[top_strategy]["trades"],
+    initial_cash=1_000_000
+)
+
 compare_cut2 = pd.DataFrame([
     {
-        "Phiên bản": "Gốc - giữ theo SELL signal",
-        **results[top_strategy]["summary"]
+        "Phiên bản": "Gốc - chỉ tính lệnh đã SELL",
+        **summary_base_closed
     },
     {
         "Phiên bản": "Cắt nếu sau 2 phiên giá không tăng",
@@ -2384,35 +2375,3 @@ st.dataframe(
     hide_index=True,
     use_container_width=True
 )
-
-
-# =========================
-# LỊCH SỬ GIAO DỊCH BẢN CẮT 2 NGÀY
-# =========================
-
-st.subheader("Lịch sử giao dịch - Cắt nếu sau 2 phiên giá không tăng")
-
-if trades_cut2.empty:
-
-    st.warning("Không phát sinh giao dịch.")
-
-else:
-
-    trades_cut2_show = trades_cut2.copy()
-
-    trades_cut2_show["date"] = pd.to_datetime(
-        trades_cut2_show["date"]
-    ).dt.strftime("%Y-%m-%d")
-
-    if "buy_date" in trades_cut2_show.columns:
-
-        trades_cut2_show["buy_date"] = pd.to_datetime(
-            trades_cut2_show["buy_date"]
-        ).dt.strftime("%Y-%m-%d")
-
-    st.dataframe(
-        trades_cut2_show,
-        hide_index=True,
-        use_container_width=True,
-        height=400
-    )
