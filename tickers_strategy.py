@@ -2093,3 +2093,137 @@ else:
         use_container_width=True
     )
 
+# =========================
+# CHIẾN LƯỢC: CHỈ MUA TẠI T+2 NẾU GIÁ TĂNG
+# =========================
+
+def make_buy_t2_confirm_strategy(base_strategy):
+
+    def buy_t2_confirm(data):
+
+        buy_raw = base_strategy["buy"](data).fillna(False)
+
+        # Ngày T có tín hiệu BUY
+        # Ngày T+2 mới mua nếu close T+2 > close T
+        buy_confirm = (
+            buy_raw.shift(2).fillna(False)
+            &
+            (data["close"] > data["close"].shift(2))
+        )
+
+        return buy_confirm.fillna(False)
+
+    return {
+        "buy": buy_t2_confirm,
+        "sell": base_strategy["sell"]
+    }
+
+
+base_strategy = strategies[top_strategy]
+
+strategy_t2_confirm = make_buy_t2_confirm_strategy(
+    base_strategy
+)
+
+summary_t2_confirm, trades_t2_confirm, nav_t2_confirm = backtest_strategy(
+    df_signal=df_signal,
+    strategy=strategy_t2_confirm,
+    initial_cash=1_000_000
+)
+
+compare_t2 = pd.DataFrame([
+    {
+        "Phiên bản": "Gốc - mua ngay khi có tín hiệu",
+        **results[top_strategy]["summary"]
+    },
+    {
+        "Phiên bản": "Chỉ mua T+2 nếu giá tăng",
+        **summary_t2_confirm
+    }
+])
+
+compare_t2 = compare_t2[[
+    "Phiên bản",
+    "final_nav",
+    "total_return_pct",
+    "num_trades",
+    "num_win",
+    "num_loss",
+    "win_rate_pct",
+    "avg_win_pct",
+    "avg_loss_pct",
+    "payoff",
+    "max_profit_pct",
+    "max_loss_pct"
+]]
+
+compare_t2_show = compare_t2.copy()
+
+for col in [
+    "total_return_pct",
+    "win_rate_pct",
+    "avg_win_pct",
+    "avg_loss_pct",
+    "max_profit_pct",
+    "max_loss_pct"
+]:
+    compare_t2_show[col] = (
+        compare_t2_show[col]
+        .round(2)
+        .astype(str)
+        + "%"
+    )
+
+compare_t2_show["final_nav"] = (
+    compare_t2_show["final_nav"]
+    .round(0)
+    .astype(int)
+    .map("{:,}".format)
+)
+
+compare_t2_show["payoff"] = compare_t2_show["payoff"].round(2)
+
+compare_t2_show = compare_t2_show.rename(columns={
+    "final_nav": "Final NAV",
+    "total_return_pct": "Total Return",
+    "num_trades": "Trades",
+    "num_win": "Wins",
+    "num_loss": "Losses",
+    "win_rate_pct": "Win Rate",
+    "avg_win_pct": "Avg Win",
+    "avg_loss_pct": "Avg Loss",
+    "payoff": "Payoff",
+    "max_profit_pct": "Max Profit",
+    "max_loss_pct": "Max Loss"
+})
+
+st.subheader("So sánh chiến lược gốc và chiến lược mua T+2 nếu giá tăng")
+
+st.dataframe(
+    compare_t2_show,
+    hide_index=True,
+    use_container_width=True
+)
+
+st.subheader("Lịch sử giao dịch - Chỉ mua T+2 nếu giá tăng")
+
+if trades_t2_confirm.empty:
+    st.warning("Chiến lược T+2 không phát sinh giao dịch.")
+else:
+    trades_t2_show = trades_t2_confirm.copy()
+
+    trades_t2_show["date"] = pd.to_datetime(
+        trades_t2_show["date"]
+    ).dt.strftime("%Y-%m-%d")
+
+    if "buy_date" in trades_t2_show.columns:
+        trades_t2_show["buy_date"] = pd.to_datetime(
+            trades_t2_show["buy_date"]
+        ).dt.strftime("%Y-%m-%d")
+
+    st.dataframe(
+        trades_t2_show,
+        hide_index=True,
+        use_container_width=True,
+        height=400
+    )
