@@ -1806,351 +1806,60 @@ st.write("-1 là tín hiệu dòng tiền đang/tiếp tục thoát ra.")
 st.write("Lưu ý: phải đạt điều kiện 2 phiên liên tiếp thì mới ghi nhận Buy/Sell.")
 
 # =========================
-# BẢNG KIỂM ĐỊNH RETURN SAU 2 NGÀY BUY
-# =========================
-
-st.subheader("Kiểm định phản ứng giá sau 2 ngày BUY")
-
-trades_top = results[top_strategy]["trades"].copy()
-price_col = f"price_{ticker_input}"
-
-if trades_top.empty:
-
-    st.warning("Chiến lược TOP 1 không có giao dịch nên không thể kiểm định sau 2 ngày BUY.")
-
-else:
-
-    trades_check = trades_top.copy()
-
-    # =========================
-    # 1. GẮN TÍN HIỆU TẠI NGÀY GIAO DỊCH
-    # =========================
-
-    signal_cols_check = [
-        "date",
-        "flow_nganh_good",
-        "flow_nganh_bad",
-        "flow_ma_good",
-        "flow_ma_bad",
-        "smdt_nganh_good",
-        "smdt_nganh_bad",
-        "smdt_ma_good",
-        "smdt_ma_bad"
-    ]
-
-    signal_check = df_signal[signal_cols_check].copy()
-    signal_check["date"] = pd.to_datetime(signal_check["date"])
-
-    trades_check["date"] = pd.to_datetime(trades_check["date"])
-
-    trades_check = trades_check.merge(
-        signal_check,
-        on="date",
-        how="left"
-    )
-
-    # =========================
-    # 2. TẠO LÝ DO BUY / SELL
-    # =========================
-
-    signal_name_map = {
-        "flow_nganh_good": "Flow Ngành Good",
-        "flow_nganh_bad": "Flow Ngành Bad",
-        "flow_ma_good": "Flow Mã Good",
-        "flow_ma_bad": "Flow Mã Bad",
-        "smdt_nganh_good": "SMDT Ngành Good",
-        "smdt_nganh_bad": "SMDT Ngành Bad",
-        "smdt_ma_good": "SMDT Mã Good",
-        "smdt_ma_bad": "SMDT Mã Bad"
-    }
-
-    signal_cols_only = list(signal_name_map.keys())
-
-    def get_reason_streamlit(row):
-        reasons = []
-
-        for col in signal_cols_only:
-            if col in row.index and row[col] == True:
-                reasons.append(signal_name_map[col])
-
-        return ", ".join(reasons)
-
-    trades_check["reason"] = trades_check.apply(
-        get_reason_streamlit,
-        axis=1
-    )
-
-    trades_check["trade_no"] = (
-        trades_check["action"] == "BUY"
-    ).cumsum()
-
-    # =========================
-    # 3. TÁCH BUY
-    # =========================
-
-    buy_df_check = trades_check[
-        trades_check["action"] == "BUY"
-    ][[
-        "trade_no",
-        "date",
-        price_col,
-        "reason"
-    ]].rename(columns={
-        "date": "Ngày mua",
-        price_col: "Giá mua",
-        "reason": "Buy vì"
-    })
-
-    # =========================
-    # 4. TÁCH SELL
-    # =========================
-
-    sell_df_check = trades_check[
-        trades_check["action"] == "SELL"
-    ][[
-        "trade_no",
-        "date",
-        price_col,
-        "reason",
-        "profit_pct",
-        "profit_value"
-    ]].rename(columns={
-        "date": "Ngày bán",
-        price_col: "Giá bán",
-        "reason": "Sell vì",
-        "profit_pct": "PnL %"
-    })
-
-    sell_df_check["Kết quả"] = np.where(
-        sell_df_check["profit_value"] > 0,
-        "WIN",
-        np.where(
-            sell_df_check["profit_value"] < 0,
-            "LOSS",
-            "BREAKEVEN"
-        )
-    )
-
-    # =========================
-    # 5. GHÉP BUY + SELL
-    # =========================
-
-    trade_reason_table = buy_df_check.merge(
-        sell_df_check,
-        on="trade_no",
-        how="left"
-    )
-
-    trade_reason_table = trade_reason_table.rename(columns={
-        "trade_no": "Lệnh"
-    })
-
-    # =========================
-    # 6. TẠO GIÁ SAU 2 NGÀY
-    # =========================
-
-    price_2day = df_signal[[
-        "date",
-        "close"
-    ]].copy()
-
-    price_2day["date"] = pd.to_datetime(price_2day["date"])
-    price_2day = price_2day.sort_values("date").reset_index(drop=True)
-
-    price_2day["close_2day_after"] = (
-        price_2day["close"].shift(-2)
-    )
-
-    price_2day["return_2day_after_pct"] = (
-        price_2day["close_2day_after"]
-        / price_2day["close"]
-        - 1
-    ) * 100
-
-    trade_reason_table["Ngày mua"] = pd.to_datetime(
-        trade_reason_table["Ngày mua"]
-    )
-
-    trade_2day = trade_reason_table.merge(
-        price_2day[[
-            "date",
-            "close",
-            "close_2day_after",
-            "return_2day_after_pct"
-        ]],
-        left_on="Ngày mua",
-        right_on="date",
-        how="left"
-    ).drop(columns=["date"])
-
-    trade_2day = trade_2day.rename(columns={
-        "close": "Giá close ngày mua",
-        "close_2day_after": "Giá close sau 2 ngày",
-        "return_2day_after_pct": "Return sau 2 ngày BUY (%)"
-    })
-
-    trade_2day["Sau 2 ngày tăng"] = (
-        trade_2day["Return sau 2 ngày BUY (%)"] > 0
-    )
-
-    # =========================
-    # 7. BẢNG CHI TIẾT
-    # =========================
-
-    twoday_detail = trade_2day[[
-        "Lệnh",
-        "Ngày mua",
-        "Buy vì",
-        "Giá mua",
-        "Giá close ngày mua",
-        "Giá close sau 2 ngày",
-        "Return sau 2 ngày BUY (%)",
-        "Sau 2 ngày tăng",
-        "Ngày bán",
-        "Sell vì",
-        "PnL %",
-        "Kết quả"
-    ]].copy()
-
-    twoday_detail["Ngày mua"] = (
-        pd.to_datetime(twoday_detail["Ngày mua"])
-        .dt.strftime("%Y-%m-%d")
-    )
-
-    twoday_detail["Ngày bán"] = (
-        pd.to_datetime(twoday_detail["Ngày bán"])
-        .dt.strftime("%Y-%m-%d")
-    )
-
-    num_cols = [
-        "Giá mua",
-        "Giá close ngày mua",
-        "Giá close sau 2 ngày",
-        "Return sau 2 ngày BUY (%)"
-    ]
-
-    for col in num_cols:
-        twoday_detail[col] = pd.to_numeric(
-            twoday_detail[col],
-            errors="coerce"
-        ).round(2)
-
-    twoday_detail["PnL %"] = pd.to_numeric(
-        twoday_detail["PnL %"],
-        errors="coerce"
-    ).round(2).astype(str) + "%"
-
-    st.dataframe(
-        twoday_detail.sort_values("Ngày mua"),
-        hide_index=True,
-        use_container_width=True,
-        height=500
-    )
-
-    # =========================
-    # 8. TỔNG HỢP WIN/LOSS
-    # =========================
-
-    st.write("Tổng hợp WIN/LOSS theo phản ứng giá sau 2 ngày BUY")
-
-    twoday_summary = pd.crosstab(
-        trade_2day["Sau 2 ngày tăng"],
-        trade_2day["Kết quả"],
-        margins=True
-    )
-
-    st.dataframe(
-        twoday_summary,
-        use_container_width=True
-    )
-
-    # =========================
-    # 9. WIN RATE
-    # =========================
-
-    twoday_winrate = (
-        trade_2day
-        .groupby(["Sau 2 ngày tăng", "Kết quả"])
-        .size()
-        .unstack(fill_value=0)
-    )
-
-    twoday_winrate["Tổng"] = (
-        twoday_winrate.get("WIN", 0)
-        + twoday_winrate.get("LOSS", 0)
-    )
-
-    twoday_winrate["Win Rate (%)"] = (
-        twoday_winrate.get("WIN", 0)
-        / twoday_winrate["Tổng"]
-        * 100
-    ).round(2)
-
-    st.write("Win Rate theo phản ứng giá sau 2 ngày BUY")
-
-    st.dataframe(
-        twoday_winrate,
-        use_container_width=True
-    )
-
-# =========================
-# CHIẾN LƯỢC: MUA GỐC, CẮT NẾU SAU 2 PHIÊN GIÁ KHÔNG TĂNG
+# CHIẾN LƯỢC: MUA GỐC, SAU 10 PHIÊN NẾU GIÁ <= MA10 THÌ CẮT
 # CHỈ TÍNH HIỆU SUẤT TRÊN LỆNH ĐÃ SELL HOÀN CHỈNH
 # =========================
 
-def calc_closed_summary(trades_df, initial_cash=1_000_000):
+def calc_closed_summary_ma10(trades_df, initial_cash=1_000_000):
 
     if trades_df.empty:
         sell_trades = pd.DataFrame()
     else:
         sell_trades = trades_df[
-            trades_df["action"].isin(["SELL", "SELL_CUT_2D"])
+            trades_df["action"].isin(["SELL", "SELL_CUT_MA10"])
         ].copy()
 
     if sell_trades.empty:
 
-        closed_final_nav = initial_cash
-        total_return_pct = 0
-        num_trades = 0
-        num_win = 0
-        num_loss = 0
-        win_rate_pct = 0
-        avg_win_pct = 0
-        avg_loss_pct = 0
-        payoff = 0
-        expectancy = 0
-        max_profit_pct = 0
-        max_loss_pct = 0
+        return {
+            "final_nav": initial_cash,
+            "total_return_pct": 0,
+            "num_trades": 0,
+            "num_win": 0,
+            "num_loss": 0,
+            "win_rate_pct": 0,
+            "avg_win_pct": 0,
+            "avg_loss_pct": 0,
+            "payoff": 0,
+            "expectancy": 0,
+            "max_profit_pct": 0,
+            "max_loss_pct": 0
+        }
 
-    else:
+    closed_final_nav = initial_cash + sell_trades["profit_value"].sum()
+    total_return_pct = ((closed_final_nav - initial_cash) / initial_cash) * 100
 
-        closed_final_nav = initial_cash + sell_trades["profit_value"].sum()
-        total_return_pct = ((closed_final_nav - initial_cash) / initial_cash) * 100
+    num_trades = len(sell_trades)
 
-        num_trades = len(sell_trades)
+    win_trades = sell_trades[sell_trades["profit_pct"] > 0]
+    loss_trades = sell_trades[sell_trades["profit_pct"] <= 0]
 
-        win_trades = sell_trades[sell_trades["profit_pct"] > 0]
-        loss_trades = sell_trades[sell_trades["profit_pct"] <= 0]
+    num_win = len(win_trades)
+    num_loss = len(loss_trades)
 
-        num_win = len(win_trades)
-        num_loss = len(loss_trades)
+    win_rate_pct = (num_win / num_trades) * 100
 
-        win_rate_pct = (num_win / num_trades) * 100
+    avg_win_pct = win_trades["profit_pct"].mean() if num_win > 0 else 0
+    avg_loss_pct = loss_trades["profit_pct"].mean() if num_loss > 0 else 0
 
-        avg_win_pct = win_trades["profit_pct"].mean() if num_win > 0 else 0
-        avg_loss_pct = loss_trades["profit_pct"].mean() if num_loss > 0 else 0
+    payoff = abs(avg_win_pct / avg_loss_pct) if avg_loss_pct != 0 else 0
 
-        payoff = abs(avg_win_pct / avg_loss_pct) if avg_loss_pct != 0 else 0
+    expectancy = (
+        (win_rate_pct / 100) * avg_win_pct
+        + (1 - win_rate_pct / 100) * avg_loss_pct
+    )
 
-        expectancy = (
-            (win_rate_pct / 100) * avg_win_pct
-            + (1 - win_rate_pct / 100) * avg_loss_pct
-        )
-
-        max_profit_pct = sell_trades["profit_pct"].max()
-        max_loss_pct = sell_trades["profit_pct"].min()
-
-    summary = {
+    return {
         "final_nav": closed_final_nav,
         "total_return_pct": total_return_pct,
         "num_trades": num_trades,
@@ -2161,18 +1870,18 @@ def calc_closed_summary(trades_df, initial_cash=1_000_000):
         "avg_loss_pct": avg_loss_pct,
         "payoff": payoff,
         "expectancy": expectancy,
-        "max_profit_pct": max_profit_pct,
-        "max_loss_pct": max_loss_pct
+        "max_profit_pct": sell_trades["profit_pct"].max(),
+        "max_loss_pct": sell_trades["profit_pct"].min()
     }
 
-    return summary
 
-
-def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
+def backtest_strategy_cut_ma10_after_10day(df_signal, strategy, initial_cash=1_000_000):
 
     data = df_signal.copy()
     data["date"] = pd.to_datetime(data["date"])
     data = data.sort_values("date").reset_index(drop=True)
+
+    data["MA10"] = data["close"].rolling(10).mean()
 
     data["buy_signal"] = strategy["buy"](data).fillna(False)
     data["sell_signal"] = strategy["sell"](data).fillna(False)
@@ -2194,10 +1903,12 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
 
         date = row["date"]
         price = row["close"]
+        ma10 = row["MA10"]
 
         if pd.isna(price):
             continue
 
+        # BUY như chiến lược gốc
         if position == 0 and row["buy_signal"] == True:
 
             shares = cash // price
@@ -2213,6 +1924,7 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
                 "date": date,
                 "action": "BUY",
                 price_col: price,
+                "MA10": ma10,
                 "shares": shares,
                 "value": buy_value,
                 "cash_after": cash,
@@ -2224,14 +1936,15 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
 
             days_after_buy = i - buy_index
 
-            cutloss_2day = (
-                days_after_buy == 2
-                and price <= buy_price
+            cut_ma10 = (
+                days_after_buy >= 10
+                and pd.notna(ma10)
+                and price <= ma10
             )
 
             normal_sell = row["sell_signal"] == True
 
-            if cutloss_2day or normal_sell:
+            if cut_ma10 or normal_sell:
 
                 sell_value = shares * price
                 cash = cash + sell_value
@@ -2239,7 +1952,7 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
                 profit_pct = ((price - buy_price) / buy_price) * 100
                 profit_value = sell_value - shares * buy_price
 
-                action_name = "SELL_CUT_2D" if cutloss_2day else "SELL"
+                action_name = "SELL_CUT_MA10" if cut_ma10 else "SELL"
 
                 trades.append({
                     "date": date,
@@ -2247,6 +1960,7 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
                     "buy_date": buy_date,
                     "buy_price": buy_price,
                     price_col: price,
+                    "MA10": ma10,
                     "shares": shares,
                     "value": sell_value,
                     "cash_after": cash,
@@ -2265,6 +1979,7 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
         nav_list.append({
             "date": date,
             price_col: price,
+            "MA10": ma10,
             "cash": cash,
             "shares": shares,
             "NAV": nav
@@ -2273,7 +1988,7 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
     nav_df = pd.DataFrame(nav_list)
     trades_df = pd.DataFrame(trades)
 
-    summary = calc_closed_summary(
+    summary = calc_closed_summary_ma10(
         trades_df=trades_df,
         initial_cash=initial_cash
     )
@@ -2282,34 +1997,34 @@ def backtest_strategy_cutloss_2day(df_signal, strategy, initial_cash=1_000_000):
 
 
 # =========================
-# CHẠY SO SÁNH GỐC VS CẮT 2 NGÀY
+# CHẠY SO SÁNH GỐC VS CẮT MA10
 # =========================
 
 base_strategy = strategies[top_strategy]
 
-summary_cut2, trades_cut2, nav_cut2 = backtest_strategy_cutloss_2day(
+summary_cut_ma10, trades_cut_ma10, nav_cut_ma10 = backtest_strategy_cut_ma10_after_10day(
     df_signal=df_signal,
     strategy=base_strategy,
     initial_cash=1_000_000
 )
 
-summary_base_closed = calc_closed_summary(
+summary_base_closed = calc_closed_summary_ma10(
     trades_df=results[top_strategy]["trades"],
     initial_cash=1_000_000
 )
 
-compare_cut2 = pd.DataFrame([
+compare_ma10 = pd.DataFrame([
     {
         "Phiên bản": "Gốc - chỉ tính lệnh đã SELL",
         **summary_base_closed
     },
     {
-        "Phiên bản": "Cắt nếu sau 2 phiên giá không tăng",
-        **summary_cut2
+        "Phiên bản": "Sau 10 phiên, cắt nếu giá <= MA10",
+        **summary_cut_ma10
     }
 ])
 
-compare_cut2 = compare_cut2[[
+compare_ma10 = compare_ma10[[
     "Phiên bản",
     "final_nav",
     "total_return_pct",
@@ -2324,7 +2039,7 @@ compare_cut2 = compare_cut2[[
     "max_loss_pct"
 ]]
 
-compare_cut2_show = compare_cut2.copy()
+compare_ma10_show = compare_ma10.copy()
 
 for col in [
     "total_return_pct",
@@ -2335,26 +2050,26 @@ for col in [
     "max_loss_pct"
 ]:
 
-    compare_cut2_show[col] = (
-        compare_cut2_show[col]
+    compare_ma10_show[col] = (
+        compare_ma10_show[col]
         .round(2)
         .astype(str)
         + "%"
     )
 
-compare_cut2_show["final_nav"] = (
-    compare_cut2_show["final_nav"]
+compare_ma10_show["final_nav"] = (
+    compare_ma10_show["final_nav"]
     .round(0)
     .astype(int)
     .map("{:,}".format)
 )
 
-compare_cut2_show["payoff"] = (
-    compare_cut2_show["payoff"]
+compare_ma10_show["payoff"] = (
+    compare_ma10_show["payoff"]
     .round(2)
 )
 
-compare_cut2_show = compare_cut2_show.rename(columns={
+compare_ma10_show = compare_ma10_show.rename(columns={
     "final_nav": "Final NAV",
     "total_return_pct": "Total Return",
     "num_trades": "Trades",
@@ -2368,39 +2083,41 @@ compare_cut2_show = compare_cut2_show.rename(columns={
     "max_loss_pct": "Max Loss"
 })
 
-st.subheader("So sánh chiến lược gốc và chiến lược cắt nếu sau 2 phiên giá không tăng")
+st.subheader("So sánh chiến lược gốc và chiến lược cắt theo MA10 sau 10 phiên")
 
 st.dataframe(
-    compare_cut2_show,
+    compare_ma10_show,
     hide_index=True,
     use_container_width=True
 )
 
+
 # =========================
-# LỊCH SỬ GIAO DỊCH BẢN CẮT 2 NGÀY
+# LỊCH SỬ GIAO DỊCH BẢN CẮT MA10
 # =========================
 
-st.subheader("Lịch sử giao dịch - Cắt nếu sau 2 phiên giá không tăng")
+st.subheader("Lịch sử giao dịch - Sau 10 phiên, cắt nếu giá <= MA10")
 
-if trades_cut2.empty:
+if trades_cut_ma10.empty:
 
     st.warning("Không phát sinh giao dịch.")
 
 else:
 
-    trades_cut2_show = trades_cut2.copy()
+    trades_cut_ma10_show = trades_cut_ma10.copy()
 
-    trades_cut2_show["date"] = pd.to_datetime(
-        trades_cut2_show["date"]
+    trades_cut_ma10_show["date"] = pd.to_datetime(
+        trades_cut_ma10_show["date"]
     ).dt.strftime("%Y-%m-%d")
 
-    if "buy_date" in trades_cut2_show.columns:
-        trades_cut2_show["buy_date"] = pd.to_datetime(
-            trades_cut2_show["buy_date"]
+    if "buy_date" in trades_cut_ma10_show.columns:
+        trades_cut_ma10_show["buy_date"] = pd.to_datetime(
+            trades_cut_ma10_show["buy_date"]
         ).dt.strftime("%Y-%m-%d")
 
     num_cols = [
         f"price_{ticker_input}",
+        "MA10",
         "buy_price",
         "shares",
         "value",
@@ -2410,18 +2127,19 @@ else:
     ]
 
     for col in num_cols:
-        if col in trades_cut2_show.columns:
-            trades_cut2_show[col] = pd.to_numeric(
-                trades_cut2_show[col],
+        if col in trades_cut_ma10_show.columns:
+            trades_cut_ma10_show[col] = pd.to_numeric(
+                trades_cut_ma10_show[col],
                 errors="coerce"
             ).round(2)
 
-    trades_cut2_show = trades_cut2_show.rename(columns={
+    trades_cut_ma10_show = trades_cut_ma10_show.rename(columns={
         "date": "Date",
         "action": "Action",
         "buy_date": "Buy Date",
         "buy_price": "Buy Price",
         f"price_{ticker_input}": "Price",
+        "MA10": "MA10",
         "shares": "Shares",
         "value": "Value",
         "cash_after": "Cash After",
@@ -2430,7 +2148,7 @@ else:
     })
 
     st.dataframe(
-        trades_cut2_show,
+        trades_cut_ma10_show,
         hide_index=True,
         use_container_width=True,
         height=400
