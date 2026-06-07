@@ -2155,383 +2155,112 @@ else:
     )
     
 # =========================
-# BIỂU ĐỒ NẾN GIÁ + SMDT MÃ + SMDT NGÀNH
-# lấy nến từ price_df, lấy SMDT từ df_signal
+# PHÂN TÍCH CÁC LẦN SMDT MÃ VƯỢT 70
 # =========================
 
-st.subheader(f"Biểu đồ giá, SMDT mã và SMDT ngành - {ticker_input}")
+st.subheader("Các lần SMDT mã vượt 70")
 
-price_chart_df = price_df[
-    [
-        "date",
-        "open",
-        "high",
-        "low",
-        "close"
-    ]
-].copy()
+analysis_df = df_signal.copy()
 
-smdt_chart_df = df_signal[
-    [
-        "date",
-        "smdt_ma",
-        "smdt_nganh"
-    ]
-].copy()
-
-price_chart_df["date"] = pd.to_datetime(price_chart_df["date"])
-smdt_chart_df["date"] = pd.to_datetime(smdt_chart_df["date"])
-
-chart_df = price_chart_df.merge(
-    smdt_chart_df,
-    on="date",
-    how="left"
+analysis_df["close"] = pd.to_numeric(
+    analysis_df["close"],
+    errors="coerce"
 )
 
-for col in [
-    "open",
-    "high",
-    "low",
-    "close",
-    "smdt_ma",
-    "smdt_nganh"
-]:
-    chart_df[col] = pd.to_numeric(
-        chart_df[col],
-        errors="coerce"
-    )
+analysis_df["smdt_ma"] = pd.to_numeric(
+    analysis_df["smdt_ma"],
+    errors="coerce"
+)
 
-chart_df = chart_df.dropna(
-    subset=[
-        "open",
-        "high",
-        "low",
+# ROC20
+analysis_df["roc20"] = (
+    analysis_df["close"]
+    .pct_change(20)
+    * 100
+)
+
+# khoảng cách tới đáy 60 phiên
+analysis_df["low_60"] = (
+    analysis_df["close"]
+    .rolling(60)
+    .min()
+)
+
+analysis_df["distance_from_low"] = (
+    (
+        analysis_df["close"]
+        - analysis_df["low_60"]
+    )
+    /
+    analysis_df["low_60"]
+) * 100
+
+# return tương lai
+analysis_df["return_20d"] = (
+    (
+        analysis_df["close"].shift(-20)
+        /
+        analysis_df["close"]
+    ) - 1
+) * 100
+
+# ngày vừa vượt 70
+signal_df = analysis_df[
+    (
+        analysis_df["smdt_ma"].shift(1) < 70
+    )
+    &
+    (
+        analysis_df["smdt_ma"] >= 70
+    )
+].copy()
+
+signal_df["Kết quả"] = np.where(
+    signal_df["return_20d"] > 0,
+    "Thắng",
+    "Thua"
+)
+
+show_df = signal_df[
+    [
+        "date",
         "close",
         "smdt_ma",
-        "smdt_nganh"
+        "roc20",
+        "distance_from_low",
+        "return_20d",
+        "Kết quả"
     ]
-)
+].copy()
 
-chart_df = chart_df.sort_values("date").reset_index(drop=True)
-
-if chart_df.empty:
-
-    st.warning("Không đủ dữ liệu để vẽ biểu đồ.")
-
-else:
-
-    candle_data = []
-    smdt_ma_data = []
-    smdt_nganh_data = []
-    line_70_data = []
-
-    for _, row in chart_df.iterrows():
-
-        time_value = row["date"].strftime("%Y-%m-%d")
-
-        candle_data.append({
-            "time": time_value,
-            "open": float(row["open"]),
-            "high": float(row["high"]),
-            "low": float(row["low"]),
-            "close": float(row["close"])
-        })
-
-        smdt_ma_data.append({
-            "time": time_value,
-            "value": round(float(row["smdt_ma"]), 2)
-        })
-
-        smdt_nganh_data.append({
-            "time": time_value,
-            "value": round(float(row["smdt_nganh"]), 2)
-        })
-
-        line_70_data.append({
-            "time": time_value,
-            "value": 70
-        })
-
-    price_options = {
-        "height": 350,
-        "layout": {
-            "background": {
-                "type": "solid",
-                "color": "transparent"
-            },
-            "textColor": "#999999"
-        },
-        "grid": {
-            "vertLines": {
-                "color": "rgba(150,150,150,0.12)"
-            },
-            "horzLines": {
-                "color": "rgba(150,150,150,0.12)"
-            }
-        },
-        "timeScale": {
-            "visible": True,
-            "timeVisible": True,
-            "secondsVisible": False,
-            "barSpacing": 3,
-            "rightOffset": 2
-        },
-        "rightPriceScale": {
-            "visible": True,
-            "borderVisible": False
-        },
-        "crosshair": {
-            "mode": 1
-        },
-        "handleScroll": {
-            "mouseWheel": True,
-            "pressedMouseMove": True,
-            "horzTouchDrag": True,
-            "vertTouchDrag": False
-        },
-        "handleScale": {
-            "axisPressedMouseMove": True,
-            "mouseWheel": True,
-            "pinch": True
-        }
-    }
-
-    smdt_ma_options = price_options.copy()
-    smdt_ma_options["height"] = 180
-
-    smdt_nganh_options = price_options.copy()
-    smdt_nganh_options["height"] = 180
-
-    price_series = [
-        {
-            "type": "Candlestick",
-            "data": candle_data,
-            "options": {
-                "upColor": "#26A69A",
-                "downColor": "#EF5350",
-                "borderUpColor": "#26A69A",
-                "borderDownColor": "#EF5350",
-                "wickUpColor": "#26A69A",
-                "wickDownColor": "#EF5350",
-                "priceLineVisible": False
-            }
-        }
-    ]
-
-    smdt_ma_series = [
-        {
-            "type": "Line",
-            "data": smdt_ma_data,
-            "options": {
-                "color": "#F2C94C",
-                "lineWidth": 2,
-                "priceLineVisible": False,
-                "lastValueVisible": True
-            }
-        },
-        {
-            "type": "Line",
-            "data": line_70_data,
-            "options": {
-                "color": "#F2994A",
-                "lineWidth": 1,
-                "lineStyle": 2,
-                "priceLineVisible": False,
-                "lastValueVisible": False
-            }
-        }
-    ]
-
-    smdt_nganh_series = [
-        {
-            "type": "Line",
-            "data": smdt_nganh_data,
-            "options": {
-                "color": "#56CCF2",
-                "lineWidth": 2,
-                "priceLineVisible": False,
-                "lastValueVisible": True
-            }
-        },
-        {
-            "type": "Line",
-            "data": line_70_data,
-            "options": {
-                "color": "#F2994A",
-                "lineWidth": 1,
-                "lineStyle": 2,
-                "priceLineVisible": False,
-                "lastValueVisible": False
-            }
-        }
-    ]
-
-    renderLightweightCharts(
-        [
-            {
-                "chart": price_options,
-                "series": price_series
-            },
-            {
-                "chart": smdt_ma_options,
-                "series": smdt_ma_series
-            },
-            {
-                "chart": smdt_nganh_options,
-                "series": smdt_nganh_series
-            }
-        ],
-        key=f"price_smdt_chart_{ticker_input}"
-    )
-
-# =========================
-# KIỂM TRA SMDT CÓ ĐI TRƯỚC GIÁ KHÔNG
-# =========================
-
-st.subheader(f"Kiểm tra SMDT có đi trước giá không - {ticker_input}")
-
-test_df = df_signal.copy()
-
-test_df["date"] = pd.to_datetime(test_df["date"])
-test_df = test_df.sort_values("date").reset_index(drop=True)
-
-for col in ["close", "smdt_ma", "smdt_nganh"]:
-    test_df[col] = pd.to_numeric(test_df[col], errors="coerce")
-
-# Lợi nhuận tương lai
-for n in [5, 10, 20]:
-    test_df[f"return_{n}d_future"] = (
-        test_df["close"].shift(-n) / test_df["close"] - 1
-    ) * 100
-
-# Điều kiện SMDT
-test_df["SMDT mã >= 70"] = test_df["smdt_ma"] >= 70
-test_df["SMDT ngành >= 70"] = test_df["smdt_nganh"] >= 70
-
-# =========================
-# BẢNG 1: SMDT MÃ
-# =========================
-
-smdt_ma_result = (
-    test_df
-    .groupby("SMDT mã >= 70")[
-        [
-            "return_5d_future",
-            "return_10d_future",
-            "return_20d_future"
-        ]
-    ]
-    .mean()
-    .reset_index()
-)
-
-smdt_ma_result = smdt_ma_result.rename(columns={
-    "SMDT mã >= 70": "Điều kiện",
-    "return_5d_future": "Return sau 5 phiên",
-    "return_10d_future": "Return sau 10 phiên",
-    "return_20d_future": "Return sau 20 phiên"
+show_df = show_df.rename(columns={
+    "date": "Ngày",
+    "close": "Giá",
+    "smdt_ma": "SMDT",
+    "roc20": "ROC20 (%)",
+    "distance_from_low": "Cách đáy 60 phiên (%)",
+    "return_20d": "Return 20 phiên sau (%)"
 })
-
-smdt_ma_result["Điều kiện"] = smdt_ma_result["Điều kiện"].map({
-    True: "SMDT mã >= 70",
-    False: "SMDT mã < 70"
-})
-
-# =========================
-# BẢNG 2: SMDT NGÀNH
-# =========================
-
-smdt_nganh_result = (
-    test_df
-    .groupby("SMDT ngành >= 70")[
-        [
-            "return_5d_future",
-            "return_10d_future",
-            "return_20d_future"
-        ]
-    ]
-    .mean()
-    .reset_index()
-)
-
-smdt_nganh_result = smdt_nganh_result.rename(columns={
-    "SMDT ngành >= 70": "Điều kiện",
-    "return_5d_future": "Return sau 5 phiên",
-    "return_10d_future": "Return sau 10 phiên",
-    "return_20d_future": "Return sau 20 phiên"
-})
-
-smdt_nganh_result["Điều kiện"] = smdt_nganh_result["Điều kiện"].map({
-    True: "SMDT ngành >= 70",
-    False: "SMDT ngành < 70"
-})
-
-# Format %
-for df_temp in [smdt_ma_result, smdt_nganh_result]:
-    for col in [
-        "Return sau 5 phiên",
-        "Return sau 10 phiên",
-        "Return sau 20 phiên"
-    ]:
-        df_temp[col] = df_temp[col].round(2).astype(str) + "%"
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.write("SMDT mã")
-    st.dataframe(
-        smdt_ma_result,
-        hide_index=True,
-        use_container_width=True
-    )
-
-with col2:
-    st.write("SMDT ngành")
-    st.dataframe(
-        smdt_nganh_result,
-        hide_index=True,
-        use_container_width=True
-    )
-
-# =========================
-# TƯƠNG QUAN SMDT HIỆN TẠI VỚI RETURN TƯƠNG LAI
-# =========================
-
-st.subheader("Tương quan SMDT hiện tại với lợi nhuận tương lai")
-
-corr_rows = []
-
-for smdt_col, smdt_name in [
-    ("smdt_ma", "SMDT mã"),
-    ("smdt_nganh", "SMDT ngành")
-]:
-
-    for n in [5, 10, 20]:
-
-        corr_value = test_df[
-            [
-                smdt_col,
-                f"return_{n}d_future"
-            ]
-        ].corr().iloc[0, 1]
-
-        corr_rows.append({
-            "Biến SMDT": smdt_name,
-            "Return tương lai": f"{n} phiên sau",
-            "Tương quan": round(corr_value, 4)
-        })
-
-corr_df = pd.DataFrame(corr_rows)
 
 st.dataframe(
-    corr_df,
-    hide_index=True,
-    use_container_width=True
+    show_df.round(2),
+    use_container_width=True,
+    hide_index=True
 )
 
-st.caption("""
-Cách đọc:
-- Nếu return tương lai khi SMDT >= 70 cao hơn rõ rệt so với SMDT < 70, SMDT có thể có tác dụng dẫn giá.
-- Nếu tương quan gần 0, mối liên hệ yếu.
-- Nếu tương quan âm, SMDT có thể đang đi sau giá hoặc không phù hợp với mã này.
-""")
+st.subheader("So sánh Thắng vs Thua")
+
+summary_signal = signal_df.groupby(
+    "Kết quả"
+)[
+    [
+        "roc20",
+        "distance_from_low",
+        "return_20d"
+    ]
+].mean()
+
+st.dataframe(
+    summary_signal.round(2),
+    use_container_width=True
+)
