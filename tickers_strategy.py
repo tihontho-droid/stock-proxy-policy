@@ -1806,371 +1806,48 @@ st.write("-1 là tín hiệu dòng tiền đang/tiếp tục thoát ra.")
 st.write("Lưu ý: phải đạt điều kiện 2 phiên liên tiếp thì mới ghi nhận Buy/Sell.")
 
 # =========================
-# CHIẾN LƯỢC: MUA GỐC, SAU 10 PHIÊN NẾU GIÁ <= MA10 THÌ CẮT
-# CHỈ TÍNH HIỆU SUẤT TRÊN LỆNH ĐÃ SELL HOÀN CHỈNH
+# PHÂN TÍCH TỐC ĐỘ TĂNG SMDT Ở NHỮNG LẦN VƯỢT 70
 # =========================
 
-def calc_closed_summary_ma10(trades_df, initial_cash=1_000_000):
+st.subheader(f"Tốc độ tăng SMDT ở những lần vượt 70 - {ticker_input}")
 
-    if trades_df.empty:
-        sell_trades = pd.DataFrame()
-    else:
-        sell_trades = trades_df[
-            trades_df["action"].isin(["SELL", "SELL_CUT_MA10"])
-        ].copy()
+analysis_df = df_signal.copy()
 
-    if sell_trades.empty:
+analysis_df["date"] = pd.to_datetime(analysis_df["date"])
+analysis_df = analysis_df.sort_values("date").reset_index(drop=True)
 
-        return {
-            "final_nav": initial_cash,
-            "total_return_pct": 0,
-            "num_trades": 0,
-            "num_win": 0,
-            "num_loss": 0,
-            "win_rate_pct": 0,
-            "avg_win_pct": 0,
-            "avg_loss_pct": 0,
-            "payoff": 0,
-            "expectancy": 0,
-            "max_profit_pct": 0,
-            "max_loss_pct": 0
-        }
-
-    closed_final_nav = initial_cash + sell_trades["profit_value"].sum()
-    total_return_pct = ((closed_final_nav - initial_cash) / initial_cash) * 100
-
-    num_trades = len(sell_trades)
-
-    win_trades = sell_trades[sell_trades["profit_pct"] > 0]
-    loss_trades = sell_trades[sell_trades["profit_pct"] <= 0]
-
-    num_win = len(win_trades)
-    num_loss = len(loss_trades)
-
-    win_rate_pct = (num_win / num_trades) * 100
-
-    avg_win_pct = win_trades["profit_pct"].mean() if num_win > 0 else 0
-    avg_loss_pct = loss_trades["profit_pct"].mean() if num_loss > 0 else 0
-
-    payoff = abs(avg_win_pct / avg_loss_pct) if avg_loss_pct != 0 else 0
-
-    expectancy = (
-        (win_rate_pct / 100) * avg_win_pct
-        + (1 - win_rate_pct / 100) * avg_loss_pct
+for col in ["close", "smdt_ma"]:
+    analysis_df[col] = pd.to_numeric(
+        analysis_df[col],
+        errors="coerce"
     )
 
-    return {
-        "final_nav": closed_final_nav,
-        "total_return_pct": total_return_pct,
-        "num_trades": num_trades,
-        "num_win": num_win,
-        "num_loss": num_loss,
-        "win_rate_pct": win_rate_pct,
-        "avg_win_pct": avg_win_pct,
-        "avg_loss_pct": avg_loss_pct,
-        "payoff": payoff,
-        "expectancy": expectancy,
-        "max_profit_pct": sell_trades["profit_pct"].max(),
-        "max_loss_pct": sell_trades["profit_pct"].min()
-    }
+analysis_df = analysis_df.dropna(subset=["close", "smdt_ma"])
 
+# return tương lai
+analysis_df["return_20d"] = (
+    analysis_df["close"].shift(-20) / analysis_df["close"] - 1
+) * 100
 
-def backtest_strategy_cut_ma10_after_10day(df_signal, strategy, initial_cash=1_000_000):
-
-    data = df_signal.copy()
-    data["date"] = pd.to_datetime(data["date"])
-    data = data.sort_values("date").reset_index(drop=True)
-
-    data["MA10"] = data["close"].rolling(10).mean()
-
-    data["buy_signal"] = strategy["buy"](data).fillna(False)
-    data["sell_signal"] = strategy["sell"](data).fillna(False)
-
-    cash = initial_cash
-    shares = 0
-    position = 0
-
-    buy_price = 0
-    buy_date = None
-    buy_index = None
-
-    trades = []
-    nav_list = []
-
-    price_col = f"price_{ticker_input}"
-
-    for i, row in data.iterrows():
-
-        date = row["date"]
-        price = row["close"]
-        ma10 = row["MA10"]
-
-        if pd.isna(price):
-            continue
-
-        # BUY như chiến lược gốc
-        if position == 0 and row["buy_signal"] == True:
-
-            shares = cash // price
-            buy_value = shares * price
-            cash = cash - buy_value
-
-            buy_price = price
-            buy_date = date
-            buy_index = i
-            position = 1
-
-            trades.append({
-                "date": date,
-                "action": "BUY",
-                price_col: price,
-                "MA10": ma10,
-                "shares": shares,
-                "value": buy_value,
-                "cash_after": cash,
-                "profit_pct": 0,
-                "profit_value": 0
-            })
-
-        elif position == 1:
-
-            days_after_buy = i - buy_index
-
-            cut_ma10 = (
-                days_after_buy >= 10
-                and pd.notna(ma10)
-                and price <= ma10
-            )
-
-            normal_sell = row["sell_signal"] == True
-
-            if cut_ma10 or normal_sell:
-
-                sell_value = shares * price
-                cash = cash + sell_value
-
-                profit_pct = ((price - buy_price) / buy_price) * 100
-                profit_value = sell_value - shares * buy_price
-
-                action_name = "SELL_CUT_MA10" if cut_ma10 else "SELL"
-
-                trades.append({
-                    "date": date,
-                    "action": action_name,
-                    "buy_date": buy_date,
-                    "buy_price": buy_price,
-                    price_col: price,
-                    "MA10": ma10,
-                    "shares": shares,
-                    "value": sell_value,
-                    "cash_after": cash,
-                    "profit_pct": profit_pct,
-                    "profit_value": profit_value
-                })
-
-                shares = 0
-                position = 0
-                buy_price = 0
-                buy_date = None
-                buy_index = None
-
-        nav = cash + shares * price
-
-        nav_list.append({
-            "date": date,
-            price_col: price,
-            "MA10": ma10,
-            "cash": cash,
-            "shares": shares,
-            "NAV": nav
-        })
-
-    nav_df = pd.DataFrame(nav_list)
-    trades_df = pd.DataFrame(trades)
-
-    summary = calc_closed_summary_ma10(
-        trades_df=trades_df,
-        initial_cash=initial_cash
-    )
-
-    return summary, trades_df, nav_df
-
-
-# =========================
-# CHẠY SO SÁNH GỐC VS CẮT MA10
-# =========================
-
-base_strategy = strategies[top_strategy]
-
-summary_cut_ma10, trades_cut_ma10, nav_cut_ma10 = backtest_strategy_cut_ma10_after_10day(
-    df_signal=df_signal,
-    strategy=base_strategy,
-    initial_cash=1_000_000
+# tốc độ tăng SMDT
+analysis_df["smdt_change_3"] = (
+    analysis_df["smdt_ma"] - analysis_df["smdt_ma"].shift(3)
 )
 
-summary_base_closed = calc_closed_summary_ma10(
-    trades_df=results[top_strategy]["trades"],
-    initial_cash=1_000_000
+analysis_df["smdt_change_5"] = (
+    analysis_df["smdt_ma"] - analysis_df["smdt_ma"].shift(5)
 )
 
-compare_ma10 = pd.DataFrame([
-    {
-        "Phiên bản": "Gốc - chỉ tính lệnh đã SELL",
-        **summary_base_closed
-    },
-    {
-        "Phiên bản": "Sau 10 phiên, cắt nếu giá <= MA10",
-        **summary_cut_ma10
-    }
-])
-
-compare_ma10 = compare_ma10[[
-    "Phiên bản",
-    "final_nav",
-    "total_return_pct",
-    "num_trades",
-    "num_win",
-    "num_loss",
-    "win_rate_pct",
-    "avg_win_pct",
-    "avg_loss_pct",
-    "payoff",
-    "max_profit_pct",
-    "max_loss_pct"
-]]
-
-compare_ma10_show = compare_ma10.copy()
-
-for col in [
-    "total_return_pct",
-    "win_rate_pct",
-    "avg_win_pct",
-    "avg_loss_pct",
-    "max_profit_pct",
-    "max_loss_pct"
-]:
-
-    compare_ma10_show[col] = (
-        compare_ma10_show[col]
-        .round(2)
-        .astype(str)
-        + "%"
-    )
-
-compare_ma10_show["final_nav"] = (
-    compare_ma10_show["final_nav"]
-    .round(0)
-    .astype(int)
-    .map("{:,}".format)
+analysis_df["smdt_change_10"] = (
+    analysis_df["smdt_ma"] - analysis_df["smdt_ma"].shift(10)
 )
 
-compare_ma10_show["payoff"] = (
-    compare_ma10_show["payoff"]
-    .round(2)
-)
-
-compare_ma10_show = compare_ma10_show.rename(columns={
-    "final_nav": "Final NAV",
-    "total_return_pct": "Total Return",
-    "num_trades": "Trades",
-    "num_win": "Wins",
-    "num_loss": "Losses",
-    "win_rate_pct": "Win Rate",
-    "avg_win_pct": "Avg Win",
-    "avg_loss_pct": "Avg Loss",
-    "payoff": "Payoff",
-    "max_profit_pct": "Max Profit",
-    "max_loss_pct": "Max Loss"
-})
-
-st.subheader("So sánh chiến lược gốc và chiến lược cắt theo MA10 sau 10 phiên")
-
-st.dataframe(
-    compare_ma10_show,
-    hide_index=True,
-    use_container_width=True
-)
-
-
-# =========================
-# LỊCH SỬ GIAO DỊCH BẢN CẮT MA10
-# =========================
-
-st.subheader("Lịch sử giao dịch - Sau 10 phiên, cắt nếu giá <= MA10")
-
-if trades_cut_ma10.empty:
-
-    st.warning("Không phát sinh giao dịch.")
-
-else:
-
-    trades_cut_ma10_show = trades_cut_ma10.copy()
-
-    trades_cut_ma10_show["date"] = pd.to_datetime(
-        trades_cut_ma10_show["date"]
-    ).dt.strftime("%Y-%m-%d")
-
-    if "buy_date" in trades_cut_ma10_show.columns:
-        trades_cut_ma10_show["buy_date"] = pd.to_datetime(
-            trades_cut_ma10_show["buy_date"]
-        ).dt.strftime("%Y-%m-%d")
-
-    num_cols = [
-        f"price_{ticker_input}",
-        "MA10",
-        "buy_price",
-        "shares",
-        "value",
-        "cash_after",
-        "profit_pct",
-        "profit_value"
-    ]
-
-    for col in num_cols:
-        if col in trades_cut_ma10_show.columns:
-            trades_cut_ma10_show[col] = pd.to_numeric(
-                trades_cut_ma10_show[col],
-                errors="coerce"
-            ).round(2)
-
-    trades_cut_ma10_show = trades_cut_ma10_show.rename(columns={
-        "date": "Date",
-        "action": "Action",
-        "buy_date": "Buy Date",
-        "buy_price": "Buy Price",
-        f"price_{ticker_input}": "Price",
-        "MA10": "MA10",
-        "shares": "Shares",
-        "value": "Value",
-        "cash_after": "Cash After",
-        "profit_pct": "PnL %",
-        "profit_value": "PnL"
-    })
-
-    st.dataframe(
-        trades_cut_ma10_show,
-        hide_index=True,
-        use_container_width=True,
-        height=400
-    )
-    
+# chỉ lấy ngày vừa vượt 70
 signal_df = analysis_df[
     (analysis_df["smdt_ma"].shift(1) < 70)
     &
     (analysis_df["smdt_ma"] >= 70)
 ].copy()
-
-signal_df["smdt_change_5"] = (
-    signal_df["smdt_ma"]
-    -
-    analysis_df["smdt_ma"].shift(5)
-)
-
-signal_df["smdt_change_10"] = (
-    signal_df["smdt_ma"]
-    -
-    analysis_df["smdt_ma"].shift(10)
-)
 
 signal_df["Kết quả"] = np.where(
     signal_df["return_20d"] > 0,
@@ -2178,38 +1855,62 @@ signal_df["Kết quả"] = np.where(
     "Thua"
 )
 
+show_df = signal_df[
+    [
+        "date",
+        "close",
+        "smdt_ma",
+        "smdt_change_3",
+        "smdt_change_5",
+        "smdt_change_10",
+        "return_20d",
+        "Kết quả"
+    ]
+].copy()
+
+show_df = show_df.rename(columns={
+    "date": "Ngày",
+    "close": "Giá",
+    "smdt_ma": "SMDT mã",
+    "smdt_change_3": "SMDT tăng 3 phiên",
+    "smdt_change_5": "SMDT tăng 5 phiên",
+    "smdt_change_10": "SMDT tăng 10 phiên",
+    "return_20d": "Return 20 phiên sau"
+})
+
 st.dataframe(
-    signal_df[
-        [
-            "date",
-            "close",
-            "smdt_ma",
-            "smdt_change_5",
-            "smdt_change_10",
-            "return_20d",
-            "Kết quả"
-        ]
-    ].round(2),
+    show_df.round(2),
+    hide_index=True,
     use_container_width=True
 )
 
-summary = (
+summary_df = (
     signal_df
-    .groupby("Kết quả")
-    [
+    .groupby("Kết quả")[
         [
             "smdt_ma",
+            "smdt_change_3",
             "smdt_change_5",
             "smdt_change_10",
             "return_20d"
         ]
     ]
     .mean()
+    .reset_index()
 )
 
-st.write("Trung bình theo kết quả")
+summary_df = summary_df.rename(columns={
+    "smdt_ma": "SMDT TB",
+    "smdt_change_3": "SMDT tăng 3 phiên TB",
+    "smdt_change_5": "SMDT tăng 5 phiên TB",
+    "smdt_change_10": "SMDT tăng 10 phiên TB",
+    "return_20d": "Return 20 phiên TB"
+})
+
+st.write("Tổng hợp Thắng / Thua")
 
 st.dataframe(
-    summary.round(2),
+    summary_df.round(2),
+    hide_index=True,
     use_container_width=True
 )
