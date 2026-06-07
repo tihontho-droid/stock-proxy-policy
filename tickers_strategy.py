@@ -2153,3 +2153,56 @@ else:
         use_container_width=True,
         height=400
     )
+
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+from sklearn.preprocessing import MinMaxScaler
+
+def plot_price_smdt_streamlit(df, ticker):
+    data = df[df["ticker"] == ticker].copy()
+
+    data["date"] = pd.to_datetime(data["date"])
+    data = data.sort_values("date")
+
+    cols = ["close", "smdt_nganh", "smdt_ma"]
+
+    data = data.dropna(subset=cols)
+
+    scaler = MinMaxScaler()
+    data[["close_norm", "smdt_nganh_norm", "smdt_ma_norm"]] = scaler.fit_transform(
+        data[cols]
+    )
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=data["date"],
+        y=data["close_norm"],
+        mode="lines",
+        name=f"Giá {ticker}"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=data["date"],
+        y=data["smdt_nganh_norm"],
+        mode="lines",
+        name="SMDT ngành"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=data["date"],
+        y=data["smdt_ma_norm"],
+        mode="lines",
+        name=f"SMDT mã {ticker}"
+    ))
+
+    fig.update_layout(
+        title=f"So sánh giá, SMDT ngành và SMDT mã - {ticker}",
+        xaxis_title="Ngày",
+        yaxis_title="Giá trị chuẩn hóa 0-1",
+        hovermode="x unified",
+        height=600
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
