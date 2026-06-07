@@ -2383,3 +2383,155 @@ else:
         ],
         key=f"price_smdt_chart_{ticker_input}"
     )
+
+# =========================
+# KIỂM TRA SMDT CÓ ĐI TRƯỚC GIÁ KHÔNG
+# =========================
+
+st.subheader(f"Kiểm tra SMDT có đi trước giá không - {ticker_input}")
+
+test_df = df_signal.copy()
+
+test_df["date"] = pd.to_datetime(test_df["date"])
+test_df = test_df.sort_values("date").reset_index(drop=True)
+
+for col in ["close", "smdt_ma", "smdt_nganh"]:
+    test_df[col] = pd.to_numeric(test_df[col], errors="coerce")
+
+# Lợi nhuận tương lai
+for n in [5, 10, 20]:
+    test_df[f"return_{n}d_future"] = (
+        test_df["close"].shift(-n) / test_df["close"] - 1
+    ) * 100
+
+# Điều kiện SMDT
+test_df["SMDT mã >= 70"] = test_df["smdt_ma"] >= 70
+test_df["SMDT ngành >= 70"] = test_df["smdt_nganh"] >= 70
+
+# =========================
+# BẢNG 1: SMDT MÃ
+# =========================
+
+smdt_ma_result = (
+    test_df
+    .groupby("SMDT mã >= 70")[
+        [
+            "return_5d_future",
+            "return_10d_future",
+            "return_20d_future"
+        ]
+    ]
+    .mean()
+    .reset_index()
+)
+
+smdt_ma_result = smdt_ma_result.rename(columns={
+    "SMDT mã >= 70": "Điều kiện",
+    "return_5d_future": "Return sau 5 phiên",
+    "return_10d_future": "Return sau 10 phiên",
+    "return_20d_future": "Return sau 20 phiên"
+})
+
+smdt_ma_result["Điều kiện"] = smdt_ma_result["Điều kiện"].map({
+    True: "SMDT mã >= 70",
+    False: "SMDT mã < 70"
+})
+
+# =========================
+# BẢNG 2: SMDT NGÀNH
+# =========================
+
+smdt_nganh_result = (
+    test_df
+    .groupby("SMDT ngành >= 70")[
+        [
+            "return_5d_future",
+            "return_10d_future",
+            "return_20d_future"
+        ]
+    ]
+    .mean()
+    .reset_index()
+)
+
+smdt_nganh_result = smdt_nganh_result.rename(columns={
+    "SMDT ngành >= 70": "Điều kiện",
+    "return_5d_future": "Return sau 5 phiên",
+    "return_10d_future": "Return sau 10 phiên",
+    "return_20d_future": "Return sau 20 phiên"
+})
+
+smdt_nganh_result["Điều kiện"] = smdt_nganh_result["Điều kiện"].map({
+    True: "SMDT ngành >= 70",
+    False: "SMDT ngành < 70"
+})
+
+# Format %
+for df_temp in [smdt_ma_result, smdt_nganh_result]:
+    for col in [
+        "Return sau 5 phiên",
+        "Return sau 10 phiên",
+        "Return sau 20 phiên"
+    ]:
+        df_temp[col] = df_temp[col].round(2).astype(str) + "%"
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write("SMDT mã")
+    st.dataframe(
+        smdt_ma_result,
+        hide_index=True,
+        use_container_width=True
+    )
+
+with col2:
+    st.write("SMDT ngành")
+    st.dataframe(
+        smdt_nganh_result,
+        hide_index=True,
+        use_container_width=True
+    )
+
+# =========================
+# TƯƠNG QUAN SMDT HIỆN TẠI VỚI RETURN TƯƠNG LAI
+# =========================
+
+st.subheader("Tương quan SMDT hiện tại với lợi nhuận tương lai")
+
+corr_rows = []
+
+for smdt_col, smdt_name in [
+    ("smdt_ma", "SMDT mã"),
+    ("smdt_nganh", "SMDT ngành")
+]:
+
+    for n in [5, 10, 20]:
+
+        corr_value = test_df[
+            [
+                smdt_col,
+                f"return_{n}d_future"
+            ]
+        ].corr().iloc[0, 1]
+
+        corr_rows.append({
+            "Biến SMDT": smdt_name,
+            "Return tương lai": f"{n} phiên sau",
+            "Tương quan": round(corr_value, 4)
+        })
+
+corr_df = pd.DataFrame(corr_rows)
+
+st.dataframe(
+    corr_df,
+    hide_index=True,
+    use_container_width=True
+)
+
+st.caption("""
+Cách đọc:
+- Nếu return tương lai khi SMDT >= 70 cao hơn rõ rệt so với SMDT < 70, SMDT có thể có tác dụng dẫn giá.
+- Nếu tương quan gần 0, mối liên hệ yếu.
+- Nếu tương quan âm, SMDT có thể đang đi sau giá hoặc không phù hợp với mã này.
+""")
