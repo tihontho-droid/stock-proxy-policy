@@ -2153,15 +2153,18 @@ else:
         use_container_width=True,
         height=400
     )
-
+    
 # =========================
-# BIỂU ĐỒ SO SÁNH GIÁ - SMDT MÃ - SMDT NGÀNH
+# BIỂU ĐỒ NẾN GIÁ + SMDT MÃ + SMDT NGÀNH
 # =========================
 
 st.subheader(f"Biểu đồ giá, SMDT mã và SMDT ngành - {ticker_input}")
 
 chart_df = df_signal[[
     "date",
+    "open",
+    "high",
+    "low",
     "close",
     "smdt_ma",
     "smdt_nganh"
@@ -2169,10 +2172,13 @@ chart_df = df_signal[[
 
 chart_df["date"] = pd.to_datetime(chart_df["date"])
 
-for col in ["close", "smdt_ma", "smdt_nganh"]:
+for col in ["open", "high", "low", "close", "smdt_ma", "smdt_nganh"]:
     chart_df[col] = pd.to_numeric(chart_df[col], errors="coerce")
 
-chart_df = chart_df.dropna(subset=["close", "smdt_ma", "smdt_nganh"])
+chart_df = chart_df.dropna(
+    subset=["open", "high", "low", "close", "smdt_ma", "smdt_nganh"]
+)
+
 chart_df = chart_df.sort_values("date").reset_index(drop=True)
 
 if chart_df.empty:
@@ -2181,30 +2187,170 @@ if chart_df.empty:
 
 else:
 
-    def minmax_100(series):
-        min_val = series.min()
-        max_val = series.max()
+    candle_data = []
+    smdt_ma_data = []
+    smdt_nganh_data = []
+    line_70_data = []
 
-        if max_val == min_val:
-            return series * 0 + 100
+    for _, row in chart_df.iterrows():
 
-        return (series - min_val) / (max_val - min_val) * 100
+        time_value = row["date"].strftime("%Y-%m-%d")
 
-    chart_df[f"Giá {ticker_input}"] = minmax_100(chart_df["close"])
-    chart_df[f"SMDT mã {ticker_input}"] = minmax_100(chart_df["smdt_ma"])
-    chart_df["SMDT ngành"] = minmax_100(chart_df["smdt_nganh"])
+        candle_data.append({
+            "time": time_value,
+            "open": float(row["open"]),
+            "high": float(row["high"]),
+            "low": float(row["low"]),
+            "close": float(row["close"])
+        })
 
-    chart_show = chart_df.set_index("date")[
-        [
-            f"Giá {ticker_input}",
-            f"SMDT mã {ticker_input}",
-            "SMDT ngành"
-        ]
+        smdt_ma_data.append({
+            "time": time_value,
+            "value": round(float(row["smdt_ma"]), 2)
+        })
+
+        smdt_nganh_data.append({
+            "time": time_value,
+            "value": round(float(row["smdt_nganh"]), 2)
+        })
+
+        line_70_data.append({
+            "time": time_value,
+            "value": 70
+        })
+
+    common_layout = {
+        "layout": {
+            "background": {
+                "type": "solid",
+                "color": "transparent"
+            },
+            "textColor": "#999999"
+        },
+        "grid": {
+            "vertLines": {
+                "color": "rgba(150,150,150,0.12)"
+            },
+            "horzLines": {
+                "color": "rgba(150,150,150,0.12)"
+            }
+        },
+        "timeScale": {
+            "visible": True,
+            "timeVisible": True,
+            "secondsVisible": False,
+            "barSpacing": 3,
+            "rightOffset": 2,
+            "fixLeftEdge": False,
+            "fixRightEdge": False
+        },
+        "rightPriceScale": {
+            "visible": True,
+            "borderVisible": False
+        },
+        "crosshair": {
+            "mode": 1
+        },
+        "handleScroll": {
+            "mouseWheel": True,
+            "pressedMouseMove": True,
+            "horzTouchDrag": True,
+            "vertTouchDrag": False
+        },
+        "handleScale": {
+            "axisPressedMouseMove": True,
+            "mouseWheel": True,
+            "pinch": True
+        }
+    }
+
+    price_options = common_layout.copy()
+    price_options["height"] = 350
+
+    smdt_ma_options = common_layout.copy()
+    smdt_ma_options["height"] = 180
+
+    smdt_nganh_options = common_layout.copy()
+    smdt_nganh_options["height"] = 180
+
+    price_series = [
+        {
+            "type": "Candlestick",
+            "data": candle_data,
+            "options": {
+                "upColor": "#26A69A",
+                "downColor": "#EF5350",
+                "borderUpColor": "#26A69A",
+                "borderDownColor": "#EF5350",
+                "wickUpColor": "#26A69A",
+                "wickDownColor": "#EF5350",
+                "priceLineVisible": False
+            }
+        }
     ]
 
-    st.line_chart(chart_show)
+    smdt_ma_series = [
+        {
+            "type": "Line",
+            "data": smdt_ma_data,
+            "options": {
+                "color": "#F2C94C",
+                "lineWidth": 2,
+                "priceLineVisible": False,
+                "lastValueVisible": True
+            }
+        },
+        {
+            "type": "Line",
+            "data": line_70_data,
+            "options": {
+                "color": "#F2994A",
+                "lineWidth": 1,
+                "lineStyle": 2,
+                "priceLineVisible": False,
+                "lastValueVisible": False
+            }
+        }
+    ]
 
-    st.caption(
-        "Biểu đồ đã chuẩn hóa về thang 0-100 để so sánh xu hướng. "
-        "Không phải giá trị gốc."
+    smdt_nganh_series = [
+        {
+            "type": "Line",
+            "data": smdt_nganh_data,
+            "options": {
+                "color": "#56CCF2",
+                "lineWidth": 2,
+                "priceLineVisible": False,
+                "lastValueVisible": True
+            }
+        },
+        {
+            "type": "Line",
+            "data": line_70_data,
+            "options": {
+                "color": "#F2994A",
+                "lineWidth": 1,
+                "lineStyle": 2,
+                "priceLineVisible": False,
+                "lastValueVisible": False
+            }
+        }
+    ]
+
+    renderLightweightCharts(
+        [
+            {
+                "chart": price_options,
+                "series": price_series
+            },
+            {
+                "chart": smdt_ma_options,
+                "series": smdt_ma_series
+            },
+            {
+                "chart": smdt_nganh_options,
+                "series": smdt_nganh_series
+            }
+        ],
+        key=f"price_smdt_chart_{ticker_input}"
     )
