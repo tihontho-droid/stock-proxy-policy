@@ -1806,373 +1806,380 @@ st.write("-1 là tín hiệu dòng tiền đang/tiếp tục thoát ra.")
 st.write("Lưu ý: phải đạt điều kiện 2 phiên liên tiếp thì mới ghi nhận Buy/Sell.")
 
 # =========================
-# KIỂM TRA MFE SAU 3 - 5 - 10 PHIÊN Ở MỖI LỆNH BUY
-# MFE = mức lãi tối đa từng đạt được sau BUY
+# KIỂM TRA CẮT LỖ SỚM T+2 ĐẾN T+10
 # =========================
 
-st.subheader("Kiểm tra MFE sau 3 - 5 - 10 phiên kể từ ngày BUY")
+st.subheader("Kiểm tra cắt lỗ sớm theo T+2 đến T+10")
 
-trades_top = results[top_strategy]["trades"].copy()
-price_col = f"price_{ticker_input}"
+st.write("""
+Quy tắc kiểm tra:
+- Vẫn BUY theo chiến lược gốc.
+- Sau khi mua, nếu đến T+n mà giá chưa tăng so với giá mua thì SELL sớm.
+- Nếu giá đã tăng thì tiếp tục giữ theo tín hiệu SELL gốc.
+""")
 
-if trades_top.empty:
+def backtest_strategy_time_stop(
+    df_signal,
+    strategy,
+    stop_after_days,
+    initial_cash=1_000_000
+):
 
-    st.warning("Chiến lược TOP 1 không có giao dịch nên không thể kiểm tra.")
+    data = df_signal.copy()
+    data["date"] = pd.to_datetime(data["date"])
+    data = data.sort_values("date").reset_index(drop=True)
+
+    data["buy_signal"] = strategy["buy"](data).fillna(False)
+    data["sell_signal"] = strategy["sell"](data).fillna(False)
+
+    cash = initial_cash
+    shares = 0
+    position = 0
+
+    trades = []
+    nav_list = []
+
+    buy_price = None
+    buy_date = None
+    buy_index = None
+
+    price_col = f"price_{ticker_input}"
+
+    for i, row in data.iterrows():
+
+        date = row["date"]
+        price = row["close"]
+
+        if pd.isna(price):
+            continue
+
+        # =========================
+        # BUY
+        # =========================
+        if position == 0 and row["buy_signal"] == True:
+
+            shares = cash // price
+            buy_value = shares * price
+            cash = cash - buy_value
+
+            buy_price = price
+            buy_date = date
+            buy_index = i
+            position = 1
+
+            trades.append({
+                "date": date,
+                "action": "BUY",
+                "reason": "BUY signal",
+                price_col: price,
+                "shares": shares,
+                "value": buy_value,
+                "cash_after": cash,
+                "profit_pct": 0,
+                "profit_value": 0,
+                "holding_days": 0
+            })
+
+        # =========================
+        # SELL
+        # =========================
+        elif position == 1:
+
+            holding_days = i - buy_index
+
+            return_since_buy = ((price - buy_price) / buy_price) * 100
+
+            sell_by_time_stop = (
+                holding_days == stop_after_days
+                and return_since_buy <= 0
+            )
+
+            sell_by_original_signal = row["sell_signal"] == True
+
+            if sell_by_time_stop or sell_by_original_signal:
+
+                sell_value = shares * price
+                cash = cash + sell_value
+
+                profit_pct = ((price - buy_price) / buy_price) * 100
+                profit_value = sell_value - shares * buy_price
+
+                if sell_by_time_stop:
+                    reason = f"Time stop T+{stop_after_days}"
+                else:
+                    reason = "SELL signal gốc"
+
+                trades.append({
+                    "date": date,
+                    "action": "SELL",
+                    "reason": reason,
+                    "buy_date": buy_date,
+                    "buy_price": buy_price,
+                    price_col: price,
+                    "shares": shares,
+                    "value": sell_value,
+                    "cash_after": cash,
+                    "profit_pct": profit_pct,
+                    "profit_value": profit_value,
+                    "holding_days": holding_days
+                })
+
+                shares = 0
+                position = 0
+                buy_price = None
+                buy_date = None
+                buy_index = None
+
+        nav = cash + shares * price
+
+        nav_list.append({
+            "date": date,
+            price_col: price,
+            "cash": cash,
+            "shares": shares,
+            "NAV": nav
+        })
+
+    nav_df = pd.DataFrame(nav_list)
+    trades_df = pd.DataFrame(trades)
+
+    final_nav = nav_df["NAV"].iloc[-1] if not nav_df.empty else initial_cash
+    total_return_pct = ((final_nav - initial_cash) / initial_cash) * 100
+
+    sell_trades = (
+        trades_df[trades_df["action"] == "SELL"].copy()
+        if not trades_df.empty
+        else pd.DataFrame()
+    )
+
+    if sell_trades.empty:
+
+        num_trades = 0
+        num_win = 0
+        num_loss = 0
+        win_rate_pct = 0
+        avg_win_pct = 0
+        avg_loss_pct = 0
+        payoff = 0
+        max_profit_pct = 0
+        max_loss_pct = 0
+        num_time_stop = 0
+
+    else:
+
+        num_trades = len(sell_trades)
+
+        win_trades = sell_trades[sell_trades["profit_pct"] > 0]
+        loss_trades = sell_trades[sell_trades["profit_pct"] <= 0]
+
+        num_win = len(win_trades)
+        num_loss = len(loss_trades)
+
+        win_rate_pct = (num_win / num_trades) * 100
+
+        avg_win_pct = win_trades["profit_pct"].mean() if num_win > 0 else 0
+        avg_loss_pct = loss_trades["profit_pct"].mean() if num_loss > 0 else 0
+
+        payoff = abs(avg_win_pct / avg_loss_pct) if avg_loss_pct != 0 else 0
+
+        max_profit_pct = sell_trades["profit_pct"].max()
+        max_loss_pct = sell_trades["profit_pct"].min()
+
+        num_time_stop = len(
+            sell_trades[
+                sell_trades["reason"].str.contains("Time stop", na=False)
+            ]
+        )
+
+    summary = {
+        "Rule": f"T+{stop_after_days}",
+        "Final NAV": final_nav,
+        "Total Return": total_return_pct,
+        "Trades": num_trades,
+        "Wins": num_win,
+        "Losses": num_loss,
+        "Win Rate": win_rate_pct,
+        "Avg Win": avg_win_pct,
+        "Avg Loss": avg_loss_pct,
+        "Payoff": payoff,
+        "Max Profit": max_profit_pct,
+        "Max Loss": max_loss_pct,
+        "Số lệnh cắt sớm": num_time_stop
+    }
+
+    return summary, trades_df, nav_df
+
+
+# =========================
+# CHẠY TEST T+2 ĐẾN T+10
+# =========================
+
+time_stop_results = {}
+time_stop_summary_list = []
+
+for n in range(2, 11):
+
+    summary_ts, trades_ts, nav_ts = backtest_strategy_time_stop(
+        df_signal=df_signal,
+        strategy=strategies[top_strategy],
+        stop_after_days=n,
+        initial_cash=1_000_000
+    )
+
+    time_stop_summary_list.append(summary_ts)
+
+    time_stop_results[f"T+{n}"] = {
+        "summary": summary_ts,
+        "trades": trades_ts,
+        "nav": nav_ts
+    }
+
+
+time_stop_summary = pd.DataFrame(time_stop_summary_list)
+
+# thêm dòng chiến lược gốc để so sánh
+original_row = {
+    "Rule": "Gốc",
+    "Final NAV": top_summary["final_nav"],
+    "Total Return": top_summary["total_return_pct"],
+    "Trades": top_summary["num_trades"],
+    "Wins": top_summary["num_win"],
+    "Losses": top_summary["num_loss"],
+    "Win Rate": top_summary["win_rate_pct"],
+    "Avg Win": top_summary["avg_win_pct"],
+    "Avg Loss": top_summary["avg_loss_pct"],
+    "Payoff": top_summary["payoff"],
+    "Max Profit": top_summary["max_profit_pct"],
+    "Max Loss": top_summary["max_loss_pct"],
+    "Số lệnh cắt sớm": 0
+}
+
+time_stop_summary = pd.concat(
+    [
+        pd.DataFrame([original_row]),
+        time_stop_summary
+    ],
+    ignore_index=True
+)
+
+time_stop_raw = time_stop_summary.copy()
+
+time_stop_summary = time_stop_summary.sort_values(
+    "Total Return",
+    ascending=False
+).reset_index(drop=True)
+
+
+# =========================
+# FORMAT BẢNG
+# =========================
+
+time_stop_show = time_stop_summary.copy()
+
+percent_cols = [
+    "Total Return",
+    "Win Rate",
+    "Avg Win",
+    "Avg Loss",
+    "Max Profit",
+    "Max Loss"
+]
+
+for col in percent_cols:
+
+    time_stop_show[col] = (
+        time_stop_show[col]
+        .round(2)
+        .astype(str)
+        + "%"
+    )
+
+time_stop_show["Final NAV"] = (
+    time_stop_show["Final NAV"]
+    .round(0)
+    .astype(int)
+    .map("{:,}".format)
+)
+
+time_stop_show["Payoff"] = time_stop_show["Payoff"].round(2)
+
+st.dataframe(
+    time_stop_show,
+    hide_index=True,
+    use_container_width=True,
+    height=400
+)
+
+
+# =========================
+# KẾT LUẬN RULE TỐT NHẤT
+# =========================
+
+best_rule = time_stop_summary.iloc[0]
+
+st.success(
+    f"Rule tốt nhất hiện tại là {best_rule['Rule']} "
+    f"với Total Return = {best_rule['Total Return']:.2f}% "
+    f"và Final NAV = {best_rule['Final NAV']:,.0f}"
+)
+
+
+# =========================
+# XEM CHI TIẾT LỆNH CỦA RULE TỐT NHẤT
+# =========================
+
+selected_rule = st.selectbox(
+    "Chọn rule để xem lịch sử giao dịch",
+    time_stop_summary["Rule"].tolist()
+)
+
+if selected_rule == "Gốc":
+
+    selected_trades = trades_top.copy()
 
 else:
 
-    # =========================
-    # 1. GẮN TÍN HIỆU VÀO NGÀY GIAO DỊCH
-    # =========================
+    selected_trades = time_stop_results[selected_rule]["trades"].copy()
 
-    signal_cols_check = [
-        "date",
-        "flow_nganh_good",
-        "flow_nganh_bad",
-        "flow_ma_good",
-        "flow_ma_bad",
-        "smdt_nganh_good",
-        "smdt_nganh_bad",
-        "smdt_ma_good",
-        "smdt_ma_bad"
-    ]
 
-    signal_check = df_signal[signal_cols_check].copy()
-    signal_check["date"] = pd.to_datetime(signal_check["date"])
+if selected_trades.empty:
 
-    trades_check = trades_top.copy()
-    trades_check["date"] = pd.to_datetime(trades_check["date"])
+    st.warning("Rule này không phát sinh giao dịch")
 
-    trades_check = trades_check.merge(
-        signal_check,
-        on="date",
-        how="left"
+else:
+
+    selected_trades_show = selected_trades.copy()
+
+    selected_trades_show["date"] = pd.to_datetime(
+        selected_trades_show["date"]
+    ).dt.strftime("%Y-%m-%d")
+
+    if "buy_date" in selected_trades_show.columns:
+        selected_trades_show["buy_date"] = pd.to_datetime(
+            selected_trades_show["buy_date"]
+        ).dt.strftime("%Y-%m-%d")
+
+    selected_trades_show[price_col] = selected_trades_show[price_col].round(2)
+
+    selected_trades_show["profit_pct"] = (
+        selected_trades_show["profit_pct"]
+        .round(2)
+        .astype(str)
+        + "%"
     )
 
-    # =========================
-    # 2. TẠO LÝ DO BUY / SELL
-    # =========================
-
-    signal_name_map = {
-        "flow_nganh_good": "Flow Ngành Good",
-        "flow_nganh_bad": "Flow Ngành Bad",
-        "flow_ma_good": "Flow Mã Good",
-        "flow_ma_bad": "Flow Mã Bad",
-        "smdt_nganh_good": "SMDT Ngành Good",
-        "smdt_nganh_bad": "SMDT Ngành Bad",
-        "smdt_ma_good": "SMDT Mã Good",
-        "smdt_ma_bad": "SMDT Mã Bad"
-    }
-
-    signal_cols_only = list(signal_name_map.keys())
-
-    def get_reason_streamlit(row):
-        reasons = []
-
-        for col in signal_cols_only:
-            if col in row.index and row[col] == True:
-                reasons.append(signal_name_map[col])
-
-        return ", ".join(reasons)
-
-    trades_check["reason"] = trades_check.apply(
-        get_reason_streamlit,
-        axis=1
+    selected_trades_show["cash_after"] = (
+        selected_trades_show["cash_after"]
+        .round(0)
+        .astype(int)
+        .map("{:,}".format)
     )
 
-    trades_check["trade_no"] = (
-        trades_check["action"] == "BUY"
-    ).cumsum()
-
-    # =========================
-    # 3. TÁCH BUY
-    # =========================
-
-    buy_df_check = trades_check[
-        trades_check["action"] == "BUY"
-    ][[
-        "trade_no",
-        "date",
-        price_col,
-        "reason"
-    ]].rename(columns={
-        "trade_no": "Lệnh",
-        "date": "Ngày mua",
-        price_col: "Giá mua",
-        "reason": "Buy vì"
-    })
-
-    # =========================
-    # 4. TÁCH SELL
-    # =========================
-
-    sell_df_check = trades_check[
-        trades_check["action"] == "SELL"
-    ][[
-        "trade_no",
-        "date",
-        price_col,
-        "reason",
-        "profit_pct",
-        "profit_value"
-    ]].rename(columns={
-        "trade_no": "Lệnh",
-        "date": "Ngày bán",
-        price_col: "Giá bán",
-        "reason": "Sell vì",
-        "profit_pct": "PnL %"
-    })
-
-    sell_df_check["Kết quả"] = "BREAKEVEN"
-
-    sell_df_check.loc[
-        sell_df_check["profit_value"] > 0,
-        "Kết quả"
-    ] = "WIN"
-
-    sell_df_check.loc[
-        sell_df_check["profit_value"] < 0,
-        "Kết quả"
-    ] = "LOSS"
-
-    trade_reason_table = buy_df_check.merge(
-        sell_df_check,
-        on="Lệnh",
-        how="left"
-    )
-
-    # =========================
-    # 5. TẠO MFE SAU 3 - 5 - 10 PHIÊN
-    # =========================
-
-    price_after = df_signal[[
-        "date",
-        "close"
-    ]].copy()
-
-    price_after["date"] = pd.to_datetime(price_after["date"])
-    price_after = price_after.sort_values("date").reset_index(drop=True)
-
-    # Nếu df_signal có cột high thì dùng high.
-    # Nếu không có high thì dùng close để tính MFE.
-    if "high" in df_signal.columns:
-        price_after["price_for_mfe"] = df_signal["high"].values
-    else:
-        price_after["price_for_mfe"] = df_signal["close"].values
-
-    for n in [3, 5, 10]:
-
-        future_cols = []
-
-        for k in range(1, n + 1):
-
-            col_name = f"future_high_{k}"
-            price_after[col_name] = price_after["price_for_mfe"].shift(-k)
-            future_cols.append(col_name)
-
-        price_after[f"max_price_{n}day_after"] = (
-            price_after[future_cols].max(axis=1)
-        )
-
-        price_after[f"mfe_{n}day_pct"] = (
-            price_after[f"max_price_{n}day_after"]
-            / price_after["close"]
-            - 1
-        ) * 100
-
-    trade_reason_table["Ngày mua"] = pd.to_datetime(
-        trade_reason_table["Ngày mua"]
-    )
-
-    trade_mfe = trade_reason_table.merge(
-        price_after[[
-            "date",
-            "close",
-
-            "max_price_3day_after",
-            "mfe_3day_pct",
-
-            "max_price_5day_after",
-            "mfe_5day_pct",
-
-            "max_price_10day_after",
-            "mfe_10day_pct"
-        ]],
-        left_on="Ngày mua",
-        right_on="date",
-        how="left"
-    ).drop(columns=["date"])
-
-    trade_mfe = trade_mfe.rename(columns={
-        "close": "Giá close ngày mua",
-
-        "max_price_3day_after": "Giá cao nhất sau 3 phiên",
-        "mfe_3day_pct": "MFE sau 3 phiên (%)",
-
-        "max_price_5day_after": "Giá cao nhất sau 5 phiên",
-        "mfe_5day_pct": "MFE sau 5 phiên (%)",
-
-        "max_price_10day_after": "Giá cao nhất sau 10 phiên",
-        "mfe_10day_pct": "MFE sau 10 phiên (%)"
-    })
-
-    trade_mfe["MFE 3 phiên > 0"] = (
-        trade_mfe["MFE sau 3 phiên (%)"] > 0
-    )
-
-    trade_mfe["MFE 5 phiên > 0"] = (
-        trade_mfe["MFE sau 5 phiên (%)"] > 0
-    )
-
-    trade_mfe["MFE 10 phiên > 0"] = (
-        trade_mfe["MFE sau 10 phiên (%)"] > 0
-    )
-
-    # =========================
-    # 6. BẢNG CHI TIẾT
-    # =========================
-
-    mfe_detail = trade_mfe[[
-        "Lệnh",
-        "Ngày mua",
-        "Buy vì",
-        "Giá mua",
-        "Giá close ngày mua",
-
-        "Giá cao nhất sau 3 phiên",
-        "MFE sau 3 phiên (%)",
-        "MFE 3 phiên > 0",
-
-        "Giá cao nhất sau 5 phiên",
-        "MFE sau 5 phiên (%)",
-        "MFE 5 phiên > 0",
-
-        "Giá cao nhất sau 10 phiên",
-        "MFE sau 10 phiên (%)",
-        "MFE 10 phiên > 0",
-
-        "Ngày bán",
-        "Sell vì",
-        "PnL %",
-        "Kết quả"
-    ]].copy()
-
-    mfe_detail["Ngày mua"] = (
-        pd.to_datetime(mfe_detail["Ngày mua"])
-        .dt.strftime("%Y-%m-%d")
-    )
-
-    mfe_detail["Ngày bán"] = (
-        pd.to_datetime(mfe_detail["Ngày bán"])
-        .dt.strftime("%Y-%m-%d")
-    )
-
-    num_cols = [
-        "Giá mua",
-        "Giá close ngày mua",
-
-        "Giá cao nhất sau 3 phiên",
-        "MFE sau 3 phiên (%)",
-
-        "Giá cao nhất sau 5 phiên",
-        "MFE sau 5 phiên (%)",
-
-        "Giá cao nhất sau 10 phiên",
-        "MFE sau 10 phiên (%)"
-    ]
-
-    for col in num_cols:
-        mfe_detail[col] = pd.to_numeric(
-            mfe_detail[col],
-            errors="coerce"
-        ).round(2)
-
-    mfe_detail["PnL %"] = pd.to_numeric(
-        mfe_detail["PnL %"],
-        errors="coerce"
-    ).round(2).astype(str) + "%"
+    st.subheader(f"Lịch sử giao dịch của rule {selected_rule}")
 
     st.dataframe(
-        mfe_detail.sort_values("Ngày mua"),
+        selected_trades_show,
         hide_index=True,
         use_container_width=True,
         height=500
-    )
-
-    # =========================
-    # 7. THỐNG KÊ MFE THEO WIN / LOSS
-    # =========================
-
-    st.write("Thống kê MFE trung bình theo WIN / LOSS")
-
-    mfe_stat = (
-        trade_mfe
-        .groupby("Kết quả")[[
-            "MFE sau 3 phiên (%)",
-            "MFE sau 5 phiên (%)",
-            "MFE sau 10 phiên (%)"
-        ]]
-        .agg(["count", "mean", "median", "min", "max"])
-        .round(2)
-    )
-
-    st.dataframe(
-        mfe_stat,
-        use_container_width=True
-    )
-
-    # =========================
-    # 8. WIN RATE THEO NGƯỠNG MFE
-    # =========================
-
-    st.write("Win Rate theo việc MFE có dương hay không")
-
-    winrate_rows = []
-
-    for n in [3, 5, 10]:
-
-        temp = (
-            trade_mfe
-            .groupby(f"MFE {n} phiên > 0")
-            .agg(
-                WIN=("Kết quả", lambda x: (x == "WIN").sum()),
-                LOSS=("Kết quả", lambda x: (x == "LOSS").sum())
-            )
-            .reset_index()
-        )
-
-        temp["Mốc kiểm định"] = f"MFE sau {n} phiên"
-
-        temp = temp.rename(columns={
-            f"MFE {n} phiên > 0": "MFE > 0?"
-        })
-
-        temp["Tổng"] = temp["WIN"] + temp["LOSS"]
-
-        temp["Win Rate (%)"] = (
-            temp["WIN"]
-            / temp["Tổng"]
-            * 100
-        ).round(2)
-
-        winrate_rows.append(temp)
-
-    winrate_all = pd.concat(
-        winrate_rows,
-        ignore_index=True
-    )
-
-    winrate_all = winrate_all[[
-        "Mốc kiểm định",
-        "MFE > 0?",
-        "WIN",
-        "LOSS",
-        "Tổng",
-        "Win Rate (%)"
-    ]]
-
-    st.dataframe(
-        winrate_all,
-        hide_index=True,
-        use_container_width=True
     )
