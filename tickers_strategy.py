@@ -1806,10 +1806,11 @@ st.write("-1 là tín hiệu dòng tiền đang/tiếp tục thoát ra.")
 st.write("Lưu ý: phải đạt điều kiện 2 phiên liên tiếp thì mới ghi nhận Buy/Sell.")
 
 # =========================
-# KIỂM TRA GIÁ SAU 3 - 5 - 10 PHIÊN Ở MỖI LỆNH BUY
+# KIỂM TRA MFE SAU 3 - 5 - 10 PHIÊN Ở MỖI LỆNH BUY
+# MFE = mức lãi tối đa từng đạt được sau BUY
 # =========================
 
-st.subheader("Kiểm tra giá sau 3 - 5 - 10 phiên kể từ ngày BUY")
+st.subheader("Kiểm tra MFE sau 3 - 5 - 10 phiên kể từ ngày BUY")
 
 trades_top = results[top_strategy]["trades"].copy()
 price_col = f"price_{ticker_input}"
@@ -1941,7 +1942,7 @@ else:
     )
 
     # =========================
-    # 5. TẠO GIÁ SAU 3 - 5 - 10 PHIÊN
+    # 5. TẠO MFE SAU 3 - 5 - 10 PHIÊN
     # =========================
 
     price_after = df_signal[[
@@ -1952,14 +1953,29 @@ else:
     price_after["date"] = pd.to_datetime(price_after["date"])
     price_after = price_after.sort_values("date").reset_index(drop=True)
 
+    # Nếu df_signal có cột high thì dùng high.
+    # Nếu không có high thì dùng close để tính MFE.
+    if "high" in df_signal.columns:
+        price_after["price_for_mfe"] = df_signal["high"].values
+    else:
+        price_after["price_for_mfe"] = df_signal["close"].values
+
     for n in [3, 5, 10]:
 
-        price_after[f"close_{n}day_after"] = (
-            price_after["close"].shift(-n)
+        future_cols = []
+
+        for k in range(1, n + 1):
+
+            col_name = f"future_high_{k}"
+            price_after[col_name] = price_after["price_for_mfe"].shift(-k)
+            future_cols.append(col_name)
+
+        price_after[f"max_price_{n}day_after"] = (
+            price_after[future_cols].max(axis=1)
         )
 
-        price_after[f"return_{n}day_after_pct"] = (
-            price_after[f"close_{n}day_after"]
+        price_after[f"mfe_{n}day_pct"] = (
+            price_after[f"max_price_{n}day_after"]
             / price_after["close"]
             - 1
         ) * 100
@@ -1968,66 +1984,72 @@ else:
         trade_reason_table["Ngày mua"]
     )
 
-    trade_after = trade_reason_table.merge(
+    trade_mfe = trade_reason_table.merge(
         price_after[[
             "date",
             "close",
-            "close_3day_after",
-            "return_3day_after_pct",
-            "close_5day_after",
-            "return_5day_after_pct",
-            "close_10day_after",
-            "return_10day_after_pct"
+
+            "max_price_3day_after",
+            "mfe_3day_pct",
+
+            "max_price_5day_after",
+            "mfe_5day_pct",
+
+            "max_price_10day_after",
+            "mfe_10day_pct"
         ]],
         left_on="Ngày mua",
         right_on="date",
         how="left"
     ).drop(columns=["date"])
 
-    trade_after = trade_after.rename(columns={
+    trade_mfe = trade_mfe.rename(columns={
         "close": "Giá close ngày mua",
-        "close_3day_after": "Giá close sau 3 phiên",
-        "return_3day_after_pct": "Return sau 3 phiên BUY (%)",
-        "close_5day_after": "Giá close sau 5 phiên",
-        "return_5day_after_pct": "Return sau 5 phiên BUY (%)",
-        "close_10day_after": "Giá close sau 10 phiên",
-        "return_10day_after_pct": "Return sau 10 phiên BUY (%)"
+
+        "max_price_3day_after": "Giá cao nhất sau 3 phiên",
+        "mfe_3day_pct": "MFE sau 3 phiên (%)",
+
+        "max_price_5day_after": "Giá cao nhất sau 5 phiên",
+        "mfe_5day_pct": "MFE sau 5 phiên (%)",
+
+        "max_price_10day_after": "Giá cao nhất sau 10 phiên",
+        "mfe_10day_pct": "MFE sau 10 phiên (%)"
     })
 
-    trade_after["Sau 3 phiên tăng"] = (
-        trade_after["Return sau 3 phiên BUY (%)"] > 0
+    trade_mfe["MFE 3 phiên > 0"] = (
+        trade_mfe["MFE sau 3 phiên (%)"] > 0
     )
 
-    trade_after["Sau 5 phiên tăng"] = (
-        trade_after["Return sau 5 phiên BUY (%)"] > 0
+    trade_mfe["MFE 5 phiên > 0"] = (
+        trade_mfe["MFE sau 5 phiên (%)"] > 0
     )
 
-    trade_after["Sau 10 phiên tăng"] = (
-        trade_after["Return sau 10 phiên BUY (%)"] > 0
+    trade_mfe["MFE 10 phiên > 0"] = (
+        trade_mfe["MFE sau 10 phiên (%)"] > 0
     )
 
     # =========================
     # 6. BẢNG CHI TIẾT
     # =========================
 
-    after_detail = trade_after[[
+    mfe_detail = trade_mfe[[
         "Lệnh",
         "Ngày mua",
         "Buy vì",
         "Giá mua",
         "Giá close ngày mua",
 
-        "Giá close sau 3 phiên",
-        "Return sau 3 phiên BUY (%)",
-        "Sau 3 phiên tăng",
+        "Giá cao nhất sau 3 phiên",
+        "MFE sau 3 phiên (%)",
+        "MFE 3 phiên > 0",
 
-        "Giá close sau 5 phiên",
-        "Return sau 5 phiên BUY (%)",
-        "Sau 5 phiên tăng",
+        "Giá cao nhất sau 5 phiên",
+        "MFE sau 5 phiên (%)",
+        "MFE 5 phiên > 0",
 
-        "Giá close sau 10 phiên",
-        "Return sau 10 phiên BUY (%)",
-        "Sau 10 phiên tăng",
+        "Giá cao nhất sau 10 phiên",
+        "MFE sau 10 phiên (%)",
+        "MFE 10 phiên > 0",
 
         "Ngày bán",
         "Sell vì",
@@ -2035,79 +2057,83 @@ else:
         "Kết quả"
     ]].copy()
 
-    after_detail["Ngày mua"] = (
-        pd.to_datetime(after_detail["Ngày mua"])
+    mfe_detail["Ngày mua"] = (
+        pd.to_datetime(mfe_detail["Ngày mua"])
         .dt.strftime("%Y-%m-%d")
     )
 
-    after_detail["Ngày bán"] = (
-        pd.to_datetime(after_detail["Ngày bán"])
+    mfe_detail["Ngày bán"] = (
+        pd.to_datetime(mfe_detail["Ngày bán"])
         .dt.strftime("%Y-%m-%d")
     )
 
     num_cols = [
         "Giá mua",
         "Giá close ngày mua",
-        "Giá close sau 3 phiên",
-        "Return sau 3 phiên BUY (%)",
-        "Giá close sau 5 phiên",
-        "Return sau 5 phiên BUY (%)",
-        "Giá close sau 10 phiên",
-        "Return sau 10 phiên BUY (%)"
+
+        "Giá cao nhất sau 3 phiên",
+        "MFE sau 3 phiên (%)",
+
+        "Giá cao nhất sau 5 phiên",
+        "MFE sau 5 phiên (%)",
+
+        "Giá cao nhất sau 10 phiên",
+        "MFE sau 10 phiên (%)"
     ]
 
     for col in num_cols:
-        after_detail[col] = pd.to_numeric(
-            after_detail[col],
+        mfe_detail[col] = pd.to_numeric(
+            mfe_detail[col],
             errors="coerce"
         ).round(2)
 
-    after_detail["PnL %"] = pd.to_numeric(
-        after_detail["PnL %"],
+    mfe_detail["PnL %"] = pd.to_numeric(
+        mfe_detail["PnL %"],
         errors="coerce"
     ).round(2).astype(str) + "%"
 
     st.dataframe(
-        after_detail.sort_values("Ngày mua"),
+        mfe_detail.sort_values("Ngày mua"),
         hide_index=True,
         use_container_width=True,
         height=500
     )
 
     # =========================
-    # 7. TỔNG HỢP WIN / LOSS THEO 3 - 5 - 10 PHIÊN
+    # 7. THỐNG KÊ MFE THEO WIN / LOSS
     # =========================
 
-    st.write("Tổng hợp WIN/LOSS theo phản ứng giá sau 3 - 5 - 10 phiên BUY")
+    st.write("Thống kê MFE trung bình theo WIN / LOSS")
 
-    for n in [3, 5, 10]:
+    mfe_stat = (
+        trade_mfe
+        .groupby("Kết quả")[[
+            "MFE sau 3 phiên (%)",
+            "MFE sau 5 phiên (%)",
+            "MFE sau 10 phiên (%)"
+        ]]
+        .agg(["count", "mean", "median", "min", "max"])
+        .round(2)
+    )
 
-        st.write(f"Sau {n} phiên tăng hay không")
-
-        summary_n = pd.crosstab(
-            trade_after[f"Sau {n} phiên tăng"],
-            trade_after["Kết quả"],
-            margins=True
-        )
-
-        st.dataframe(
-            summary_n,
-            use_container_width=True
-        )
+    st.dataframe(
+        mfe_stat,
+        use_container_width=True
+    )
 
     # =========================
-    # 8. WIN RATE THEO 3 - 5 - 10 PHIÊN
+    # 8. WIN RATE THEO NGƯỠNG MFE
     # =========================
 
-    st.write("Win Rate theo phản ứng giá sau 3 - 5 - 10 phiên BUY")
+    st.write("Win Rate theo việc MFE có dương hay không")
 
     winrate_rows = []
 
     for n in [3, 5, 10]:
 
         temp = (
-            trade_after
-            .groupby(f"Sau {n} phiên tăng")
+            trade_mfe
+            .groupby(f"MFE {n} phiên > 0")
             .agg(
                 WIN=("Kết quả", lambda x: (x == "WIN").sum()),
                 LOSS=("Kết quả", lambda x: (x == "LOSS").sum())
@@ -2115,10 +2141,10 @@ else:
             .reset_index()
         )
 
-        temp["Mốc kiểm định"] = f"Sau {n} phiên"
+        temp["Mốc kiểm định"] = f"MFE sau {n} phiên"
 
         temp = temp.rename(columns={
-            f"Sau {n} phiên tăng": "Giá tăng?"
+            f"MFE {n} phiên > 0": "MFE > 0?"
         })
 
         temp["Tổng"] = temp["WIN"] + temp["LOSS"]
@@ -2138,7 +2164,7 @@ else:
 
     winrate_all = winrate_all[[
         "Mốc kiểm định",
-        "Giá tăng?",
+        "MFE > 0?",
         "WIN",
         "LOSS",
         "Tổng",
