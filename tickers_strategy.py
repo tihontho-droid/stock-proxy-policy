@@ -2154,28 +2154,30 @@ else:
         height=400
     )
 
-import matplotlib.pyplot as plt
+st.subheader("Biểu đồ giá và SMDT")
 
-fig, ax = plt.subplots(figsize=(12,6))
+ticker_list = sorted(df_signal["ticker"].dropna().unique())
 
-ax.plot(
-    data["date"],
-    data["close_norm"],
-    label="Giá"
+selected_ticker = st.selectbox(
+    "Chọn mã cổ phiếu",
+    ticker_list
 )
 
-ax.plot(
-    data["date"],
-    data["smdt_nganh_norm"],
-    label="SMDT ngành"
+data = df_signal[df_signal["ticker"] == selected_ticker].copy()
+
+data["date"] = pd.to_datetime(data["date"])
+data = data.sort_values("date")
+
+data = data.dropna(subset=["close", "smdt_nganh", "smdt_ma"])
+
+data["close_norm"] = data["close"] / data["close"].iloc[0] * 100
+data["smdt_nganh_norm"] = data["smdt_nganh"] / data["smdt_nganh"].abs().iloc[0] * 100
+data["smdt_ma_norm"] = data["smdt_ma"] / data["smdt_ma"].abs().iloc[0] * 100
+
+st.line_chart(
+    data.set_index("date")[[
+        "close_norm",
+        "smdt_nganh_norm",
+        "smdt_ma_norm"
+    ]]
 )
-
-ax.plot(
-    data["date"],
-    data["smdt_ma_norm"],
-    label="SMDT mã"
-)
-
-ax.legend()
-
-st.pyplot(fig)
