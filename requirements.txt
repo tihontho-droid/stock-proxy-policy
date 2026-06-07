@@ -1,1 +1,8 @@
 streamlit-lightweight-charts
+streamlit
+pandas
+numpy
+requests
+matplotlib
+plotly
+scikit-learn
