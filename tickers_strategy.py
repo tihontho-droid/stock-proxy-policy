@@ -1806,111 +1806,286 @@ st.write("-1 là tín hiệu dòng tiền đang/tiếp tục thoát ra.")
 st.write("Lưu ý: phải đạt điều kiện 2 phiên liên tiếp thì mới ghi nhận Buy/Sell.")
 
 # =========================
-# PHÂN TÍCH TỐC ĐỘ TĂNG SMDT Ở NHỮNG LẦN VƯỢT 70
+# KIỂM TRA GIÁ SAU 5 PHIÊN Ở MỖI LỆNH BUY
 # =========================
 
-st.subheader(f"Tốc độ tăng SMDT ở những lần vượt 70 - {ticker_input}")
+st.subheader("Kiểm tra giá sau 5 phiên kể từ ngày BUY")
 
-analysis_df = df_signal.copy()
+trades_top = results[top_strategy]["trades"].copy()
+price_col = f"price_{ticker_input}"
 
-analysis_df["date"] = pd.to_datetime(analysis_df["date"])
-analysis_df = analysis_df.sort_values("date").reset_index(drop=True)
+if trades_top.empty:
 
-for col in ["close", "smdt_ma"]:
-    analysis_df[col] = pd.to_numeric(
-        analysis_df[col],
-        errors="coerce"
+    st.warning("Chiến lược TOP 1 không có giao dịch nên không thể kiểm tra.")
+
+else:
+
+    # =========================
+    # 1. GẮN TÍN HIỆU VÀO NGÀY GIAO DỊCH
+    # =========================
+
+    signal_cols_check = [
+        "date",
+        "flow_nganh_good",
+        "flow_nganh_bad",
+        "flow_ma_good",
+        "flow_ma_bad",
+        "smdt_nganh_good",
+        "smdt_nganh_bad",
+        "smdt_ma_good",
+        "smdt_ma_bad"
+    ]
+
+    signal_check = df_signal[signal_cols_check].copy()
+    signal_check["date"] = pd.to_datetime(signal_check["date"])
+
+    trades_check = trades_top.copy()
+    trades_check["date"] = pd.to_datetime(trades_check["date"])
+
+    trades_check = trades_check.merge(
+        signal_check,
+        on="date",
+        how="left"
     )
 
-analysis_df = analysis_df.dropna(subset=["close", "smdt_ma"])
+    # =========================
+    # 2. TẠO LÝ DO BUY / SELL
+    # =========================
 
-# return tương lai
-analysis_df["return_20d"] = (
-    analysis_df["close"].shift(-20) / analysis_df["close"] - 1
-) * 100
+    signal_name_map = {
+        "flow_nganh_good": "Flow Ngành Good",
+        "flow_nganh_bad": "Flow Ngành Bad",
+        "flow_ma_good": "Flow Mã Good",
+        "flow_ma_bad": "Flow Mã Bad",
+        "smdt_nganh_good": "SMDT Ngành Good",
+        "smdt_nganh_bad": "SMDT Ngành Bad",
+        "smdt_ma_good": "SMDT Mã Good",
+        "smdt_ma_bad": "SMDT Mã Bad"
+    }
 
-# tốc độ tăng SMDT
-analysis_df["smdt_change_3"] = (
-    analysis_df["smdt_ma"] - analysis_df["smdt_ma"].shift(3)
-)
+    signal_cols_only = list(signal_name_map.keys())
 
-analysis_df["smdt_change_5"] = (
-    analysis_df["smdt_ma"] - analysis_df["smdt_ma"].shift(5)
-)
+    def get_reason_streamlit(row):
+        reasons = []
 
-analysis_df["smdt_change_10"] = (
-    analysis_df["smdt_ma"] - analysis_df["smdt_ma"].shift(10)
-)
+        for col in signal_cols_only:
+            if col in row.index and row[col] == True:
+                reasons.append(signal_name_map[col])
 
-# chỉ lấy ngày vừa vượt 70
-signal_df = analysis_df[
-    (analysis_df["smdt_ma"].shift(1) < 70)
-    &
-    (analysis_df["smdt_ma"] >= 70)
-].copy()
+        return ", ".join(reasons)
 
-signal_df["Kết quả"] = np.where(
-    signal_df["return_20d"] > 0,
-    "Thắng",
-    "Thua"
-)
+    trades_check["reason"] = trades_check.apply(
+        get_reason_streamlit,
+        axis=1
+    )
 
-show_df = signal_df[
-    [
+    trades_check["trade_no"] = (
+        trades_check["action"] == "BUY"
+    ).cumsum()
+
+    # =========================
+    # 3. TÁCH BUY
+    # =========================
+
+    buy_df_check = trades_check[
+        trades_check["action"] == "BUY"
+    ][[
+        "trade_no",
         "date",
-        "close",
-        "smdt_ma",
-        "smdt_change_3",
-        "smdt_change_5",
-        "smdt_change_10",
-        "return_20d",
+        price_col,
+        "reason"
+    ]].rename(columns={
+        "trade_no": "Lệnh",
+        "date": "Ngày mua",
+        price_col: "Giá mua",
+        "reason": "Buy vì"
+    })
+
+    # =========================
+    # 4. TÁCH SELL
+    # =========================
+
+    sell_df_check = trades_check[
+        trades_check["action"] == "SELL"
+    ][[
+        "trade_no",
+        "date",
+        price_col,
+        "reason",
+        "profit_pct",
+        "profit_value"
+    ]].rename(columns={
+        "trade_no": "Lệnh",
+        "date": "Ngày bán",
+        price_col: "Giá bán",
+        "reason": "Sell vì",
+        "profit_pct": "PnL %"
+    })
+
+    sell_df_check["Kết quả"] = "BREAKEVEN"
+
+    sell_df_check.loc[
+        sell_df_check["profit_value"] > 0,
         "Kết quả"
+    ] = "WIN"
+
+    sell_df_check.loc[
+        sell_df_check["profit_value"] < 0,
+        "Kết quả"
+    ] = "LOSS"
+
+    trade_reason_table = buy_df_check.merge(
+        sell_df_check,
+        on="Lệnh",
+        how="left"
+    )
+
+    # =========================
+    # 5. TẠO GIÁ SAU 5 PHIÊN
+    # =========================
+
+    price_5day = df_signal[[
+        "date",
+        "close"
+    ]].copy()
+
+    price_5day["date"] = pd.to_datetime(price_5day["date"])
+    price_5day = price_5day.sort_values("date").reset_index(drop=True)
+
+    price_5day["close_5day_after"] = (
+        price_5day["close"].shift(-5)
+    )
+
+    price_5day["return_5day_after_pct"] = (
+        price_5day["close_5day_after"]
+        / price_5day["close"]
+        - 1
+    ) * 100
+
+    trade_reason_table["Ngày mua"] = pd.to_datetime(
+        trade_reason_table["Ngày mua"]
+    )
+
+    trade_5day = trade_reason_table.merge(
+        price_5day[[
+            "date",
+            "close",
+            "close_5day_after",
+            "return_5day_after_pct"
+        ]],
+        left_on="Ngày mua",
+        right_on="date",
+        how="left"
+    ).drop(columns=["date"])
+
+    trade_5day = trade_5day.rename(columns={
+        "close": "Giá close ngày mua",
+        "close_5day_after": "Giá close sau 5 phiên",
+        "return_5day_after_pct": "Return sau 5 phiên BUY (%)"
+    })
+
+    trade_5day["Sau 5 phiên tăng"] = (
+        trade_5day["Return sau 5 phiên BUY (%)"] > 0
+    )
+
+    # =========================
+    # 6. BẢNG CHI TIẾT
+    # =========================
+
+    fiveday_detail = trade_5day[[
+        "Lệnh",
+        "Ngày mua",
+        "Buy vì",
+        "Giá mua",
+        "Giá close ngày mua",
+        "Giá close sau 5 phiên",
+        "Return sau 5 phiên BUY (%)",
+        "Sau 5 phiên tăng",
+        "Ngày bán",
+        "Sell vì",
+        "PnL %",
+        "Kết quả"
+    ]].copy()
+
+    fiveday_detail["Ngày mua"] = (
+        pd.to_datetime(fiveday_detail["Ngày mua"])
+        .dt.strftime("%Y-%m-%d")
+    )
+
+    fiveday_detail["Ngày bán"] = (
+        pd.to_datetime(fiveday_detail["Ngày bán"])
+        .dt.strftime("%Y-%m-%d")
+    )
+
+    num_cols = [
+        "Giá mua",
+        "Giá close ngày mua",
+        "Giá close sau 5 phiên",
+        "Return sau 5 phiên BUY (%)"
     ]
-].copy()
 
-show_df = show_df.rename(columns={
-    "date": "Ngày",
-    "close": "Giá",
-    "smdt_ma": "SMDT mã",
-    "smdt_change_3": "SMDT tăng 3 phiên",
-    "smdt_change_5": "SMDT tăng 5 phiên",
-    "smdt_change_10": "SMDT tăng 10 phiên",
-    "return_20d": "Return 20 phiên sau"
-})
+    for col in num_cols:
+        fiveday_detail[col] = pd.to_numeric(
+            fiveday_detail[col],
+            errors="coerce"
+        ).round(2)
 
-st.dataframe(
-    show_df.round(2),
-    hide_index=True,
-    use_container_width=True
-)
+    fiveday_detail["PnL %"] = pd.to_numeric(
+        fiveday_detail["PnL %"],
+        errors="coerce"
+    ).round(2).astype(str) + "%"
 
-summary_df = (
-    signal_df
-    .groupby("Kết quả")[
-        [
-            "smdt_ma",
-            "smdt_change_3",
-            "smdt_change_5",
-            "smdt_change_10",
-            "return_20d"
-        ]
-    ]
-    .mean()
-    .reset_index()
-)
+    st.dataframe(
+        fiveday_detail.sort_values("Ngày mua"),
+        hide_index=True,
+        use_container_width=True,
+        height=500
+    )
 
-summary_df = summary_df.rename(columns={
-    "smdt_ma": "SMDT TB",
-    "smdt_change_3": "SMDT tăng 3 phiên TB",
-    "smdt_change_5": "SMDT tăng 5 phiên TB",
-    "smdt_change_10": "SMDT tăng 10 phiên TB",
-    "return_20d": "Return 20 phiên TB"
-})
+    # =========================
+    # 7. TỔNG HỢP WIN / LOSS
+    # =========================
 
-st.write("Tổng hợp Thắng / Thua")
+    st.write("Tổng hợp WIN/LOSS theo phản ứng giá sau 5 phiên BUY")
 
-st.dataframe(
-    summary_df.round(2),
-    hide_index=True,
-    use_container_width=True
-)
+    fiveday_summary = pd.crosstab(
+        trade_5day["Sau 5 phiên tăng"],
+        trade_5day["Kết quả"],
+        margins=True
+    )
+
+    st.dataframe(
+        fiveday_summary,
+        use_container_width=True
+    )
+
+    # =========================
+    # 8. WIN RATE
+    # =========================
+
+    fiveday_winrate = (
+        trade_5day
+        .groupby(["Sau 5 phiên tăng", "Kết quả"])
+        .size()
+        .unstack(fill_value=0)
+    )
+
+    fiveday_winrate["Tổng"] = (
+        fiveday_winrate.get("WIN", 0)
+        + fiveday_winrate.get("LOSS", 0)
+    )
+
+    fiveday_winrate["Win Rate (%)"] = (
+        fiveday_winrate.get("WIN", 0)
+        / fiveday_winrate["Tổng"]
+        * 100
+    ).round(2)
+
+    st.write("Win Rate theo phản ứng giá sau 5 phiên BUY")
+
+    st.dataframe(
+        fiveday_winrate,
+        use_container_width=True
+    )
+
+
