@@ -2154,148 +2154,62 @@ else:
         height=400
     )
     
-# =========================
-# KIỂM TRA PHÂN KỲ GIÁ & SMDT
-# =========================
+signal_df = analysis_df[
+    (analysis_df["smdt_ma"].shift(1) < 70)
+    &
+    (analysis_df["smdt_ma"] >= 70)
+].copy()
 
-st.subheader(f"Kiểm tra phân kỳ giá và SMDT - {ticker_input}")
-
-div_df = df_signal.copy()
-
-div_df["date"] = pd.to_datetime(div_df["date"])
-div_df = div_df.sort_values("date").reset_index(drop=True)
-
-for col in ["close", "smdt_ma", "smdt_nganh"]:
-    div_df[col] = pd.to_numeric(div_df[col], errors="coerce")
-
-div_df = div_df.dropna(subset=["close", "smdt_ma", "smdt_nganh"])
-
-# chọn số phiên so sánh phân kỳ
-lookback = st.slider(
-    "Số phiên so sánh phân kỳ",
-    min_value=5,
-    max_value=60,
-    value=20,
-    step=5
+signal_df["smdt_change_5"] = (
+    signal_df["smdt_ma"]
+    -
+    analysis_df["smdt_ma"].shift(5)
 )
 
-# return tương lai
-for n in [5, 10, 20]:
-    div_df[f"return_{n}d_future"] = (
-        div_df["close"].shift(-n) / div_df["close"] - 1
-    ) * 100
-
-# =========================
-# PHÂN KỲ DƯƠNG
-# Giá giảm so với lookback trước
-# SMDT tăng so với lookback trước
-# =========================
-
-div_df["bull_div_smdt_ma"] = (
-    (div_df["close"] < div_df["close"].shift(lookback)) &
-    (div_df["smdt_ma"] > div_df["smdt_ma"].shift(lookback))
+signal_df["smdt_change_10"] = (
+    signal_df["smdt_ma"]
+    -
+    analysis_df["smdt_ma"].shift(10)
 )
 
-div_df["bull_div_smdt_nganh"] = (
-    (div_df["close"] < div_df["close"].shift(lookback)) &
-    (div_df["smdt_nganh"] > div_df["smdt_nganh"].shift(lookback))
+signal_df["Kết quả"] = np.where(
+    signal_df["return_20d"] > 0,
+    "Thắng",
+    "Thua"
 )
-
-# =========================
-# PHÂN KỲ ÂM
-# Giá tăng so với lookback trước
-# SMDT giảm so với lookback trước
-# =========================
-
-div_df["bear_div_smdt_ma"] = (
-    (div_df["close"] > div_df["close"].shift(lookback)) &
-    (div_df["smdt_ma"] < div_df["smdt_ma"].shift(lookback))
-)
-
-div_df["bear_div_smdt_nganh"] = (
-    (div_df["close"] > div_df["close"].shift(lookback)) &
-    (div_df["smdt_nganh"] < div_df["smdt_nganh"].shift(lookback))
-)
-
-# =========================
-# TỔNG HỢP KẾT QUẢ
-# =========================
-
-summary_rows = []
-
-signals = {
-    "Bullish Div - SMDT mã": "bull_div_smdt_ma",
-    "Bullish Div - SMDT ngành": "bull_div_smdt_nganh",
-    "Bearish Div - SMDT mã": "bear_div_smdt_ma",
-    "Bearish Div - SMDT ngành": "bear_div_smdt_nganh"
-}
-
-for name, col in signals.items():
-
-    signal_data = div_df[div_df[col] == True].copy()
-
-    row = {
-        "Tín hiệu": name,
-        "Số lần xuất hiện": len(signal_data),
-        "Return TB 5 phiên sau": signal_data["return_5d_future"].mean(),
-        "Return TB 10 phiên sau": signal_data["return_10d_future"].mean(),
-        "Return TB 20 phiên sau": signal_data["return_20d_future"].mean(),
-        "Win rate 20 phiên": (
-            (signal_data["return_20d_future"] > 0).mean() * 100
-            if len(signal_data) > 0
-            else 0
-        )
-    }
-
-    summary_rows.append(row)
-
-div_summary = pd.DataFrame(summary_rows)
-
-for col in [
-    "Return TB 5 phiên sau",
-    "Return TB 10 phiên sau",
-    "Return TB 20 phiên sau",
-    "Win rate 20 phiên"
-]:
-    div_summary[col] = div_summary[col].round(2).astype(str) + "%"
 
 st.dataframe(
-    div_summary,
-    hide_index=True,
+    signal_df[
+        [
+            "date",
+            "close",
+            "smdt_ma",
+            "smdt_change_5",
+            "smdt_change_10",
+            "return_20d",
+            "Kết quả"
+        ]
+    ].round(2),
     use_container_width=True
 )
 
-# =========================
-# BẢNG CHI TIẾT PHÂN KỲ DƯƠNG SMDT MÃ
-# =========================
-
-st.subheader("Chi tiết Bullish Divergence - SMDT mã")
-
-detail_df = div_df[
-    div_df["bull_div_smdt_ma"] == True
-][
+summary = (
+    signal_df
+    .groupby("Kết quả")
     [
-        "date",
-        "close",
-        "smdt_ma",
-        "return_5d_future",
-        "return_10d_future",
-        "return_20d_future"
+        [
+            "smdt_ma",
+            "smdt_change_5",
+            "smdt_change_10",
+            "return_20d"
+        ]
     ]
-].copy()
+    .mean()
+)
 
-detail_df = detail_df.rename(columns={
-    "date": "Ngày",
-    "close": "Giá",
-    "smdt_ma": "SMDT mã",
-    "return_5d_future": "Return 5 phiên sau",
-    "return_10d_future": "Return 10 phiên sau",
-    "return_20d_future": "Return 20 phiên sau"
-})
+st.write("Trung bình theo kết quả")
 
 st.dataframe(
-    detail_df.round(2),
-    hide_index=True,
-    use_container_width=True,
-    height=350
+    summary.round(2),
+    use_container_width=True
 )
