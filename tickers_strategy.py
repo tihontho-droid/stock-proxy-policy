@@ -1806,10 +1806,10 @@ st.write("-1 là tín hiệu dòng tiền đang/tiếp tục thoát ra.")
 st.write("Lưu ý: phải đạt điều kiện 2 phiên liên tiếp thì mới ghi nhận Buy/Sell.")
 
 # =========================
-# KIỂM TRA GIÁ SAU 10 PHIÊN Ở MỖI LỆNH BUY
+# KIỂM TRA GIÁ SAU 5 PHIÊN Ở MỖI LỆNH BUY
 # =========================
 
-st.subheader("Kiểm tra giá sau 10 phiên kể từ ngày BUY")
+st.subheader("Kiểm tra giá sau 5 phiên kể từ ngày BUY")
 
 trades_top = results[top_strategy]["trades"].copy()
 price_col = f"price_{ticker_input}"
@@ -1941,24 +1941,24 @@ else:
     )
 
     # =========================
-    # 5. TẠO GIÁ SAU 10 PHIÊN
+    # 5. TẠO GIÁ SAU 5 PHIÊN
     # =========================
 
-    price_10day = df_signal[[
+    price_5day = df_signal[[
         "date",
         "close"
     ]].copy()
 
-    price_10day["date"] = pd.to_datetime(price_10day["date"])
-    price_10day = price_10day.sort_values("date").reset_index(drop=True)
+    price_5day["date"] = pd.to_datetime(price_5day["date"])
+    price_5day = price_5day.sort_values("date").reset_index(drop=True)
 
-    price_10day["close_10day_after"] = (
-        price_10day["close"].shift(-10)
+    price_5day["close_5day_after"] = (
+        price_5day["close"].shift(-5)
     )
 
-    price_10day["return_10day_after_pct"] = (
-        price_10day["close_10day_after"]
-        / price_10day["close"]
+    price_5day["return_5day_after_pct"] = (
+        price_5day["close_5day_after"]
+        / price_5day["close"]
         - 1
     ) * 100
 
@@ -1966,77 +1966,77 @@ else:
         trade_reason_table["Ngày mua"]
     )
 
-    trade_10day = trade_reason_table.merge(
-        price_10day[[
+    trade_5day = trade_reason_table.merge(
+        price_5day[[
             "date",
             "close",
-            "close_10day_after",
-            "return_10day_after_pct"
+            "close_5day_after",
+            "return_5day_after_pct"
         ]],
         left_on="Ngày mua",
         right_on="date",
         how="left"
     ).drop(columns=["date"])
 
-    trade_10day = trade_10day.rename(columns={
+    trade_5day = trade_5day.rename(columns={
         "close": "Giá close ngày mua",
-        "close_10day_after": "Giá close sau 10 phiên",
-        "return_10day_after_pct": "Return sau 10 phiên BUY (%)"
+        "close_5day_after": "Giá close sau 5 phiên",
+        "return_5day_after_pct": "Return sau 5 phiên BUY (%)"
     })
 
-    trade_10day["Sau 10 phiên tăng"] = (
-        trade_10day["Return sau 10 phiên BUY (%)"] > 0
+    trade_5day["Sau 5 phiên tăng"] = (
+        trade_5day["Return sau 5 phiên BUY (%)"] > 0
     )
 
     # =========================
     # 6. BẢNG CHI TIẾT
     # =========================
 
-    tenday_detail = trade_10day[[
+    fiveday_detail = trade_5day[[
         "Lệnh",
         "Ngày mua",
         "Buy vì",
         "Giá mua",
         "Giá close ngày mua",
-        "Giá close sau 10 phiên",
-        "Return sau 10 phiên BUY (%)",
-        "Sau 10 phiên tăng",
+        "Giá close sau 5 phiên",
+        "Return sau 5 phiên BUY (%)",
+        "Sau 5 phiên tăng",
         "Ngày bán",
         "Sell vì",
         "PnL %",
         "Kết quả"
     ]].copy()
 
-    tenday_detail["Ngày mua"] = (
-        pd.to_datetime(tenday_detail["Ngày mua"])
+    fiveday_detail["Ngày mua"] = (
+        pd.to_datetime(fiveday_detail["Ngày mua"])
         .dt.strftime("%Y-%m-%d")
     )
 
-    tenday_detail["Ngày bán"] = (
-        pd.to_datetime(tenday_detail["Ngày bán"])
+    fiveday_detail["Ngày bán"] = (
+        pd.to_datetime(fiveday_detail["Ngày bán"])
         .dt.strftime("%Y-%m-%d")
     )
 
     num_cols = [
         "Giá mua",
         "Giá close ngày mua",
-        "Giá close sau 10 phiên",
-        "Return sau 10 phiên BUY (%)"
+        "Giá close sau 5 phiên",
+        "Return sau 5 phiên BUY (%)"
     ]
 
     for col in num_cols:
-        tenday_detail[col] = pd.to_numeric(
-            tenday_detail[col],
+        fiveday_detail[col] = pd.to_numeric(
+            fiveday_detail[col],
             errors="coerce"
         ).round(2)
 
-    tenday_detail["PnL %"] = pd.to_numeric(
-        tenday_detail["PnL %"],
+    fiveday_detail["PnL %"] = pd.to_numeric(
+        fiveday_detail["PnL %"],
         errors="coerce"
     ).round(2).astype(str) + "%"
 
     st.dataframe(
-        tenday_detail.sort_values("Ngày mua"),
+        fiveday_detail.sort_values("Ngày mua"),
         hide_index=True,
         use_container_width=True,
         height=500
@@ -2046,16 +2046,16 @@ else:
     # 7. TỔNG HỢP WIN / LOSS
     # =========================
 
-    st.write("Tổng hợp WIN/LOSS theo phản ứng giá sau 10 phiên BUY")
+    st.write("Tổng hợp WIN/LOSS theo phản ứng giá sau 5 phiên BUY")
 
-    tenday_summary = pd.crosstab(
-        trade_10day["Sau 10 phiên tăng"],
-        trade_10day["Kết quả"],
+    fiveday_summary = pd.crosstab(
+        trade_5day["Sau 5 phiên tăng"],
+        trade_5day["Kết quả"],
         margins=True
     )
 
     st.dataframe(
-        tenday_summary,
+        fiveday_summary,
         use_container_width=True
     )
 
@@ -2063,27 +2063,27 @@ else:
     # 8. WIN RATE
     # =========================
 
-    tenday_winrate = (
-        trade_10day
-        .groupby(["Sau 10 phiên tăng", "Kết quả"])
+    fiveday_winrate = (
+        trade_5day
+        .groupby(["Sau 5 phiên tăng", "Kết quả"])
         .size()
         .unstack(fill_value=0)
     )
 
-    tenday_winrate["Tổng"] = (
-        tenday_winrate.get("WIN", 0)
-        + tenday_winrate.get("LOSS", 0)
+    fiveday_winrate["Tổng"] = (
+        fiveday_winrate.get("WIN", 0)
+        + fiveday_winrate.get("LOSS", 0)
     )
 
-    tenday_winrate["Win Rate (%)"] = (
-        tenday_winrate.get("WIN", 0)
-        / tenday_winrate["Tổng"]
+    fiveday_winrate["Win Rate (%)"] = (
+        fiveday_winrate.get("WIN", 0)
+        / fiveday_winrate["Tổng"]
         * 100
     ).round(2)
 
-    st.write("Win Rate theo phản ứng giá sau 10 phiên BUY")
+    st.write("Win Rate theo phản ứng giá sau 5 phiên BUY")
 
     st.dataframe(
-        tenday_winrate,
+        fiveday_winrate,
         use_container_width=True
     )
