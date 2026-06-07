@@ -2156,27 +2156,60 @@ else:
     
 # =========================
 # BIỂU ĐỒ NẾN GIÁ + SMDT MÃ + SMDT NGÀNH
+# lấy nến từ price_df, lấy SMDT từ df_signal
 # =========================
 
 st.subheader(f"Biểu đồ giá, SMDT mã và SMDT ngành - {ticker_input}")
 
-chart_df = df_signal[[
-    "date",
+price_chart_df = price_df[
+    [
+        "date",
+        "open",
+        "high",
+        "low",
+        "close"
+    ]
+].copy()
+
+smdt_chart_df = df_signal[
+    [
+        "date",
+        "smdt_ma",
+        "smdt_nganh"
+    ]
+].copy()
+
+price_chart_df["date"] = pd.to_datetime(price_chart_df["date"])
+smdt_chart_df["date"] = pd.to_datetime(smdt_chart_df["date"])
+
+chart_df = price_chart_df.merge(
+    smdt_chart_df,
+    on="date",
+    how="left"
+)
+
+for col in [
     "open",
     "high",
     "low",
     "close",
     "smdt_ma",
     "smdt_nganh"
-]].copy()
-
-chart_df["date"] = pd.to_datetime(chart_df["date"])
-
-for col in ["open", "high", "low", "close", "smdt_ma", "smdt_nganh"]:
-    chart_df[col] = pd.to_numeric(chart_df[col], errors="coerce")
+]:
+    chart_df[col] = pd.to_numeric(
+        chart_df[col],
+        errors="coerce"
+    )
 
 chart_df = chart_df.dropna(
-    subset=["open", "high", "low", "close", "smdt_ma", "smdt_nganh"]
+    subset=[
+        "open",
+        "high",
+        "low",
+        "close",
+        "smdt_ma",
+        "smdt_nganh"
+    ]
 )
 
 chart_df = chart_df.sort_values("date").reset_index(drop=True)
@@ -2219,7 +2252,8 @@ else:
             "value": 70
         })
 
-    common_layout = {
+    price_options = {
+        "height": 350,
         "layout": {
             "background": {
                 "type": "solid",
@@ -2240,9 +2274,7 @@ else:
             "timeVisible": True,
             "secondsVisible": False,
             "barSpacing": 3,
-            "rightOffset": 2,
-            "fixLeftEdge": False,
-            "fixRightEdge": False
+            "rightOffset": 2
         },
         "rightPriceScale": {
             "visible": True,
@@ -2264,13 +2296,10 @@ else:
         }
     }
 
-    price_options = common_layout.copy()
-    price_options["height"] = 350
-
-    smdt_ma_options = common_layout.copy()
+    smdt_ma_options = price_options.copy()
     smdt_ma_options["height"] = 180
 
-    smdt_nganh_options = common_layout.copy()
+    smdt_nganh_options = price_options.copy()
     smdt_nganh_options["height"] = 180
 
     price_series = [
