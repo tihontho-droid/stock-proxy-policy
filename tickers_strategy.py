@@ -2154,30 +2154,57 @@ else:
         height=400
     )
 
-st.subheader("Biểu đồ giá và SMDT")
+# =========================
+# BIỂU ĐỒ SO SÁNH GIÁ - SMDT MÃ - SMDT NGÀNH
+# =========================
 
-ticker_list = sorted(df_signal["ticker"].dropna().unique())
+st.subheader(f"Biểu đồ giá, SMDT mã và SMDT ngành - {ticker_input}")
 
-selected_ticker = st.selectbox(
-    "Chọn mã cổ phiếu",
-    ticker_list
-)
+chart_df = df_signal[[
+    "date",
+    "close",
+    "smdt_ma",
+    "smdt_nganh"
+]].copy()
 
-data = df_signal[df_signal["ticker"] == selected_ticker].copy()
+chart_df["date"] = pd.to_datetime(chart_df["date"])
 
-data["date"] = pd.to_datetime(data["date"])
-data = data.sort_values("date")
+for col in ["close", "smdt_ma", "smdt_nganh"]:
+    chart_df[col] = pd.to_numeric(chart_df[col], errors="coerce")
 
-data = data.dropna(subset=["close", "smdt_nganh", "smdt_ma"])
+chart_df = chart_df.dropna(subset=["close", "smdt_ma", "smdt_nganh"])
+chart_df = chart_df.sort_values("date").reset_index(drop=True)
 
-data["close_norm"] = data["close"] / data["close"].iloc[0] * 100
-data["smdt_nganh_norm"] = data["smdt_nganh"] / data["smdt_nganh"].abs().iloc[0] * 100
-data["smdt_ma_norm"] = data["smdt_ma"] / data["smdt_ma"].abs().iloc[0] * 100
+if chart_df.empty:
 
-st.line_chart(
-    data.set_index("date")[[
-        "close_norm",
-        "smdt_nganh_norm",
-        "smdt_ma_norm"
-    ]]
-)
+    st.warning("Không đủ dữ liệu để vẽ biểu đồ.")
+
+else:
+
+    def minmax_100(series):
+        min_val = series.min()
+        max_val = series.max()
+
+        if max_val == min_val:
+            return series * 0 + 100
+
+        return (series - min_val) / (max_val - min_val) * 100
+
+    chart_df[f"Giá {ticker_input}"] = minmax_100(chart_df["close"])
+    chart_df[f"SMDT mã {ticker_input}"] = minmax_100(chart_df["smdt_ma"])
+    chart_df["SMDT ngành"] = minmax_100(chart_df["smdt_nganh"])
+
+    chart_show = chart_df.set_index("date")[
+        [
+            f"Giá {ticker_input}",
+            f"SMDT mã {ticker_input}",
+            "SMDT ngành"
+        ]
+    ]
+
+    st.line_chart(chart_show)
+
+    st.caption(
+        "Biểu đồ đã chuẩn hóa về thang 0-100 để so sánh xu hướng. "
+        "Không phải giá trị gốc."
+    )
