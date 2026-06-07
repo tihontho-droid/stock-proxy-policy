@@ -1806,17 +1806,18 @@ st.write("-1 là tín hiệu dòng tiền đang/tiếp tục thoát ra.")
 st.write("Lưu ý: phải đạt điều kiện 2 phiên liên tiếp thì mới ghi nhận Buy/Sell.")
 
 # =========================
-# KIỂM TRA CẮT LỖ SỚM T+2 ĐẾN T+10
+# KIỂM TRA CẮT LỖ SỚM T+2 ĐẾN T+20
 # =========================
 
-st.subheader("Kiểm tra cắt lỗ sớm theo T+2 đến T+10")
+st.subheader("Kiểm tra cắt lỗ sớm theo T+2 đến T+20")
 
 st.write("""
 Quy tắc kiểm tra:
-- Vẫn BUY theo chiến lược gốc.
+- Vẫn BUY theo chiến lược TOP 1 gốc.
 - Sau khi mua, nếu đến T+n mà giá chưa tăng so với giá mua thì SELL sớm.
 - Nếu giá đã tăng thì tiếp tục giữ theo tín hiệu SELL gốc.
 """)
+
 
 def backtest_strategy_time_stop(
     df_signal,
@@ -1887,7 +1888,9 @@ def backtest_strategy_time_stop(
 
             holding_days = i - buy_index
 
-            return_since_buy = ((price - buy_price) / buy_price) * 100
+            return_since_buy = (
+                (price - buy_price) / buy_price
+            ) * 100
 
             sell_by_time_stop = (
                 holding_days == stop_after_days
@@ -1901,7 +1904,10 @@ def backtest_strategy_time_stop(
                 sell_value = shares * price
                 cash = cash + sell_value
 
-                profit_pct = ((price - buy_price) / buy_price) * 100
+                profit_pct = (
+                    (price - buy_price) / buy_price
+                ) * 100
+
                 profit_value = sell_value - shares * buy_price
 
                 if sell_by_time_stop:
@@ -1926,6 +1932,7 @@ def backtest_strategy_time_stop(
 
                 shares = 0
                 position = 0
+
                 buy_price = None
                 buy_date = None
                 buy_index = None
@@ -1943,8 +1950,15 @@ def backtest_strategy_time_stop(
     nav_df = pd.DataFrame(nav_list)
     trades_df = pd.DataFrame(trades)
 
-    final_nav = nav_df["NAV"].iloc[-1] if not nav_df.empty else initial_cash
-    total_return_pct = ((final_nav - initial_cash) / initial_cash) * 100
+    final_nav = (
+        nav_df["NAV"].iloc[-1]
+        if not nav_df.empty
+        else initial_cash
+    )
+
+    total_return_pct = (
+        (final_nav - initial_cash) / initial_cash
+    ) * 100
 
     sell_trades = (
         trades_df[trades_df["action"] == "SELL"].copy()
@@ -1961,6 +1975,7 @@ def backtest_strategy_time_stop(
         avg_win_pct = 0
         avg_loss_pct = 0
         payoff = 0
+        expectancy = 0
         max_profit_pct = 0
         max_loss_pct = 0
         num_time_stop = 0
@@ -1969,25 +1984,53 @@ def backtest_strategy_time_stop(
 
         num_trades = len(sell_trades)
 
-        win_trades = sell_trades[sell_trades["profit_pct"] > 0]
-        loss_trades = sell_trades[sell_trades["profit_pct"] <= 0]
+        win_trades = sell_trades[
+            sell_trades["profit_pct"] > 0
+        ]
+
+        loss_trades = sell_trades[
+            sell_trades["profit_pct"] <= 0
+        ]
 
         num_win = len(win_trades)
         num_loss = len(loss_trades)
 
-        win_rate_pct = (num_win / num_trades) * 100
+        win_rate_pct = (
+            num_win / num_trades
+        ) * 100
 
-        avg_win_pct = win_trades["profit_pct"].mean() if num_win > 0 else 0
-        avg_loss_pct = loss_trades["profit_pct"].mean() if num_loss > 0 else 0
+        avg_win_pct = (
+            win_trades["profit_pct"].mean()
+            if num_win > 0
+            else 0
+        )
 
-        payoff = abs(avg_win_pct / avg_loss_pct) if avg_loss_pct != 0 else 0
+        avg_loss_pct = (
+            loss_trades["profit_pct"].mean()
+            if num_loss > 0
+            else 0
+        )
+
+        payoff = (
+            abs(avg_win_pct / avg_loss_pct)
+            if avg_loss_pct != 0
+            else 0
+        )
+
+        expectancy = (
+            (win_rate_pct / 100) * avg_win_pct
+            + (1 - win_rate_pct / 100) * avg_loss_pct
+        )
 
         max_profit_pct = sell_trades["profit_pct"].max()
         max_loss_pct = sell_trades["profit_pct"].min()
 
         num_time_stop = len(
             sell_trades[
-                sell_trades["reason"].str.contains("Time stop", na=False)
+                sell_trades["reason"].str.contains(
+                    "Time stop",
+                    na=False
+                )
             ]
         )
 
@@ -2002,6 +2045,7 @@ def backtest_strategy_time_stop(
         "Avg Win": avg_win_pct,
         "Avg Loss": avg_loss_pct,
         "Payoff": payoff,
+        "Expectancy": expectancy,
         "Max Profit": max_profit_pct,
         "Max Loss": max_loss_pct,
         "Số lệnh cắt sớm": num_time_stop
@@ -2011,13 +2055,13 @@ def backtest_strategy_time_stop(
 
 
 # =========================
-# CHẠY TEST T+2 ĐẾN T+10
+# CHẠY TEST T+2 ĐẾN T+20
 # =========================
 
 time_stop_results = {}
 time_stop_summary_list = []
 
-for n in range(2, 11):
+for n in range(2, 21):
 
     summary_ts, trades_ts, nav_ts = backtest_strategy_time_stop(
         df_signal=df_signal,
@@ -2037,7 +2081,6 @@ for n in range(2, 11):
 
 time_stop_summary = pd.DataFrame(time_stop_summary_list)
 
-# thêm dòng chiến lược gốc để so sánh
 original_row = {
     "Rule": "Gốc",
     "Final NAV": top_summary["final_nav"],
@@ -2049,6 +2092,7 @@ original_row = {
     "Avg Win": top_summary["avg_win_pct"],
     "Avg Loss": top_summary["avg_loss_pct"],
     "Payoff": top_summary["payoff"],
+    "Expectancy": top_summary["expectancy"],
     "Max Profit": top_summary["max_profit_pct"],
     "Max Loss": top_summary["max_loss_pct"],
     "Số lệnh cắt sớm": 0
@@ -2062,16 +2106,16 @@ time_stop_summary = pd.concat(
     ignore_index=True
 )
 
-time_stop_raw = time_stop_summary.copy()
-
 time_stop_summary = time_stop_summary.sort_values(
     "Total Return",
     ascending=False
 ).reset_index(drop=True)
 
+time_stop_raw = time_stop_summary.copy()
+
 
 # =========================
-# FORMAT BẢNG
+# FORMAT BẢNG TỔNG HỢP
 # =========================
 
 time_stop_show = time_stop_summary.copy()
@@ -2081,6 +2125,7 @@ percent_cols = [
     "Win Rate",
     "Avg Win",
     "Avg Loss",
+    "Expectancy",
     "Max Profit",
     "Max Loss"
 ]
@@ -2101,18 +2146,21 @@ time_stop_show["Final NAV"] = (
     .map("{:,}".format)
 )
 
-time_stop_show["Payoff"] = time_stop_show["Payoff"].round(2)
+time_stop_show["Payoff"] = (
+    time_stop_show["Payoff"]
+    .round(2)
+)
 
 st.dataframe(
     time_stop_show,
     hide_index=True,
     use_container_width=True,
-    height=400
+    height=500
 )
 
 
 # =========================
-# KẾT LUẬN RULE TỐT NHẤT
+# RULE TỐT NHẤT
 # =========================
 
 best_rule = time_stop_summary.iloc[0]
@@ -2125,7 +2173,37 @@ st.success(
 
 
 # =========================
-# XEM CHI TIẾT LỆNH CỦA RULE TỐT NHẤT
+# SO SÁNH VỚI CHIẾN LƯỢC GỐC
+# =========================
+
+original_return = top_summary["total_return_pct"]
+best_return = best_rule["Total Return"]
+
+improvement = best_return - original_return
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Return gốc",
+        f"{original_return:.2f}%"
+    )
+
+with col2:
+    st.metric(
+        "Return sau khi áp dụng",
+        f"{best_return:.2f}%"
+    )
+
+with col3:
+    st.metric(
+        "Chênh lệch",
+        f"{improvement:.2f}%"
+    )
+
+
+# =========================
+# CHỌN RULE ĐỂ XEM CHI TIẾT LỆNH
 # =========================
 
 selected_rule = st.selectbox(
@@ -2155,11 +2233,24 @@ else:
     ).dt.strftime("%Y-%m-%d")
 
     if "buy_date" in selected_trades_show.columns:
+
         selected_trades_show["buy_date"] = pd.to_datetime(
             selected_trades_show["buy_date"]
         ).dt.strftime("%Y-%m-%d")
 
-    selected_trades_show[price_col] = selected_trades_show[price_col].round(2)
+    if price_col in selected_trades_show.columns:
+
+        selected_trades_show[price_col] = (
+            selected_trades_show[price_col]
+            .round(2)
+        )
+
+    if "buy_price" in selected_trades_show.columns:
+
+        selected_trades_show["buy_price"] = (
+            selected_trades_show["buy_price"]
+            .round(2)
+        )
 
     selected_trades_show["profit_pct"] = (
         selected_trades_show["profit_pct"]
@@ -2174,6 +2265,21 @@ else:
         .astype(int)
         .map("{:,}".format)
     )
+
+    selected_trades_show = selected_trades_show.rename(columns={
+        "date": "Date",
+        "action": "Action",
+        "reason": "Reason",
+        "buy_date": "Buy Date",
+        "buy_price": "Buy Price",
+        price_col: "Sell/Buy Price",
+        "shares": "Shares",
+        "value": "Value",
+        "cash_after": "Cash After",
+        "profit_pct": "PnL %",
+        "profit_value": "PnL Value",
+        "holding_days": "Holding Days"
+    })
 
     st.subheader(f"Lịch sử giao dịch của rule {selected_rule}")
 
