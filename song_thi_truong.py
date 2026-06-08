@@ -369,79 +369,68 @@ stock_after_bottom_df = stock_after_bottom_df.sort_values(
 # HIỂN THỊ
 # =========================
 
-st.subheader("📌 Ngày thị trường xác nhận tạo đáy")
+import plotly.graph_objects as go
 
-bottom_show = market_df[
-    market_df["xac_nhan_tao_day"]
-][
-    [
-        "date",
-        "waitbuy",
-        "buy",
-        "waitsell",
-        "sell",
-        "reliability"
-    ]
+# =========================
+# BIỂU ĐỒ VNINDEX + ĐIỂM TẠO ĐÁY
+# =========================
+
+vnindex_df = price_detail[
+    price_detail["ticker"] == "VNINDEX"
 ].copy()
 
-st.dataframe(bottom_show, use_container_width=True)
+vnindex_df = vnindex_df.sort_values("date").reset_index(drop=True)
 
-
-st.subheader("🏆 Top cổ phiếu tăng mạnh sau mỗi đáy")
-
-show_cols = [
-    "bottom_date",
-    "nganh",
-    "ticker",
-    "close_bottom",
-    "smdt_bottom",
-    "flow_num_bottom",
-    "cashflow_bottom",
-    "flow_vua_tich_cuc",
-    "smdt_vua_vuot_70",
-    "nganh_vua_dep",
-    return_col
-]
-
-best_stock_each_bottom = (
-    stock_after_bottom_df
-    .sort_values(["bottom_date", return_col], ascending=[True, False])
-    .groupby("bottom_date")
-    .head(top_n)
-    .reset_index(drop=True)
+bottom_points = vnindex_df.merge(
+    market_df[
+        market_df["xac_nhan_tao_day"]
+    ][["date", "buy", "waitbuy", "waitsell"]],
+    on="date",
+    how="inner"
 )
 
-st.dataframe(
-    best_stock_each_bottom[show_cols],
-    use_container_width=True
-)
+fig = go.Figure()
 
-
-st.subheader("📊 Ngành nào tăng tốt nhất sau đáy")
-
-sector_summary = (
-    stock_after_bottom_df
-    .groupby(["bottom_date", "nganh"])
-    .agg(
-        so_ma=("ticker", "nunique"),
-        return_tb=(return_col, "mean"),
-        return_max=(return_col, "max")
+fig.add_trace(
+    go.Scatter(
+        x=vnindex_df["date"],
+        y=vnindex_df["close"],
+        mode="lines",
+        name="VNINDEX"
     )
-    .reset_index()
-    .sort_values(["bottom_date", "return_tb"], ascending=[True, False])
 )
 
-st.dataframe(sector_summary, use_container_width=True)
-
-
-st.subheader("🔥 Top cổ phiếu mạnh nhất toàn bộ các đáy")
-
-top_all = stock_after_bottom_df.sort_values(
-    return_col,
-    ascending=False
-).head(top_n)
-
-st.dataframe(
-    top_all[show_cols],
-    use_container_width=True
+fig.add_trace(
+    go.Scatter(
+        x=bottom_points["date"],
+        y=bottom_points["close"],
+        mode="markers",
+        name="Xác nhận tạo đáy",
+        marker=dict(
+            size=10,
+            symbol="triangle-up"
+        ),
+        text=[
+            f"Ngày: {d}<br>Close: {c}<br>Buy: {b}<br>Waitbuy: {wb}<br>Waitsell: {ws}"
+            for d, c, b, wb, ws in zip(
+                bottom_points["date"],
+                bottom_points["close"],
+                bottom_points["buy"],
+                bottom_points["waitbuy"],
+                bottom_points["waitsell"]
+            )
+        ],
+        hoverinfo="text"
+    )
 )
+
+fig.update_layout(
+    title="VNINDEX và các điểm xác nhận tạo đáy",
+    xaxis_title="Ngày",
+    yaxis_title="VNINDEX",
+    hovermode="x unified",
+    height=500
+)
+
+st.subheader("📉 VNINDEX và điểm xác nhận tạo đáy")
+st.plotly_chart(fig, use_container_width=True)
