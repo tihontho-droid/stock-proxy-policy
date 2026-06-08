@@ -56,29 +56,6 @@ def load_all_data():
 
 
 # =========================
-# SIDEBAR
-# =========================
-
-st.sidebar.header("⚙️ Cài đặt")
-
-start_date = st.sidebar.date_input(
-    "Ngày bắt đầu",
-    pd.to_datetime("2023-06-08")
-)
-
-holding_period = st.sidebar.selectbox(
-    "Tính mức tăng sau bao nhiêu phiên?",
-    [5, 10, 20],
-    index=2
-)
-
-top_n = st.sidebar.slider(
-    "Top cổ phiếu hiển thị",
-    5, 50, 10
-)
-
-
-# =========================
 # LOAD DATA
 # =========================
 
