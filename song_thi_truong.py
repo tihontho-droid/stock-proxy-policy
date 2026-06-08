@@ -371,35 +371,21 @@ stock_after_bottom_df = stock_after_bottom_df.sort_values(
 
 import plotly.graph_objects as go
 
-# =========================
-# BIỂU ĐỒ VNINDEX + ĐIỂM TẠO ĐÁY
-# =========================
-
-vnindex_df = price_detail[
-    price_detail["ticker"] == "VNINDEX"
-].copy()
-
-vnindex_df = vnindex_df.sort_values("date").reset_index(drop=True)
-
-bottom_points = vnindex_df.merge(
-    market_df[
-        market_df["xac_nhan_tao_day"]
-    ][["date", "buy", "waitbuy", "waitsell"]],
-    on="date",
-    how="inner"
-)
-
 fig = go.Figure()
 
+# Nến
 fig.add_trace(
-    go.Scatter(
+    go.Candlestick(
         x=vnindex_df["date"],
-        y=vnindex_df["close"],
-        mode="lines",
+        open=vnindex_df["open"],
+        high=vnindex_df["high"],
+        low=vnindex_df["low"],
+        close=vnindex_df["close"],
         name="VNINDEX"
     )
 )
 
+# Đánh dấu ngày tạo đáy
 fig.add_trace(
     go.Scatter(
         x=bottom_points["date"],
@@ -407,30 +393,20 @@ fig.add_trace(
         mode="markers",
         name="Xác nhận tạo đáy",
         marker=dict(
-            size=10,
+            size=12,
+            color="green",
             symbol="triangle-up"
-        ),
-        text=[
-            f"Ngày: {d}<br>Close: {c}<br>Buy: {b}<br>Waitbuy: {wb}<br>Waitsell: {ws}"
-            for d, c, b, wb, ws in zip(
-                bottom_points["date"],
-                bottom_points["close"],
-                bottom_points["buy"],
-                bottom_points["waitbuy"],
-                bottom_points["waitsell"]
-            )
-        ],
-        hoverinfo="text"
+        )
     )
 )
 
 fig.update_layout(
-    title="VNINDEX và các điểm xác nhận tạo đáy",
-    xaxis_title="Ngày",
-    yaxis_title="VNINDEX",
-    hovermode="x unified",
-    height=500
+    title="VNINDEX - Điểm xác nhận tạo đáy",
+    xaxis_rangeslider_visible=False,
+    height=700
 )
 
-st.subheader("📉 VNINDEX và điểm xác nhận tạo đáy")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
