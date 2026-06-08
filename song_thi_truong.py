@@ -430,7 +430,7 @@ else:
     ]
 
     vnindex_options = {
-        "height": 650,
+        "height": 500,
         "layout": {
             "background": {
                 "type": "solid",
