@@ -364,98 +364,117 @@ stock_after_bottom_df = stock_after_bottom_df.sort_values(
     ascending=[True, False]
 ).reset_index(drop=True)
 
-import plotly.graph_objects as go
+st.subheader("📉 VNINDEX - Biểu đồ nến và điểm xác nhận tạo đáy")
 
-# =========================
-# LẤY DỮ LIỆU VNINDEX
-# =========================
-
-vnindex_df = price_df[
-    price_df["ticker"] == "VNINDEX"
+vnindex_df = price_detail[
+    price_detail["ticker"] == "VNINDEX"
 ].copy()
 
 if vnindex_df.empty:
-    st.warning("Không tìm thấy ticker VNINDEX trong price_df.")
+
+    st.warning("Không tìm thấy dữ liệu VNINDEX trong API getTotalTrade.")
+
 else:
-    vnindex_data = vnindex_df["totalDatas"].iloc[0]
-
-    vnindex_df = pd.DataFrame(vnindex_data)
-
-    vnindex_df["date"] = pd.to_datetime(vnindex_df["date"])
-
-    for col in ["open", "high", "low", "close"]:
-        vnindex_df[col] = pd.to_numeric(vnindex_df[col], errors="coerce")
 
     vnindex_df = vnindex_df.sort_values("date").reset_index(drop=True)
 
-    # =========================
-    # ĐIỂM XÁC NHẬN TẠO ĐÁY
-    # =========================
+    candle_data = []
 
-    bottom_points = vnindex_df.merge(
-        market_df[
-            market_df["xac_nhan_tao_day"]
-        ][["date", "buy", "waitbuy", "waitsell"]],
-        on="date",
-        how="inner"
+    for _, row in vnindex_df.iterrows():
+
+        candle_data.append({
+            "time": row["date"].strftime("%Y-%m-%d"),
+            "open": float(row["open"]),
+            "high": float(row["high"]),
+            "low": float(row["low"]),
+            "close": float(row["close"])
+        })
+
+    bottom_points = vnindex_df[
+        vnindex_df["date"].isin(bottom_dates)
+    ].copy()
+
+    bottom_markers = []
+
+    for _, row in bottom_points.iterrows():
+
+        bottom_markers.append({
+            "time": row["date"].strftime("%Y-%m-%d"),
+            "position": "belowBar",
+            "color": "#00C853",
+            "shape": "arrowUp",
+            "text": "Đáy"
+        })
+
+    vnindex_series = [
+        {
+            "type": "Candlestick",
+            "data": candle_data,
+            "markers": bottom_markers,
+            "options": {
+                "upColor": "#26A69A",
+                "downColor": "#EF5350",
+                "borderUpColor": "#26A69A",
+                "borderDownColor": "#EF5350",
+                "wickUpColor": "#26A69A",
+                "wickDownColor": "#EF5350",
+                "priceLineVisible": False
+            }
+        }
+    ]
+
+    vnindex_options = {
+        "height": 650,
+        "layout": {
+            "background": {
+                "type": "solid",
+                "color": "transparent"
+            },
+            "textColor": "#999999"
+        },
+        "grid": {
+            "vertLines": {
+                "color": "rgba(150,150,150,0.12)"
+            },
+            "horzLines": {
+                "color": "rgba(150,150,150,0.12)"
+            }
+        },
+        "timeScale": {
+            "visible": True,
+            "timeVisible": True,
+            "secondsVisible": False,
+            "barSpacing": 6,
+            "rightOffset": 5,
+            "fixLeftEdge": False,
+            "fixRightEdge": False
+        },
+        "rightPriceScale": {
+            "visible": True,
+            "borderVisible": False
+        },
+        "crosshair": {
+            "mode": 1
+        },
+        "handleScroll": {
+            "mouseWheel": True,
+            "pressedMouseMove": True,
+            "horzTouchDrag": True,
+            "vertTouchDrag": False
+        },
+        "handleScale": {
+            "axisPressedMouseMove": True,
+            "mouseWheel": True,
+            "pinch": True
+        }
+    }
+
+    renderLightweightCharts(
+        [
+            {
+                "chart": vnindex_options,
+                "series": vnindex_series
+            }
+        ],
+        key="vnindex_bottom_chart"
     )
-
-    # =========================
-    # VẼ BIỂU ĐỒ NẾN
-    # =========================
-
-    fig = go.Figure()
-
-    fig.add_trace(
-        go.Candlestick(
-            x=vnindex_df["date"],
-            open=vnindex_df["open"],
-            high=vnindex_df["high"],
-            low=vnindex_df["low"],
-            close=vnindex_df["close"],
-            name="VNINDEX"
-        )
-    )
-
-    fig.add_trace(
-        go.Scatter(
-            x=bottom_points["date"],
-            y=bottom_points["close"],
-            mode="markers",
-            name="Xác nhận tạo đáy",
-            marker=dict(
-                size=13,
-                color="green",
-                symbol="triangle-up",
-                line=dict(width=1, color="black")
-            ),
-            text=[
-                f"Ngày: {d.strftime('%Y-%m-%d')}<br>"
-                f"VNINDEX: {c:.2f}<br>"
-                f"Buy: {b}<br>"
-                f"Waitbuy: {wb}<br>"
-                f"Waitsell: {ws}"
-                for d, c, b, wb, ws in zip(
-                    bottom_points["date"],
-                    bottom_points["close"],
-                    bottom_points["buy"],
-                    bottom_points["waitbuy"],
-                    bottom_points["waitsell"]
-                )
-            ],
-            hoverinfo="text"
-        )
-    )
-
-    fig.update_layout(
-        title="VNINDEX - Biểu đồ nến và điểm xác nhận tạo đáy",
-        xaxis_title="Ngày",
-        yaxis_title="VNINDEX",
-        height=700,
-        hovermode="x unified",
-        dragmode="zoom",
-        xaxis_rangeslider_visible=True
-    )
-
-    st.subheader("📉 VNINDEX - Biểu đồ nến")
-    st.plotly_chart(fig, use_container_width=True)
