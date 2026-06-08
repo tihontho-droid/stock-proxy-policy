@@ -237,8 +237,13 @@ market_df["xac_nhan_tao_day"] = (
     & (market_df["waitbuy"] > market_df["waitsell"])
 )
 
+market_df["xac_nhan_tao_day_first"] = (
+    market_df["xac_nhan_tao_day"]
+    & ~market_df["xac_nhan_tao_day"].shift(1).fillna(False)
+)
+
 bottom_dates = market_df.loc[
-    market_df["xac_nhan_tao_day"],
+    market_df["xac_nhan_tao_day_first"],
     "date"
 ].drop_duplicates().tolist()
 
