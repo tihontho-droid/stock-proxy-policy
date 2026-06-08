@@ -246,6 +246,17 @@ bottom_dates = market_df.loc[
 # =========================
 # 6. GIÁ TOÀN BỘ CỔ PHIẾU
 # =========================
+price_df = pd.DataFrame(
+    price_data["TotalTradeReply"]["stockTotals"]
+)
+
+price_expand = price_df.explode(
+    "totalDatas"
+).copy()
+
+price_detail = pd.DataFrame(
+    price_expand["totalDatas"].tolist()
+)
 
 price_detail["ticker"] = price_expand["ticker"].values
 price_detail["date"] = pd.to_datetime(price_detail["date"])
