@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📈 Sóng thị trường - Ngành đẹp - Cổ phiếu tăng mạnh sau đáy")
+st.title("📈 Giao dịch theo sóng thị trường")
 
 
 # =========================
