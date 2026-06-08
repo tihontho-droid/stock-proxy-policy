@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
+from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(
     page_title="Sóng thị trường & ngành dẫn dắt",
@@ -246,25 +247,17 @@ bottom_dates = market_df.loc[
 # 6. GIÁ TOÀN BỘ CỔ PHIẾU
 # =========================
 
-price_df = pd.DataFrame(
-    price_data["TotalTradeReply"]["stockTotals"]
-)
-
-price_expand = price_df.explode("totalDatas").copy()
-
-price_detail = pd.DataFrame(
-    price_expand["totalDatas"].tolist()
-)
-
 price_detail["ticker"] = price_expand["ticker"].values
 price_detail["date"] = pd.to_datetime(price_detail["date"])
-price_detail["close"] = pd.to_numeric(
-    price_detail["close"],
-    errors="coerce"
-)
+
+for col in ["open", "high", "low", "close"]:
+    price_detail[col] = pd.to_numeric(
+        price_detail[col],
+        errors="coerce"
+    )
 
 price_detail = price_detail[
-    ["date", "ticker", "close"]
+    ["date", "ticker", "open", "high", "low", "close"]
 ].sort_values(["ticker", "date"]).reset_index(drop=True)
 
 for n in [5, 10, 20]:
@@ -364,7 +357,9 @@ stock_after_bottom_df = stock_after_bottom_df.sort_values(
     ascending=[True, False]
 ).reset_index(drop=True)
 
-st.subheader("📉 VNINDEX - Biểu đồ nến và điểm xác nhận tạo đáy")
+# =========================
+# 11. BIỂU ĐỒ VNINDEX
+# =========================
 
 vnindex_df = price_detail[
     price_detail["ticker"] == "VNINDEX"
