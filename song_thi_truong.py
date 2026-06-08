@@ -364,49 +364,98 @@ stock_after_bottom_df = stock_after_bottom_df.sort_values(
     ascending=[True, False]
 ).reset_index(drop=True)
 
-
-# =========================
-# HIỂN THỊ
-# =========================
-
 import plotly.graph_objects as go
 
-fig = go.Figure()
+# =========================
+# LẤY DỮ LIỆU VNINDEX
+# =========================
 
-# Nến
-fig.add_trace(
-    go.Candlestick(
-        x=vnindex_df["date"],
-        open=vnindex_df["open"],
-        high=vnindex_df["high"],
-        low=vnindex_df["low"],
-        close=vnindex_df["close"],
-        name="VNINDEX"
+vnindex_df = price_df[
+    price_df["ticker"] == "VNINDEX"
+].copy()
+
+if vnindex_df.empty:
+    st.warning("Không tìm thấy ticker VNINDEX trong price_df.")
+else:
+    vnindex_data = vnindex_df["totalDatas"].iloc[0]
+
+    vnindex_df = pd.DataFrame(vnindex_data)
+
+    vnindex_df["date"] = pd.to_datetime(vnindex_df["date"])
+
+    for col in ["open", "high", "low", "close"]:
+        vnindex_df[col] = pd.to_numeric(vnindex_df[col], errors="coerce")
+
+    vnindex_df = vnindex_df.sort_values("date").reset_index(drop=True)
+
+    # =========================
+    # ĐIỂM XÁC NHẬN TẠO ĐÁY
+    # =========================
+
+    bottom_points = vnindex_df.merge(
+        market_df[
+            market_df["xac_nhan_tao_day"]
+        ][["date", "buy", "waitbuy", "waitsell"]],
+        on="date",
+        how="inner"
     )
-)
 
-# Đánh dấu ngày tạo đáy
-fig.add_trace(
-    go.Scatter(
-        x=bottom_points["date"],
-        y=bottom_points["close"],
-        mode="markers",
-        name="Xác nhận tạo đáy",
-        marker=dict(
-            size=12,
-            color="green",
-            symbol="triangle-up"
+    # =========================
+    # VẼ BIỂU ĐỒ NẾN
+    # =========================
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Candlestick(
+            x=vnindex_df["date"],
+            open=vnindex_df["open"],
+            high=vnindex_df["high"],
+            low=vnindex_df["low"],
+            close=vnindex_df["close"],
+            name="VNINDEX"
         )
     )
-)
 
-fig.update_layout(
-    title="VNINDEX - Điểm xác nhận tạo đáy",
-    xaxis_rangeslider_visible=False,
-    height=700
-)
+    fig.add_trace(
+        go.Scatter(
+            x=bottom_points["date"],
+            y=bottom_points["close"],
+            mode="markers",
+            name="Xác nhận tạo đáy",
+            marker=dict(
+                size=13,
+                color="green",
+                symbol="triangle-up",
+                line=dict(width=1, color="black")
+            ),
+            text=[
+                f"Ngày: {d.strftime('%Y-%m-%d')}<br>"
+                f"VNINDEX: {c:.2f}<br>"
+                f"Buy: {b}<br>"
+                f"Waitbuy: {wb}<br>"
+                f"Waitsell: {ws}"
+                for d, c, b, wb, ws in zip(
+                    bottom_points["date"],
+                    bottom_points["close"],
+                    bottom_points["buy"],
+                    bottom_points["waitbuy"],
+                    bottom_points["waitsell"]
+                )
+            ],
+            hoverinfo="text"
+        )
+    )
 
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
+    fig.update_layout(
+        title="VNINDEX - Biểu đồ nến và điểm xác nhận tạo đáy",
+        xaxis_title="Ngày",
+        yaxis_title="VNINDEX",
+        height=700,
+        hovermode="x unified",
+        dragmode="zoom",
+        xaxis_rangeslider_visible=True
+    )
+
+    st.subheader("📉 VNINDEX - Biểu đồ nến")
+    st.plotly_chart(fig, use_container_width=True)
