@@ -1168,68 +1168,40 @@ else:
                     "return_pct",
                     ascending=False
                 ).head(5).reset_index(drop=True)
-
+                
                 # =========================
-                # HIỂN THỊ TOP 5 DẠNG KHUNG NGANG
+                # HIỂN THỊ TOP 5 DẠNG CARD NHỎ
                 # =========================
                 
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
                 
                     with st.container(border=True):
                 
-                        c1, c2, c3, c4, c5, c6 = st.columns(
-                            [1.0, 2.2, 1.3, 1.3, 1.3, 1.3]
+                        st.markdown(f"#### TOP {i + 1}")
+                
+                        st.markdown(
+                            f"""
+                            **{row["nganh"]}**  
+                            <span style="font-size:28px; font-weight:800;">{row["ticker"]}</span>
+                            """,
+                            unsafe_allow_html=True
                         )
                 
-                        with c1:
+                        c1, c2, c3 = st.columns(3)
                 
-                            st.markdown(
-                                f"""
-                                ### #{i+1}
-                                **{row['ticker']}**
-                                """
-                            )
+                        with c1:
+                            st.caption("Thị trường tạo đáy")
+                            st.write(row["market_bottom_date"].strftime("%d/%m/%Y"))
                 
                         with c2:
-                
-                            st.markdown(
-                                f"""
-                                **{row['nganh']}**
-                
-                                Đáy TT: {row['market_bottom_date'].strftime('%d/%m/%Y')}
-                                """
-                            )
+                            st.caption("Cổ phiếu tạo đáy")
+                            st.write(row["stock_bottom_date"].strftime("%d/%m/%Y"))
                 
                         with c3:
+                            st.caption("Cổ phiếu tạo đỉnh")
+                            st.write(row["peak_date"].strftime("%d/%m/%Y"))
                 
-                            st.metric(
-                                "Đáy CP",
-                                row["stock_bottom_date"].strftime("%d/%m/%Y")
-                            )
-                
-                        with c4:
-                
-                            st.metric(
-                                "Đỉnh",
-                                row["peak_date"].strftime("%d/%m/%Y")
-                            )
-                
-                        with c5:
-                
-                            st.metric(
-                                "GTGD TB",
-                                f"{row['avg_value_20']/1e9:.0f} tỷ"
-                            )
-                
-                        with c6:
-                
-                            st.metric(
-                                "Tăng",
-                                f"+{row['return_pct']:.1f}%"
-                            )
-                
-                        st.caption(
-                            f"Giá đáy {row['stock_bottom_price']:.2f}  •  "
-                            f"Giá đỉnh {row['peak_price']:.2f}  •  "
-                            f"Kết thúc sóng {row['stock_next_bottom_date'].strftime('%d/%m/%Y')}"
+                        st.metric(
+                            label="Hiệu suất",
+                            value=f"+{row['return_pct']:.1f}%"
                         )
