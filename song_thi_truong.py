@@ -1,35 +1,26 @@
 import streamlit as st
 import pandas as pd
 import requests
-from streamlit_lightweight_charts import renderLightweightCharts
 
-
-# =========================
-# CẤU HÌNH TRANG
-# =========================
 
 st.set_page_config(
-    page_title="Sóng thị trường",
+    page_title="Bảng tạo đáy thị trường",
     layout="wide"
 )
 
-st.title("📈 Giao dịch theo sóng thị trường")
+st.title("📌 Bảng tín hiệu tạo đáy thị trường")
 
 start_date = "2023-06-08"
 
 
-# =========================
-# HÀM GỌI API
-# =========================
-
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def post_api(url, payload):
     r = requests.post(url, json=payload)
     r.raise_for_status()
     return r.json()
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=86400)
 def load_all_data():
     account = "uyen.png"
 
@@ -48,20 +39,11 @@ def load_all_data():
         {"CashFlowBranchRequest": {"account": account}}
     )
 
-    price_data = post_api(
-        "https://stocktraders.vn/service/data/getTotalTrade",
-        {"TotalTradeRequest": {"account": account}}
-    )
+    return wave_data, smdt_data, flow_data
 
-    return wave_data, smdt_data, flow_data, price_data
-
-
-# =========================
-# LOAD DATA
-# =========================
 
 with st.spinner("Đang tải dữ liệu..."):
-    wave_data, smdt_data, flow_data, price_data = load_all_data()
+    wave_data, smdt_data, flow_data = load_all_data()
 
 
 # =========================
@@ -96,9 +78,7 @@ waves_data_df = waves_data_df[
     waves_data_df["date"] >= pd.to_datetime(start_date)
 ].copy()
 
-waves_data_df = waves_data_df.sort_values(
-    "date"
-).reset_index(drop=True)
+waves_data_df = waves_data_df.sort_values("date").reset_index(drop=True)
 
 
 # =========================
@@ -116,10 +96,7 @@ smdt_detail = pd.DataFrame(
 )
 
 smdt_detail["nganh"] = smdt_expand["keyName"].values
-
-smdt_detail["date"] = pd.to_datetime(
-    smdt_detail["date"]
-)
+smdt_detail["date"] = pd.to_datetime(smdt_detail["date"])
 
 smdt_detail["smdt"] = pd.to_numeric(
     smdt_detail["smdt"],
@@ -131,11 +108,7 @@ smdt_detail = smdt_detail[
 ].copy()
 
 smdt_detail = smdt_detail[
-    [
-        "date",
-        "nganh",
-        "smdt"
-    ]
+    ["date", "nganh", "smdt"]
 ].sort_values(["nganh", "date"]).reset_index(drop=True)
 
 
@@ -147,19 +120,14 @@ flow_branch_df = pd.DataFrame(
     flow_data["CashFlowBranchReply"]["cashFlowBranchs"]
 )
 
-flow_expand = flow_branch_df.explode(
-    "cashFlowBranchDatas"
-).copy()
+flow_expand = flow_branch_df.explode("cashFlowBranchDatas").copy()
 
 flow_detail = pd.DataFrame(
     flow_expand["cashFlowBranchDatas"].tolist()
 )
 
 flow_detail["date"] = flow_expand["date"].values
-
-flow_detail["date"] = pd.to_datetime(
-    flow_detail["date"]
-)
+flow_detail["date"] = pd.to_datetime(flow_detail["date"])
 
 flow_detail = flow_detail.rename(columns={
     "name": "nganh",
@@ -176,12 +144,7 @@ flow_map = {
 flow_detail["flow_num"] = flow_detail["cashflow"].map(flow_map)
 
 flow_detail = flow_detail[
-    [
-        "date",
-        "nganh",
-        "cashflow",
-        "flow_num"
-    ]
+    ["date", "nganh", "cashflow", "flow_num"]
 ]
 
 
@@ -222,7 +185,7 @@ sector_all_df["nganh_vua_dep"] = (
 
 
 # =========================
-# 5. XÁC ĐỊNH ĐÁY GIỐNG NOTEBOOK
+# 5. GỘP TÍN HIỆU NGÀNH THEO NGÀY
 # =========================
 
 nganh_signal_by_date = (
@@ -242,28 +205,19 @@ market_df = waves_data_df.merge(
     how="left"
 )
 
-market_df["nganh_vua_dep"] = (
-    market_df["nganh_vua_dep"]
-    .fillna(False)
-)
+market_df["nganh_vua_dep"] = market_df["nganh_vua_dep"].fillna(False)
+market_df["so_nganh_flow_vua_tich_cuc"] = market_df["so_nganh_flow_vua_tich_cuc"].fillna(0)
+market_df["so_nganh_smdt_vua_vuot_70"] = market_df["so_nganh_smdt_vua_vuot_70"].fillna(0)
 
-market_df["so_nganh_flow_vua_tich_cuc"] = (
-    market_df["so_nganh_flow_vua_tich_cuc"]
-    .fillna(0)
-)
+market_df = market_df.sort_values("date").reset_index(drop=True)
 
-market_df["so_nganh_smdt_vua_vuot_70"] = (
-    market_df["so_nganh_smdt_vua_vuot_70"]
-    .fillna(0)
-)
 
-market_df = market_df.sort_values(
-    "date"
-).reset_index(drop=True)
-
+# =========================
+# 6. TẠO BẢNG TẠO ĐÁY GIỐNG NOTEBOOK
+# =========================
 
 is_nganh_dep = False
-da_xac_nhan_day = False
+da_xac_nhan_trong_chu_ky = False
 
 nganh_dang_dep_list = []
 chuan_bi_list = []
@@ -271,28 +225,20 @@ xac_nhan_list = []
 
 for _, row in market_df.iterrows():
 
-    if da_xac_nhan_day:
-
-        if row["waitbuy"] <= row["waitsell"]:
-            da_xac_nhan_day = False
-            is_nganh_dep = False
-
-        nganh_dang_dep_list.append(False)
-        chuan_bi_list.append(False)
-        xac_nhan_list.append(False)
-        continue
-
     if row["nganh_vua_dep"]:
         is_nganh_dep = True
+        da_xac_nhan_trong_chu_ky = False
 
     xac_nhan_signal = (
         is_nganh_dep
+        and not da_xac_nhan_trong_chu_ky
         and (row["buy"] > 25)
         and (row["waitbuy"] > row["waitsell"])
     )
 
     chuan_bi_signal = (
         is_nganh_dep
+        and not da_xac_nhan_trong_chu_ky
         and (row["waitbuy"] > 60)
         and (row["waitbuy"] > row["waitsell"])
         and not xac_nhan_signal
@@ -303,8 +249,7 @@ for _, row in market_df.iterrows():
     xac_nhan_list.append(xac_nhan_signal)
 
     if xac_nhan_signal:
-        is_nganh_dep = False
-        da_xac_nhan_day = True
+        da_xac_nhan_trong_chu_ky = True
 
 
 market_df["nganh_dang_dep"] = nganh_dang_dep_list
@@ -325,234 +270,8 @@ market_df.loc[
 
 
 # =========================
-# CHỈ DÙNG CHO BIỂU ĐỒ
-# Mỗi cụm xác nhận chỉ lấy ngày đầu tiên
+# 7. HIỂN THỊ BẢNG
 # =========================
-
-market_df["xac_nhan_tao_day_chart"] = (
-    market_df["xac_nhan_tao_day"]
-    & ~market_df["xac_nhan_tao_day"].shift(1).fillna(False)
-)
-
-bottom_dates = market_df.loc[
-    market_df["xac_nhan_tao_day_chart"],
-    "date"
-].tolist()
-
-
-# =========================
-# 6. BUNG GIÁ
-# =========================
-
-price_df = pd.DataFrame(
-    price_data["TotalTradeReply"]["stockTotals"]
-)
-
-price_expand = price_df.explode(
-    "totalDatas"
-).copy()
-
-price_detail = pd.DataFrame(
-    price_expand["totalDatas"].tolist()
-)
-
-price_detail["ticker"] = price_expand["ticker"].values
-
-price_detail["date"] = pd.to_datetime(
-    price_detail["date"]
-)
-
-for col in ["open", "high", "low", "close"]:
-    price_detail[col] = pd.to_numeric(
-        price_detail[col],
-        errors="coerce"
-    )
-
-price_detail = price_detail[
-    [
-        "date",
-        "ticker",
-        "open",
-        "high",
-        "low",
-        "close"
-    ]
-].sort_values(["ticker", "date"]).reset_index(drop=True)
-
-
-# =========================
-# 7. TÌM VNINDEX
-# =========================
-
-all_tickers = (
-    price_detail["ticker"]
-    .drop_duplicates()
-    .astype(str)
-    .sort_values()
-    .tolist()
-)
-
-possible_vnindex_names = [
-    "VNINDEX",
-    "VN-INDEX",
-    "VN_INDEX",
-    "INDEX",
-    "VNI"
-]
-
-vnindex_ticker = None
-
-for name in possible_vnindex_names:
-
-    if name in all_tickers:
-        vnindex_ticker = name
-        break
-
-if vnindex_ticker is None:
-
-    st.error("Không tìm thấy mã VNINDEX trong API getTotalTrade.")
-    st.write("Một số ticker có trong dữ liệu:")
-    st.write(all_tickers[:100])
-    st.stop()
-
-vnindex_df = price_detail[
-    price_detail["ticker"] == vnindex_ticker
-].copy()
-
-vnindex_df = vnindex_df.sort_values(
-    "date"
-).reset_index(drop=True)
-
-
-# =========================
-# 8. TẠO DỮ LIỆU NẾN
-# =========================
-
-candle_data = []
-
-for _, row in vnindex_df.iterrows():
-
-    candle_data.append({
-        "time": row["date"].strftime("%Y-%m-%d"),
-        "open": float(row["open"]),
-        "high": float(row["high"]),
-        "low": float(row["low"]),
-        "close": float(row["close"])
-    })
-
-
-# =========================
-# 9. MARKER TRÊN BIỂU ĐỒ
-# =========================
-
-bottom_points = vnindex_df[
-    vnindex_df["date"].isin(bottom_dates)
-].copy()
-
-bottom_markers = []
-
-for _, row in bottom_points.iterrows():
-
-    bottom_markers.append({
-        "time": row["date"].strftime("%Y-%m-%d"),
-        "position": "belowBar",
-        "color": "#00C853",
-        "shape": "arrowUp",
-        "text": "Xác nhận đáy"
-    })
-
-
-# =========================
-# 10. VẼ BIỂU ĐỒ NẾN
-# =========================
-
-st.subheader(
-    f"📉 {vnindex_ticker} - Biểu đồ nến và điểm xác nhận tạo đáy"
-)
-
-st.write(
-    f"Số điểm xác nhận tạo đáy: {len(bottom_markers)}"
-)
-
-vnindex_series = [
-    {
-        "type": "Candlestick",
-        "data": candle_data,
-        "markers": bottom_markers,
-        "options": {
-            "upColor": "#26A69A",
-            "downColor": "#EF5350",
-            "borderUpColor": "#26A69A",
-            "borderDownColor": "#EF5350",
-            "wickUpColor": "#26A69A",
-            "wickDownColor": "#EF5350",
-            "priceLineVisible": False
-        }
-    }
-]
-
-vnindex_options = {
-    "height": 600,
-    "layout": {
-        "background": {
-            "type": "solid",
-            "color": "transparent"
-        },
-        "textColor": "#999999"
-    },
-    "grid": {
-        "vertLines": {
-            "color": "rgba(150,150,150,0.12)"
-        },
-        "horzLines": {
-            "color": "rgba(150,150,150,0.12)"
-        }
-    },
-    "timeScale": {
-        "visible": True,
-        "timeVisible": True,
-        "secondsVisible": False,
-        "barSpacing": 6,
-        "rightOffset": 5,
-        "fixLeftEdge": False,
-        "fixRightEdge": False
-    },
-    "rightPriceScale": {
-        "visible": True,
-        "borderVisible": False
-    },
-    "crosshair": {
-        "mode": 1
-    },
-    "handleScroll": {
-        "mouseWheel": True,
-        "pressedMouseMove": True,
-        "horzTouchDrag": True,
-        "vertTouchDrag": False
-    },
-    "handleScale": {
-        "axisPressedMouseMove": True,
-        "mouseWheel": True,
-        "pinch": True
-    }
-}
-
-renderLightweightCharts(
-    [
-        {
-            "chart": vnindex_options,
-            "series": vnindex_series
-        }
-    ],
-    key="vnindex_bottom_chart"
-)
-
-
-# =========================
-# 11. BẢNG GIỐNG NOTEBOOK
-# =========================
-
-st.subheader("📌 Bảng tín hiệu tạo đáy")
 
 bottom_signal_df = market_df[
     [
@@ -564,21 +283,19 @@ bottom_signal_df = market_df[
         "reliability",
         "nganh_vua_dep",
         "nganh_dang_dep",
+        "so_nganh_flow_vua_tich_cuc",
+        "so_nganh_smdt_vua_vuot_70",
         "chuan_bi_tao_day",
         "xac_nhan_tao_day",
-        "xac_nhan_tao_day_chart",
         "bottom_phase"
     ]
 ].copy()
 
-bottom_signal_df["date"] = (
-    bottom_signal_df["date"]
-    .dt.strftime("%Y-%m-%d")
-)
+bottom_signal_df["date"] = bottom_signal_df["date"].dt.strftime("%Y-%m-%d")
 
 st.dataframe(
     bottom_signal_df,
     hide_index=True,
     use_container_width=True,
-    height=500
+    height=600
 )
