@@ -237,21 +237,70 @@ vnindex_df = vnindex_df.sort_values(
 
 
 # =========================
-# 5. TẠO CANDLE DATA
+# 5. XÁC ĐỊNH NGÀY TẠO ĐÁY GIỐNG NOTEBOOK
 # =========================
 
-candle_data = []
+market_df = waves_data_df.merge(
+    sector_all_df[
+        [
+            "date",
+            "nganh_vua_dep"
+        ]
+    ].groupby("date")
+    .agg(
+        nganh_vua_dep=("nganh_vua_dep", "any")
+    )
+    .reset_index(),
+    on="date",
+    how="left"
+)
 
-for _, row in vnindex_df.iterrows():
+market_df["nganh_vua_dep"] = (
+    market_df["nganh_vua_dep"]
+    .fillna(False)
+)
 
-    candle_data.append({
-        "time": row["date"].strftime("%Y-%m-%d"),
-        "open": float(row["open"]),
-        "high": float(row["high"]),
-        "low": float(row["low"]),
-        "close": float(row["close"])
-    })
+market_df = market_df.sort_values("date").reset_index(drop=True)
 
+is_nganh_dep = False
+
+nganh_dang_dep_list = []
+chuan_bi_list = []
+xac_nhan_list = []
+
+for i, row in market_df.iterrows():
+
+    if row["nganh_vua_dep"]:
+        is_nganh_dep = True
+
+    xac_nhan_signal = (
+        is_nganh_dep
+        and (row["buy"] > 25)
+        and (row["waitbuy"] > row["waitsell"])
+    )
+
+    chuan_bi_signal = (
+        is_nganh_dep
+        and (row["waitbuy"] > 60)
+        and (row["waitbuy"] > row["waitsell"])
+        and not xac_nhan_signal
+    )
+
+    nganh_dang_dep_list.append(is_nganh_dep)
+    chuan_bi_list.append(chuan_bi_signal)
+    xac_nhan_list.append(xac_nhan_signal)
+
+    if xac_nhan_signal:
+        is_nganh_dep = False
+
+market_df["nganh_dang_dep"] = nganh_dang_dep_list
+market_df["chuan_bi_tao_day"] = chuan_bi_list
+market_df["xac_nhan_tao_day"] = xac_nhan_list
+
+bottom_dates = market_df.loc[
+    market_df["xac_nhan_tao_day"],
+    "date"
+].drop_duplicates().tolist()
 
 # =========================
 # 6. TẠO MARKER ĐÁY
