@@ -1326,6 +1326,99 @@ else:
         use_container_width=True,
         height=350
     )
+
+# =========================
+# BƯỚC 3: NGÀNH KHỞI PHÁT SÓNG
+# Mỗi đáy lấy ngành xuất hiện sớm nhất trước đáy
+# =========================
+
+st.subheader("Bước 3: Ngành khởi phát sóng trước đáy")
+
+before_bottom_df = relation_df[
+    relation_df["Lệch so với đáy"] < 0
+].copy()
+
+if before_bottom_df.empty:
+
+    st.info("Không có ngành nào xuất hiện trước đáy để xác định ngành khởi phát.")
+
+else:
+
+    first_sector_by_bottom = (
+        before_bottom_df
+        .sort_values(
+            [
+                "Ngày xác nhận đáy",
+                "Lệch so với đáy"
+            ],
+            ascending=[True, True]
+        )
+        .groupby("Ngày xác nhận đáy")
+        .head(1)
+        .reset_index(drop=True)
+    )
+
+    first_sector_show = first_sector_by_bottom.copy()
+
+    first_sector_show["Ngày xác nhận đáy"] = pd.to_datetime(
+        first_sector_show["Ngày xác nhận đáy"]
+    ).dt.strftime("%d/%m/%Y")
+
+    first_sector_show["Ngày tín hiệu gần đáy"] = pd.to_datetime(
+        first_sector_show["Ngày tín hiệu gần đáy"]
+    ).dt.strftime("%d/%m/%Y")
+
+    first_sector_show = first_sector_show[
+        [
+            "Ngày xác nhận đáy",
+            "Ngành",
+            "Nhóm ngành",
+            "Ngày tín hiệu gần đáy",
+            "Lệch so với đáy",
+            "Tín hiệu"
+        ]
+    ]
+
+    st.dataframe(
+        first_sector_show,
+        hide_index=True,
+        use_container_width=True,
+        height=300
+    )
+
+    st.markdown("##### Tần suất ngành khởi phát sóng")
+
+    first_sector_stats = (
+        first_sector_by_bottom
+        .groupby(["Ngành", "Nhóm ngành"])
+        .agg(
+            SoLanKhoiPhat=("Ngành", "count"),
+            TB_SoPhienTruocDay=("Lệch so với đáy", "mean")
+        )
+        .reset_index()
+    )
+
+    first_sector_stats["TB_SoPhienTruocDay"] = (
+        first_sector_stats["TB_SoPhienTruocDay"]
+        .round(1)
+    )
+
+    first_sector_stats = first_sector_stats.sort_values(
+        ["SoLanKhoiPhat", "TB_SoPhienTruocDay"],
+        ascending=[False, True]
+    )
+
+    first_sector_stats = first_sector_stats.rename(columns={
+        "SoLanKhoiPhat": "Số lần khởi phát",
+        "TB_SoPhienTruocDay": "TB số phiên trước đáy"
+    })
+
+    st.dataframe(
+        first_sector_stats,
+        hide_index=True,
+        use_container_width=True,
+        height=250
+    )
     
 # =========================
 # TOP 5 CỔ PHIẾU TĂNG MẠNH
