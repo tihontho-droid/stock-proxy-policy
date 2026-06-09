@@ -1197,8 +1197,4 @@ else:
                             with c2:
                                 st.markdown(f"### +{row['return_pct']:.1f}%")
                 
-                            st.caption("CP tạo đáy")
-                
-                            st.write(
-                                row["stock_bottom_date"].strftime("%d/%m/%Y")
-                            )
+                            st.caption("CP tạo đáy" + {row["stock_bottom_date"].strftime("%d/%m/%Y")})
