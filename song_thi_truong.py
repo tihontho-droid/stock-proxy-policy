@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+from streamlit_lightweight_charts import renderLightweightCharts
 
 
 st.set_page_config(
@@ -39,11 +40,16 @@ def load_all_data():
         {"CashFlowBranchRequest": {"account": account}}
     )
 
-    return wave_data, smdt_data, flow_data
+    price_data = post_api(
+        "https://stocktraders.vn/service/data/getTotalTrade",
+        {"TotalTradeRequest": {"account": account}}
+    )
+
+    return wave_data, smdt_data, flow_data, price_data
 
 
 with st.spinner("Đang tải dữ liệu..."):
-    wave_data, smdt_data, flow_data = load_all_data()
+    wave_data, smdt_data, flow_data, price_data = load_all_data()
 
 
 # =========================
@@ -270,7 +276,7 @@ market_df.loc[
 
 
 # =========================
-# 7. HIỂN THỊ BẢNG
+# 7. TẠO BẢNG TÍN HIỆU
 # =========================
 
 bottom_signal_df = market_df[
@@ -291,10 +297,179 @@ bottom_signal_df = market_df[
     ]
 ].copy()
 
-bottom_signal_df["date"] = bottom_signal_df["date"].dt.strftime("%Y-%m-%d")
+
+# =========================
+# 8. LẤY MARKER TỪ BẢNG
+# Không thay đổi bảng gốc
+# =========================
+
+marker_df = bottom_signal_df.copy()
+marker_df = marker_df.sort_values("date").reset_index(drop=True)
+
+marker_df["phase_group"] = (
+    marker_df["bottom_phase"] != marker_df["bottom_phase"].shift(1)
+).cumsum()
+
+# Lấy ngày cuối cùng của mỗi cụm Chuẩn bị tạo đáy
+chuan_bi_marker_df = (
+    marker_df[marker_df["chuan_bi_tao_day"] == True]
+    .groupby("phase_group")
+    .tail(1)
+)
+
+# Lấy ngày đầu tiên của mỗi cụm Xác nhận tạo đáy
+xac_nhan_marker_df = (
+    marker_df[marker_df["xac_nhan_tao_day"] == True]
+    .groupby("phase_group")
+    .head(1)
+)
+
+
+# =========================
+# 9. LẤY DỮ LIỆU VNINDEX
+# =========================
+
+price_df = pd.DataFrame(
+    price_data["TotalTradeReply"]["stockTotals"]
+)
+
+vnindex_row = price_df[
+    price_df["ticker"].isin(
+        ["VNINDEX", "VN-INDEX", "VN_INDEX", "VNI", "INDEX"]
+    )
+].copy()
+
+if vnindex_row.empty:
+
+    st.warning("Không tìm thấy VNINDEX trong dữ liệu giá.")
+    st.write(price_df["ticker"].drop_duplicates().head(100).tolist())
+
+else:
+
+    vnindex_ticker = vnindex_row["ticker"].iloc[0]
+
+    vnindex_df = pd.DataFrame(
+        vnindex_row["totalDatas"].iloc[0]
+    )
+
+    vnindex_df["date"] = pd.to_datetime(vnindex_df["date"])
+
+    for col in ["open", "high", "low", "close"]:
+        vnindex_df[col] = pd.to_numeric(
+            vnindex_df[col],
+            errors="coerce"
+        )
+
+    vnindex_df = vnindex_df.sort_values("date").reset_index(drop=True)
+
+    candle_data = []
+
+    for _, row in vnindex_df.iterrows():
+
+        candle_data.append({
+            "time": row["date"].strftime("%Y-%m-%d"),
+            "open": float(row["open"]),
+            "high": float(row["high"]),
+            "low": float(row["low"]),
+            "close": float(row["close"])
+        })
+
+    markers = []
+
+    for _, row in chuan_bi_marker_df.iterrows():
+
+        markers.append({
+            "time": row["date"].strftime("%Y-%m-%d"),
+            "position": "belowBar",
+            "color": "#F9A825",
+            "shape": "circle",
+            "text": "Chuẩn bị"
+        })
+
+    for _, row in xac_nhan_marker_df.iterrows():
+
+        markers.append({
+            "time": row["date"].strftime("%Y-%m-%d"),
+            "position": "belowBar",
+            "color": "#00C853",
+            "shape": "arrowUp",
+            "text": "Xác nhận"
+        })
+
+    st.subheader(f"📉 {vnindex_ticker} - Tín hiệu tạo đáy")
+
+    chart = [
+        {
+            "chart": {
+                "height": 600,
+                "layout": {
+                    "background": {
+                        "type": "solid",
+                        "color": "transparent"
+                    },
+                    "textColor": "#999999"
+                },
+                "grid": {
+                    "vertLines": {"color": "rgba(150,150,150,0.12)"},
+                    "horzLines": {"color": "rgba(150,150,150,0.12)"}
+                },
+                "timeScale": {
+                    "visible": True,
+                    "timeVisible": True,
+                    "secondsVisible": False,
+                    "barSpacing": 6,
+                    "rightOffset": 5
+                },
+                "handleScroll": {
+                    "mouseWheel": True,
+                    "pressedMouseMove": True
+                },
+                "handleScale": {
+                    "axisPressedMouseMove": True,
+                    "mouseWheel": True,
+                    "pinch": True
+                }
+            },
+            "series": [
+                {
+                    "type": "Candlestick",
+                    "data": candle_data,
+                    "markers": markers,
+                    "options": {
+                        "upColor": "#26A69A",
+                        "downColor": "#EF5350",
+                        "borderUpColor": "#26A69A",
+                        "borderDownColor": "#EF5350",
+                        "wickUpColor": "#26A69A",
+                        "wickDownColor": "#EF5350",
+                        "priceLineVisible": False
+                    }
+                }
+            ]
+        }
+    ]
+
+    renderLightweightCharts(
+        chart,
+        key="vnindex_bottom_chart"
+    )
+
+
+# =========================
+# 10. HIỂN THỊ BẢNG
+# =========================
+
+st.subheader("📌 Bảng tín hiệu tạo đáy")
+
+bottom_signal_df_show = bottom_signal_df.copy()
+
+bottom_signal_df_show["date"] = (
+    bottom_signal_df_show["date"]
+    .dt.strftime("%Y-%m-%d")
+)
 
 st.dataframe(
-    bottom_signal_df,
+    bottom_signal_df_show,
     hide_index=True,
     use_container_width=True,
     height=600
