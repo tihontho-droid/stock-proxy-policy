@@ -808,6 +808,22 @@ st.subheader("Lộ trình dẫn sóng")
 
 col_left, col_right = st.columns(2)
 
+chu_luc_df = chu_luc_df.rename(columns={
+    "date": "Ngày",
+    "giai_doan": "Giai đoạn",
+    "nganh": "Ngành",
+    "cashflow": "Dòng tiền",
+    "smdt": "SMDT"
+})
+
+phu_df = phu_df.rename(columns={
+    "date": "Ngày",
+    "giai_doan": "Giai đoạn",
+    "nganh": "Ngành",
+    "cashflow": "Dòng tiền",
+    "smdt": "SMDT"
+})
+
 with col_left:
 
     st.markdown("### Ngành chủ lực")
@@ -821,11 +837,11 @@ with col_left:
         st.dataframe(
             chu_luc_df[
                 [
-                    "date",
-                    "giai_doan",
-                    "nganh",
-                    "cashflow",
-                    "smdt"
+                    "Ngày",
+                    "Giai đoạn",
+                    "Ngành",
+                    "Dòng tiền",
+                    "SMDT"
                 ]
             ],
             hide_index=True,
@@ -846,29 +862,15 @@ with col_right:
         st.dataframe(
             phu_df[
                 [
-                    "date",
-                    "giai_doan",
-                    "nganh",
-                    "cashflow",
-                    "smdt"
+                    "Ngày",
+                    "Giai đoạn",
+                    "Ngành",
+                    "Dòng tiền",
+                    "SMDT"
                 ]
             ],
             hide_index=True,
             use_container_width=True,
             height=250
         )
-chu_luc_df = chu_luc_df.rename(columns={
-    "date": "Ngày",
-    "giai_doan": "Giai đoạn",
-    "nganh": "Ngành",
-    "cashflow": "Dòng tiền",
-    "smdt": "SMDT"
-})
 
-phu_df = phu_df.rename(columns={
-    "date": "Ngày",
-    "giai_doan": "Giai đoạn",
-    "nganh": "Ngành",
-    "cashflow": "Dòng tiền",
-    "smdt": "SMDT"
-})
