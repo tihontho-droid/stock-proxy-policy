@@ -851,7 +851,7 @@ with col_left:
 
 with col_right:
 
-    st.markdown("Ngành phụ")
+    st.markdown("##### Ngành phụ")
 
     if phu_df.empty:
 
