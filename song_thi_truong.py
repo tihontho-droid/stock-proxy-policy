@@ -857,3 +857,18 @@ with col_right:
             use_container_width=True,
             height=250
         )
+chu_luc_df = chu_luc_df.rename(columns={
+    "date": "Ngày",
+    "giai_doan": "Giai đoạn",
+    "nganh": "Ngành",
+    "cashflow": "Dòng tiền",
+    "smdt": "SMDT"
+})
+
+phu_df = phu_df.rename(columns={
+    "date": "Ngày",
+    "giai_doan": "Giai đoạn",
+    "nganh": "Ngành",
+    "cashflow": "Dòng tiền",
+    "smdt": "SMDT"
+})
