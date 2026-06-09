@@ -1168,16 +1168,16 @@ else:
                     "return_pct",
                     ascending=False
                 ).head(5).reset_index(drop=True)
-                                
+                                                
                 # =========================
-                # TOP 5 CARD NGANG
+                # TOP 5 CARD NGANG - BẢN GỌN
                 # =========================
                 
                 top_stock_df["nhom_nganh"] = top_stock_df["nganh"].apply(
                     lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
                 )
                 
-                cols = st.columns(5)
+                cols = st.columns(min(len(top_stock_df), 5))
                 
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
                 
@@ -1186,34 +1186,19 @@ else:
                         with st.container(border=True):
                 
                             st.caption(
-                                f"TOP {i+1}"
+                                f"TOP {i + 1} • {row['nganh']} ({row['nhom_nganh']})"
                             )
                 
-                            st.caption(
-                                f"{row['nganh']} ({row['nhom_nganh']})"
-                            )
+                            c1, c2 = st.columns([1, 1])
                 
-                            st.markdown(
-                                f"## {row['ticker']}"
-                            )
+                            with c1:
+                                st.markdown(f"### {row['ticker']}")
                 
-                            st.markdown(
-                                f"### +{row['return_pct']:.1f}%"
-                            )
-                
-                            st.divider()
-                
-                            st.caption("TT tạo đáy")
-                            st.write(
-                                row["market_bottom_date"].strftime("%d/%m/%Y")
-                            )
+                            with c2:
+                                st.markdown(f"### +{row['return_pct']:.1f}%")
                 
                             st.caption("CP tạo đáy")
+                
                             st.write(
                                 row["stock_bottom_date"].strftime("%d/%m/%Y")
-                            )
-                
-                            st.caption("CP tạo đỉnh")
-                            st.write(
-                                row["peak_date"].strftime("%d/%m/%Y")
                             )
