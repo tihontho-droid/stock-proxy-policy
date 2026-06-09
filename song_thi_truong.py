@@ -1186,37 +1186,22 @@ else:
                         )
                 
                         with c1:
-                
-                            st.markdown(
-                                f"""
-                                ### TOP {i+1} · {row['ticker']}
-                                """
-                            )
+                            st.markdown(f"### TOP {i+1}")
+                            st.markdown(f"## {row['ticker']}")
                 
                         with c2:
-                
                             st.markdown(
-                                f"""
-                                **Ngành:** {row['nganh']} ({row['nhom_nganh']})
-                                """
+                                f"**Ngành:** {row['nganh']} ({row['nhom_nganh']})"
                             )
                 
                         with c3:
-                
-                            st.markdown(
-                                f"""
-                                **CP tạo đáy**
-                
-                                {row['stock_bottom_date'].strftime('%d/%m/%Y')}
-                                """
+                            st.markdown("**CP tạo đáy**")
+                            st.write(
+                                row["stock_bottom_date"].strftime("%d/%m/%Y")
                             )
                 
                         with c4:
-                
-                            st.markdown(
-                                f"""
-                                **Hiệu suất**
-                
-                                +{row['return_pct']:.1f}%
-                                """
+                            st.markdown("**Hiệu suất**")
+                            st.write(
+                                f"+{row['return_pct']:.1f}%"
                             )
