@@ -921,7 +921,6 @@ else:
 
     ticker_branch_df["ticker"] = ticker_branch_df["ticker"].astype(str)
 
-    # chuẩn hóa tên ngành cho khớp
     sector_name_map = {
         "Ngân hàng thương mại truyền thống": "Ngân hàng",
         "Môi giới chứng khoán": "Chứng khoán",
@@ -945,14 +944,13 @@ else:
     else:
 
         # =========================
-        # BUNG GIÁ TOÀN BỘ MÃ
+        # BUNG GIÁ CÁC MÃ THUỘC NGÀNH ĐÃ CHỌN
         # =========================
 
         price_all_df = pd.DataFrame(
             price_data["TotalTradeReply"]["stockTotals"]
         )
 
-        # chỉ bung những mã thuộc ngành đã chọn để nhẹ hơn
         price_all_df = price_all_df[
             price_all_df["ticker"].astype(str).isin(
                 selected_tickers["ticker"].astype(str)
@@ -984,53 +982,13 @@ else:
                 ["date", "ticker", "open", "high", "low", "close"]
             ].dropna().sort_values(["ticker", "date"]).reset_index(drop=True)
 
-            # gộp ngành vào giá
             price_with_sector = price_detail.merge(
                 selected_tickers,
                 on="ticker",
                 how="inner"
             )
 
-            # =========================
-            # XÁC ĐỊNH GIAI ĐOẠN TỪ ĐÁY ĐẾN ĐÁY KẾ TIẾP
-            # =========================
-
             bottom_date = selected_confirm_date
-
-            all_bottom_dates = (
-                pd.to_datetime(confirm_df["date"])
-                .sort_values()
-                .tolist()
-            )
-
-            next_bottom_dates = [
-                d for d in all_bottom_dates
-                if d > bottom_date
-            ]
-
-            if len(next_bottom_dates) > 0:
-
-                end_date = next_bottom_dates[0]
-
-            else:
-
-                all_dates = (
-                    price_detail["date"]
-                    .drop_duplicates()
-                    .sort_values()
-                    .reset_index(drop=True)
-                )
-
-                if bottom_date in all_dates.values:
-                    bottom_idx = all_dates[all_dates == bottom_date].index[0]
-                    end_idx = min(bottom_idx + 60, len(all_dates) - 1)
-                    end_date = all_dates.iloc[end_idx]
-                else:
-                    end_date = price_detail["date"].max()
-
-            # =========================
-            # TÍNH TĂNG TỪ ĐÁY LÊN ĐỈNH GẦN NHẤT
-            # =========================
 
             records = []
 
@@ -1052,9 +1010,42 @@ else:
                 close_bottom = bottom_row["close"]
                 real_bottom_date = bottom_row["date"]
 
+                # =========================
+                # TÌM ĐÁY TIẾP THEO CỦA CHÍNH CỔ PHIẾU
+                # =========================
+
+                ticker_df["prev_low_5"] = (
+                    ticker_df["low"]
+                    .rolling(5)
+                    .min()
+                    .shift(1)
+                )
+
+                ticker_df["next_low_5"] = (
+                    ticker_df["low"]
+                    .rolling(5)
+                    .min()
+                    .shift(-5)
+                )
+
+                ticker_df["stock_bottom"] = (
+                    (ticker_df["low"] <= ticker_df["prev_low_5"])
+                    & (ticker_df["low"] <= ticker_df["next_low_5"])
+                )
+
+                future_bottoms = ticker_df[
+                    (ticker_df["date"] > real_bottom_date)
+                    & (ticker_df["stock_bottom"])
+                ].copy()
+
+                if not future_bottoms.empty:
+                    stock_next_bottom_date = future_bottoms.iloc[0]["date"]
+                else:
+                    stock_next_bottom_date = ticker_df["date"].max()
+
                 period_df = ticker_df[
                     (ticker_df["date"] >= real_bottom_date)
-                    & (ticker_df["date"] <= end_date)
+                    & (ticker_df["date"] <= stock_next_bottom_date)
                 ].copy()
 
                 if period_df.empty:
@@ -1077,6 +1068,7 @@ else:
                     "nganh": nganh,
                     "bottom_date": real_bottom_date,
                     "bottom_price": close_bottom,
+                    "stock_next_bottom_date": stock_next_bottom_date,
                     "peak_date": peak_date,
                     "peak_price": peak_price,
                     "return_pct": return_pct
@@ -1116,7 +1108,8 @@ else:
                             st.markdown(
                                 f"""
                                 **Ngành:** {row["nganh"]}  
-                                **Giai đoạn:** {row["bottom_date"].strftime("%Y-%m-%d")} → {row["peak_date"].strftime("%Y-%m-%d")}
+                                **Giai đoạn:** {row["bottom_date"].strftime("%Y-%m-%d")} → {row["peak_date"].strftime("%Y-%m-%d")}  
+                                **Đáy tiếp theo của mã:** {row["stock_next_bottom_date"].strftime("%Y-%m-%d")}
                                 """
                             )
 
