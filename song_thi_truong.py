@@ -1208,7 +1208,7 @@ else:
                         "Top",
                         "Mã",
                         "Ngành",
-                        "CP tạo đáy",
+                        "Ngày tạo đáy",
                         "Hiệu suất"
                     ]
                 ]
