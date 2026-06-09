@@ -887,6 +887,9 @@ st.subheader("🚀 Top 5 cổ phiếu tăng mạnh từ đáy cổ phiếu lên 
 # lấy danh sách ngành xuất hiện quanh đáy
 selected_sectors = lead_sector_show["nganh"].drop_duplicates().tolist()
 
+# ngưỡng thanh khoản tối thiểu
+min_avg_value = 5_000_000_000   # 5 tỷ/phiên
+
 if len(selected_sectors) == 0:
 
     st.info("Không có ngành dẫn sóng quanh đáy này để lọc cổ phiếu.")
@@ -972,14 +975,28 @@ else:
             price_detail["ticker"] = price_expand["ticker"].values
             price_detail["date"] = pd.to_datetime(price_detail["date"])
 
-            for col in ["open", "high", "low", "close"]:
-                price_detail[col] = pd.to_numeric(
-                    price_detail[col],
-                    errors="coerce"
+            for col in ["open", "high", "low", "close", "vol"]:
+                if col in price_detail.columns:
+                    price_detail[col] = pd.to_numeric(
+                        price_detail[col],
+                        errors="coerce"
+                    )
+
+            if "vol" not in price_detail.columns:
+
+                st.warning("Dữ liệu giá không có cột vol nên chưa lọc được thanh khoản.")
+
+                price_detail["vol"] = 0
+                price_detail["value"] = 0
+
+            else:
+
+                price_detail["value"] = (
+                    price_detail["close"] * price_detail["vol"] * 1000
                 )
 
             price_detail = price_detail[
-                ["date", "ticker", "open", "high", "low", "close"]
+                ["date", "ticker", "open", "high", "low", "close", "vol", "value"]
             ].dropna().sort_values(["ticker", "date"]).reset_index(drop=True)
 
             price_with_sector = price_detail.merge(
@@ -1026,8 +1043,6 @@ else:
 
                 # =========================
                 # TÌM ĐÁY CỔ PHIẾU GẦN VÙNG ĐÁY THỊ TRƯỜNG
-                # Ví dụ thị trường xác nhận 11/03,
-                # cổ phiếu tạo đáy 10/03 thì vẫn lấy 10/03
                 # =========================
 
                 nearest_after = ticker_df[
@@ -1069,6 +1084,26 @@ else:
                 stock_bottom_date = stock_bottom_row["date"]
                 stock_bottom_price = stock_bottom_row["close"]
                 stock_bottom_low = stock_bottom_row["low"]
+
+                # =========================
+                # LỌC THANH KHOẢN QUANH ĐÁY CỔ PHIẾU
+                # =========================
+
+                stock_bottom_idx = ticker_df[
+                    ticker_df["date"] == stock_bottom_date
+                ].index[0]
+
+                liq_start_idx = max(stock_bottom_idx - 20, 0)
+                liq_end_idx = stock_bottom_idx
+
+                liquidity_window = ticker_df.iloc[
+                    liq_start_idx:liq_end_idx + 1
+                ].copy()
+
+                avg_value_20 = liquidity_window["value"].mean()
+
+                if avg_value_20 < min_avg_value:
+                    continue
 
                 # =========================
                 # TÌM ĐÁY TIẾP THEO CỦA CHÍNH CỔ PHIẾU
@@ -1118,14 +1153,15 @@ else:
                     "stock_next_bottom_date": stock_next_bottom_date,
                     "peak_date": peak_date,
                     "peak_price": peak_price,
-                    "return_pct": return_pct
+                    "return_pct": return_pct,
+                    "avg_value_20": avg_value_20
                 })
 
             top_stock_df = pd.DataFrame(records)
 
             if top_stock_df.empty:
 
-                st.info("Không tìm thấy cổ phiếu phù hợp trong các ngành quanh đáy này.")
+                st.info("Không tìm thấy cổ phiếu thanh khoản cao phù hợp trong các ngành quanh đáy này.")
 
             else:
 
@@ -1158,7 +1194,8 @@ else:
                                 **Đáy thị trường:** {row["market_bottom_date"].strftime("%Y-%m-%d")}  
                                 **Đáy cổ phiếu:** {row["stock_bottom_date"].strftime("%Y-%m-%d")}  
                                 **Đỉnh gần nhất:** {row["peak_date"].strftime("%Y-%m-%d")}  
-                                **Đáy tiếp theo của mã:** {row["stock_next_bottom_date"].strftime("%Y-%m-%d")}
+                                **Đáy tiếp theo của mã:** {row["stock_next_bottom_date"].strftime("%Y-%m-%d")}  
+                                **GTGD TB 20 phiên:** {row["avg_value_20"] / 1_000_000_000:.2f} tỷ
                                 """
                             )
 
