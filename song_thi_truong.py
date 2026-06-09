@@ -210,6 +210,7 @@ market_df["so_nganh_smdt_vua_vuot_70"] = market_df["so_nganh_smdt_vua_vuot_70"].
 market_df = market_df.sort_values("date").reset_index(drop=True)
 
 is_nganh_dep = False
+da_xac_nhan_trong_chu_ky = False
 
 nganh_dang_dep_list = []
 chuan_bi_list = []
@@ -217,17 +218,23 @@ xac_nhan_list = []
 
 for _, row in market_df.iterrows():
 
+    # Khi có ngành vừa đẹp mới → mở chu kỳ mới
     if row["nganh_vua_dep"]:
         is_nganh_dep = True
+        da_xac_nhan_trong_chu_ky = False
 
+    # Xác nhận chỉ được xảy ra 1 lần trong 1 chu kỳ
     xac_nhan_signal = (
         is_nganh_dep
+        and not da_xac_nhan_trong_chu_ky
         and (row["buy"] > 25)
         and (row["waitbuy"] > row["waitsell"])
     )
 
+    # Chuẩn bị tạo đáy vẫn có thể hiện nhiều ngày
     chuan_bi_signal = (
         is_nganh_dep
+        and not da_xac_nhan_trong_chu_ky
         and (row["waitbuy"] > 60)
         and (row["waitbuy"] > row["waitsell"])
         and not xac_nhan_signal
@@ -237,8 +244,9 @@ for _, row in market_df.iterrows():
     chuan_bi_list.append(chuan_bi_signal)
     xac_nhan_list.append(xac_nhan_signal)
 
+    # Sau khi xác nhận → khóa chu kỳ lại
     if xac_nhan_signal:
-        is_nganh_dep = False
+        da_xac_nhan_trong_chu_ky = True
 
 market_df["nganh_dang_dep"] = nganh_dang_dep_list
 market_df["chuan_bi_tao_day"] = chuan_bi_list
