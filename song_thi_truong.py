@@ -1111,14 +1111,13 @@ def get_top_stock_for_bottom(selected_confirm_date):
         .sort_values("return_pct", ascending=False)
         .reset_index(drop=True)
     )
-
+    
 # =========================
-# BẢNG TỔNG HỢP NGÀNH DẪN SÓNG THEO SMDT > 70
+# BẢNG TỔNG HỢP NGÀNH DẪN SÓNG THEO CHUỖI SMDT > 70
 # =========================
 
-st.subheader("📊 Tổng hợp ngành dẫn sóng theo độ duy trì SMDT > 70")
+st.subheader("📊 Tổng hợp ngành dẫn sóng theo thời gian duy trì SMDT > 70")
 
-# lấy các ngày xác nhận đáy đang hiện trên biểu đồ
 bottom_dates = (
     confirm_df["date"]
     .drop_duplicates()
@@ -1126,23 +1125,159 @@ bottom_dates = (
     .tolist()
 )
 
-sector_wave_records = []
-
 all_signal_dates = (
     bottom_signal_df["date"]
     .sort_values()
     .reset_index(drop=True)
 )
 
+# số phiên sau đáy để tìm ngành bắt đầu vượt 70
+search_after_bottom = 30
+
+sector_wave_records = []
+
+
+def find_longest_smdt_chain_after_bottom(
+    nganh_df,
+    bottom_date,
+    next_bottom_date
+):
+    """
+    Với 1 ngành và 1 đáy thị trường:
+    - Tìm các lần SMDT bắt đầu > 70 trong vòng search_after_bottom phiên sau đáy.
+    - Với mỗi lần vượt 70, đếm số phiên liên tục SMDT > 70.
+    - Trả về chuỗi dài nhất.
+    """
+
+    nganh_df = nganh_df.sort_values("date").reset_index(drop=True)
+
+    nearest_after = nganh_df[
+        nganh_df["date"] >= bottom_date
+    ].copy()
+
+    if nearest_after.empty:
+        return None
+
+    bottom_idx = nearest_after.index[0]
+
+    search_end_idx = min(
+        bottom_idx + search_after_bottom,
+        len(nganh_df) - 1
+    )
+
+    search_zone = nganh_df.iloc[
+        bottom_idx:search_end_idx + 1
+    ].copy()
+
+    if search_zone.empty:
+        return None
+
+    # tìm những ngày ngành bắt đầu vượt 70
+    search_zone["prev_smdt"] = (
+        nganh_df["smdt"]
+        .shift(1)
+        .loc[search_zone.index]
+    )
+
+    cross_rows = search_zone[
+        (search_zone["smdt"] > 70)
+        & (
+            (search_zone["prev_smdt"] <= 70)
+            | (search_zone["prev_smdt"].isna())
+        )
+    ].copy()
+
+    # nếu trong vùng tìm kiếm ngành đã ở trên 70 sẵn,
+    # lấy ngày đầu tiên >70 trong vùng làm điểm bắt đầu
+    if cross_rows.empty:
+        cross_rows = search_zone[
+            search_zone["smdt"] > 70
+        ].head(1).copy()
+
+    if cross_rows.empty:
+        return None
+
+    best_chain = None
+
+    for _, cross_row in cross_rows.iterrows():
+
+        start_date = cross_row["date"]
+
+        if next_bottom_date is not None:
+            chain_source = nganh_df[
+                (nganh_df["date"] >= start_date)
+                & (nganh_df["date"] < next_bottom_date)
+            ].copy()
+        else:
+            chain_source = nganh_df[
+                nganh_df["date"] >= start_date
+            ].copy()
+
+        if chain_source.empty:
+            continue
+
+        chain_rows = []
+
+        for _, r in chain_source.iterrows():
+
+            if r["smdt"] > 70:
+                chain_rows.append(r)
+            else:
+                break
+
+        if len(chain_rows) == 0:
+            continue
+
+        chain_df = pd.DataFrame(chain_rows)
+
+        chain_info = {
+            "Ngày vượt 70": chain_df["date"].iloc[0],
+            "Ngày kết thúc chuỗi": chain_df["date"].iloc[-1],
+            "Thời gian dẫn sóng": len(chain_df),
+            "Max SMDT": chain_df["smdt"].max(),
+            "SMDT TB": chain_df["smdt"].mean()
+        }
+
+        if best_chain is None:
+
+            best_chain = chain_info
+
+        else:
+
+            # chọn chuỗi dài nhất
+            # nếu bằng nhau thì chọn chuỗi có Max SMDT cao hơn
+            # nếu vẫn bằng thì chọn SMDT TB cao hơn
+            if (
+                chain_info["Thời gian dẫn sóng"]
+                > best_chain["Thời gian dẫn sóng"]
+            ):
+                best_chain = chain_info
+
+            elif (
+                chain_info["Thời gian dẫn sóng"]
+                == best_chain["Thời gian dẫn sóng"]
+                and chain_info["Max SMDT"] > best_chain["Max SMDT"]
+            ):
+                best_chain = chain_info
+
+            elif (
+                chain_info["Thời gian dẫn sóng"]
+                == best_chain["Thời gian dẫn sóng"]
+                and chain_info["Max SMDT"] == best_chain["Max SMDT"]
+                and chain_info["SMDT TB"] > best_chain["SMDT TB"]
+            ):
+                best_chain = chain_info
+
+    return best_chain
+
+
 for i, bottom_date in enumerate(bottom_dates):
 
-    # đáy tiếp theo
     if i + 1 < len(bottom_dates):
         next_bottom_date = bottom_dates[i + 1]
     else:
-        next_bottom_date = sector_all_df["date"].max()
+        next_bottom_date = None
 
-    # lấy số phiên từ đáy hiện tại đến đáy kế tiếp
     if bottom_date not in all_signal_dates.values:
         continue
 
@@ -1150,39 +1285,48 @@ for i, bottom_date in enumerate(bottom_dates):
         all_signal_dates == bottom_date
     ].index[0]
 
-    if next_bottom_date in all_signal_dates.values:
+    if next_bottom_date is not None and next_bottom_date in all_signal_dates.values:
+
         next_bottom_idx = all_signal_dates[
             all_signal_dates == next_bottom_date
         ].index[0]
+
+        so_phien_den_day_moi = next_bottom_idx - bottom_idx
+
     else:
-        next_bottom_idx = len(all_signal_dates) - 1
 
-    so_phien_den_day_moi = next_bottom_idx - bottom_idx
+        so_phien_den_day_moi = len(all_signal_dates) - 1 - bottom_idx
 
-    # dữ liệu ngành trong con sóng này
-    wave_sector_df = sector_all_df[
-        (sector_all_df["date"] >= bottom_date)
-        & (sector_all_df["date"] < next_bottom_date)
-    ].copy()
+    if next_bottom_date is not None:
+
+        wave_sector_df = sector_all_df[
+            (sector_all_df["date"] >= bottom_date)
+            & (sector_all_df["date"] < next_bottom_date)
+        ].copy()
+
+    else:
+
+        wave_sector_df = sector_all_df[
+            sector_all_df["date"] >= bottom_date
+        ].copy()
 
     if wave_sector_df.empty:
         continue
 
     for nganh in wave_sector_df["nganh"].drop_duplicates():
 
-        nganh_wave_df = wave_sector_df[
-            wave_sector_df["nganh"] == nganh
+        nganh_full_df = sector_all_df[
+            sector_all_df["nganh"] == nganh
         ].copy()
 
-        if nganh_wave_df.empty:
+        chain_info = find_longest_smdt_chain_after_bottom(
+            nganh_full_df,
+            bottom_date,
+            next_bottom_date
+        )
+
+        if chain_info is None:
             continue
-
-        so_phien_smdt_tren_70 = (
-            nganh_wave_df["smdt"] > 70
-        ).sum()
-
-        max_smdt = nganh_wave_df["smdt"].max()
-        avg_smdt = nganh_wave_df["smdt"].mean()
 
         sector_wave_records.append({
             "Ngày xác nhận đáy": bottom_date,
@@ -1192,9 +1336,11 @@ for i, bottom_date in enumerate(bottom_dates):
             "Nhóm ngành": (
                 "Chủ lực" if nganh in nganh_chu_luc else "Phụ"
             ),
-            "Số phiên SMDT > 70": so_phien_smdt_tren_70,
-            "Max SMDT": max_smdt,
-            "SMDT TB": avg_smdt
+            "Ngày vượt 70": chain_info["Ngày vượt 70"],
+            "Ngày kết thúc chuỗi": chain_info["Ngày kết thúc chuỗi"],
+            "Thời gian dẫn sóng": chain_info["Thời gian dẫn sóng"],
+            "Max SMDT": chain_info["Max SMDT"],
+            "SMDT TB": chain_info["SMDT TB"]
         })
 
 
@@ -1202,16 +1348,20 @@ sector_wave_df = pd.DataFrame(sector_wave_records)
 
 if sector_wave_df.empty:
 
-    st.info("Chưa có dữ liệu ngành dẫn sóng theo SMDT.")
+    st.info("Chưa có dữ liệu ngành duy trì SMDT > 70 sau đáy.")
 
 else:
 
     # =========================
-    # 1. BẢNG NGÀNH CHỦ LỰC DẪN SÓNG
+    # MỖI ĐÁY CHỈ LẤY NGÀNH GIỮ >70 LÂU NHẤT
     # =========================
 
     core_wave_df = sector_wave_df[
         sector_wave_df["Nhóm ngành"] == "Chủ lực"
+    ].copy()
+
+    sub_wave_df = sector_wave_df[
+        sector_wave_df["Nhóm ngành"] == "Phụ"
     ].copy()
 
     if not core_wave_df.empty:
@@ -1221,7 +1371,7 @@ else:
             .sort_values(
                 [
                     "Ngày xác nhận đáy",
-                    "Số phiên SMDT > 70",
+                    "Thời gian dẫn sóng",
                     "Max SMDT",
                     "SMDT TB"
                 ],
@@ -1236,14 +1386,6 @@ else:
 
         core_leader_df = pd.DataFrame()
 
-    # =========================
-    # 2. BẢNG NGÀNH PHỤ MẠNH NHẤT
-    # =========================
-
-    sub_wave_df = sector_wave_df[
-        sector_wave_df["Nhóm ngành"] == "Phụ"
-    ].copy()
-
     if not sub_wave_df.empty:
 
         sub_leader_df = (
@@ -1251,7 +1393,7 @@ else:
             .sort_values(
                 [
                     "Ngày xác nhận đáy",
-                    "Số phiên SMDT > 70",
+                    "Thời gian dẫn sóng",
                     "Max SMDT",
                     "SMDT TB"
                 ],
@@ -1266,9 +1408,6 @@ else:
 
         sub_leader_df = pd.DataFrame()
 
-    # =========================
-    # FORMAT HIỂN THỊ
-    # =========================
 
     def format_wave_table(df, leader_col_name):
 
@@ -1281,13 +1420,16 @@ else:
             "Ngành": leader_col_name
         })
 
-        show_df["Ngày xác nhận đáy"] = pd.to_datetime(
-            show_df["Ngày xác nhận đáy"]
-        ).dt.strftime("%d/%m/%Y")
-
-        show_df["Đáy kế tiếp"] = pd.to_datetime(
-            show_df["Đáy kế tiếp"]
-        ).dt.strftime("%d/%m/%Y")
+        for col in [
+            "Ngày xác nhận đáy",
+            "Đáy kế tiếp",
+            "Ngày vượt 70",
+            "Ngày kết thúc chuỗi"
+        ]:
+            show_df[col] = pd.to_datetime(
+                show_df[col],
+                errors="coerce"
+            ).dt.strftime("%d/%m/%Y")
 
         show_df["Max SMDT"] = show_df["Max SMDT"].round(2)
         show_df["SMDT TB"] = show_df["SMDT TB"].round(2)
@@ -1298,7 +1440,9 @@ else:
                 "Đáy kế tiếp",
                 "Số phiên đến đáy mới",
                 leader_col_name,
-                "Số phiên SMDT > 70",
+                "Ngày vượt 70",
+                "Ngày kết thúc chuỗi",
+                "Thời gian dẫn sóng",
                 "Max SMDT",
                 "SMDT TB"
             ]
@@ -1325,7 +1469,7 @@ else:
 
         if core_show.empty:
 
-            st.info("Không có ngành chủ lực đạt SMDT > 70 trong các sóng này.")
+            st.info("Không có ngành chủ lực duy trì SMDT > 70 trong các sóng này.")
 
         else:
 
@@ -1333,7 +1477,7 @@ else:
                 core_show,
                 hide_index=True,
                 use_container_width=True,
-                height=320
+                height=360
             )
 
     with col_right:
@@ -1342,7 +1486,7 @@ else:
 
         if sub_show.empty:
 
-            st.info("Không có ngành phụ đạt SMDT > 70 trong các sóng này.")
+            st.info("Không có ngành phụ duy trì SMDT > 70 trong các sóng này.")
 
         else:
 
@@ -1350,8 +1494,9 @@ else:
                 sub_show,
                 hide_index=True,
                 use_container_width=True,
-                height=320
+                height=360
             )
+
 # =========================
 # TOP 5 CỔ PHIẾU TĂNG MẠNH
 # =========================
