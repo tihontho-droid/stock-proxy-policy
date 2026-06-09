@@ -1192,7 +1192,7 @@ else:
                     + ")"
                 )
                 
-                top5_show["CP tạo đáy"] = (
+                top5_show["Ngày tạo đáy"] = (
                     top5_show["stock_bottom_date"]
                     .dt.strftime("%d/%m/%Y")
                 )
