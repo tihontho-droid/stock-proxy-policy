@@ -297,10 +297,10 @@ bottom_signal_df = market_df[
     ]
 ].copy()
 
-
 # =========================
 # 8. LẤY MARKER TỪ BẢNG
 # Không thay đổi bảng gốc
+# Chỉ hiện Chuẩn bị nếu sau đó có Xác nhận
 # =========================
 
 marker_df = bottom_signal_df.copy()
@@ -310,19 +310,46 @@ marker_df["phase_group"] = (
     marker_df["bottom_phase"] != marker_df["bottom_phase"].shift(1)
 ).cumsum()
 
-# Lấy ngày cuối cùng của mỗi cụm Chuẩn bị tạo đáy
-chuan_bi_marker_df = (
-    marker_df[marker_df["chuan_bi_tao_day"] == True]
-    .groupby("phase_group")
-    .tail(1)
-)
+valid_chuan_bi_rows = []
+valid_xac_nhan_rows = []
 
-# Lấy ngày đầu tiên của mỗi cụm Xác nhận tạo đáy
-xac_nhan_marker_df = (
-    marker_df[marker_df["xac_nhan_tao_day"] == True]
-    .groupby("phase_group")
-    .head(1)
-)
+groups = list(marker_df.groupby("phase_group"))
+
+for i, (group_id, group_df) in enumerate(groups):
+
+    phase = group_df["bottom_phase"].iloc[0]
+
+    if phase != "Chuẩn bị tạo đáy":
+        continue
+
+    # Tìm cụm tiếp theo
+    if i + 1 >= len(groups):
+        continue
+
+    next_group_df = groups[i + 1][1]
+    next_phase = next_group_df["bottom_phase"].iloc[0]
+
+    # Chỉ lấy nếu cụm ngay sau là Xác nhận tạo đáy
+    if next_phase == "Xác nhận tạo đáy":
+
+        # Marker chuẩn bị: ngày cuối cùng của cụm chuẩn bị
+        valid_chuan_bi_rows.append(group_df.tail(1))
+
+        # Marker xác nhận: ngày đầu tiên của cụm xác nhận
+        valid_xac_nhan_rows.append(next_group_df.head(1))
+
+
+if valid_chuan_bi_rows:
+    chuan_bi_marker_df = pd.concat(valid_chuan_bi_rows)
+else:
+    chuan_bi_marker_df = pd.DataFrame(columns=marker_df.columns)
+
+
+if valid_xac_nhan_rows:
+    xac_nhan_marker_df = pd.concat(valid_xac_nhan_rows)
+else:
+    xac_nhan_marker_df = pd.DataFrame(columns=marker_df.columns)
+
 
 
 # =========================
