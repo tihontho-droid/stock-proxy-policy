@@ -1113,19 +1113,20 @@ def get_top_stock_for_bottom(selected_confirm_date):
     )
 
 # =========================
-# BƯỚC 1: NGÀNH XUẤT HIỆN TRƯỚC / SAU ĐÁY
+# BẢNG TỔNG HỢP NGÀNH DẪN SÓNG THEO SMDT > 70
 # =========================
 
-st.subheader("Bước 1: Ngành xuất hiện trước/sau đáy thị trường")
+st.subheader("📊 Tổng hợp ngành dẫn sóng theo độ duy trì SMDT > 70")
 
-relation_records = []
-
-all_confirm_dates = (
+# lấy các ngày xác nhận đáy đang hiện trên biểu đồ
+bottom_dates = (
     confirm_df["date"]
     .drop_duplicates()
     .sort_values()
     .tolist()
 )
+
+sector_wave_records = []
 
 all_signal_dates = (
     bottom_signal_df["date"]
@@ -1133,293 +1134,225 @@ all_signal_dates = (
     .reset_index(drop=True)
 )
 
-for confirm_date in all_confirm_dates:
+for i, bottom_date in enumerate(bottom_dates):
 
-    if confirm_date not in all_signal_dates.values:
+    # đáy tiếp theo
+    if i + 1 < len(bottom_dates):
+        next_bottom_date = bottom_dates[i + 1]
+    else:
+        next_bottom_date = sector_all_df["date"].max()
+
+    # lấy số phiên từ đáy hiện tại đến đáy kế tiếp
+    if bottom_date not in all_signal_dates.values:
         continue
 
-    confirm_idx = all_signal_dates[
-        all_signal_dates == confirm_date
+    bottom_idx = all_signal_dates[
+        all_signal_dates == bottom_date
     ].index[0]
 
-    # lấy vùng quanh đáy: 10 phiên trước, 10 phiên sau
-    start_idx = max(confirm_idx - 10, 0)
-    end_idx = min(confirm_idx + 10, len(all_signal_dates) - 1)
+    if next_bottom_date in all_signal_dates.values:
+        next_bottom_idx = all_signal_dates[
+            all_signal_dates == next_bottom_date
+        ].index[0]
+    else:
+        next_bottom_idx = len(all_signal_dates) - 1
 
-    window_dates = all_signal_dates.iloc[start_idx:end_idx + 1]
+    so_phien_den_day_moi = next_bottom_idx - bottom_idx
 
-    sector_window = sector_all_df[
-        (sector_all_df["date"].isin(window_dates))
-        & (
-            (sector_all_df["flow_vua_tich_cuc"] == True)
-            | (sector_all_df["smdt_vua_vuot_70"] == True)
-        )
+    # dữ liệu ngành trong con sóng này
+    wave_sector_df = sector_all_df[
+        (sector_all_df["date"] >= bottom_date)
+        & (sector_all_df["date"] < next_bottom_date)
     ].copy()
 
-    if sector_window.empty:
+    if wave_sector_df.empty:
         continue
 
-    sector_window["nhom_nganh"] = sector_window["nganh"].apply(
-        lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
-    )
+    for nganh in wave_sector_df["nganh"].drop_duplicates():
 
-    sector_window["tin_hieu"] = ""
-
-    sector_window.loc[
-        sector_window["flow_vua_tich_cuc"],
-        "tin_hieu"
-    ] += "Dòng tiền tích cực "
-
-    sector_window.loc[
-        sector_window["smdt_vua_vuot_70"],
-        "tin_hieu"
-    ] += "SMDT vượt 70"
-
-    # tính số phiên lệch so với đáy cho từng dòng
-    date_to_idx = {
-        date: idx for idx, date in enumerate(all_signal_dates)
-    }
-
-    sector_window["signal_idx"] = sector_window["date"].map(date_to_idx)
-
-    sector_window = sector_window.dropna(
-        subset=["signal_idx"]
-    ).copy()
-
-    sector_window["signal_idx"] = sector_window["signal_idx"].astype(int)
-
-    sector_window["Lệch so với đáy"] = (
-        sector_window["signal_idx"] - confirm_idx
-    )
-
-    sector_window["abs_diff"] = (
-        sector_window["Lệch so với đáy"].abs()
-    )
-
-    for nganh in sector_window["nganh"].drop_duplicates():
-
-        nganh_df = sector_window[
-            sector_window["nganh"] == nganh
+        nganh_wave_df = wave_sector_df[
+            wave_sector_df["nganh"] == nganh
         ].copy()
 
-        # lấy tín hiệu gần đáy nhất của ngành đó
-        # nếu cùng khoảng cách thì ưu tiên tín hiệu trước đáy
-        nganh_df["uu_tien_truoc_day"] = (
-            nganh_df["Lệch so với đáy"] > 0
-        ).astype(int)
+        if nganh_wave_df.empty:
+            continue
 
-        signal_row = (
-            nganh_df
-            .sort_values(
-                [
-                    "abs_diff",
-                    "uu_tien_truoc_day",
-                    "date"
-                ],
-                ascending=[True, True, True]
-            )
-            .iloc[0]
-        )
+        so_phien_smdt_tren_70 = (
+            nganh_wave_df["smdt"] > 70
+        ).sum()
 
-        diff_sessions = signal_row["Lệch so với đáy"]
+        max_smdt = nganh_wave_df["smdt"].max()
+        avg_smdt = nganh_wave_df["smdt"].mean()
 
-        relation_records.append({
-            "Ngày xác nhận đáy": confirm_date,
-            "Ngành": signal_row["nganh"],
-            "Nhóm ngành": signal_row["nhom_nganh"],
-            "Ngày tín hiệu gần đáy": signal_row["date"],
-            "Lệch so với đáy": diff_sessions,
-            "Vị trí": (
-                "Trước đáy" if diff_sessions < 0
-                else ("Đúng ngày đáy" if diff_sessions == 0 else "Sau đáy")
+        sector_wave_records.append({
+            "Ngày xác nhận đáy": bottom_date,
+            "Đáy kế tiếp": next_bottom_date,
+            "Số phiên đến đáy mới": so_phien_den_day_moi,
+            "Ngành": nganh,
+            "Nhóm ngành": (
+                "Chủ lực" if nganh in nganh_chu_luc else "Phụ"
             ),
-            "Tín hiệu": signal_row["tin_hieu"]
+            "Số phiên SMDT > 70": so_phien_smdt_tren_70,
+            "Max SMDT": max_smdt,
+            "SMDT TB": avg_smdt
         })
 
 
-relation_df = pd.DataFrame(relation_records)
+sector_wave_df = pd.DataFrame(sector_wave_records)
 
-if relation_df.empty:
+if sector_wave_df.empty:
 
-    st.info("Chưa có dữ liệu ngành xuất hiện quanh các đáy.")
-
-else:
-
-    relation_show = relation_df.copy()
-
-    # sort khi cột ngày vẫn còn là datetime
-    relation_show = relation_show.sort_values(
-        [
-            "Ngày xác nhận đáy",
-            "Lệch so với đáy"
-        ]
-    ).reset_index(drop=True)
-
-    # format ngày sau khi sort
-    relation_show["Ngày xác nhận đáy"] = pd.to_datetime(
-        relation_show["Ngày xác nhận đáy"]
-    ).dt.strftime("%d/%m/%Y")
-
-    relation_show["Ngày tín hiệu gần đáy"] = pd.to_datetime(
-        relation_show["Ngày tín hiệu gần đáy"]
-    ).dt.strftime("%d/%m/%Y")
-
-    st.dataframe(
-        relation_show,
-        hide_index=True,
-        use_container_width=True,
-        height=350
-    )
-
-# =========================
-# BƯỚC 2: NGÀNH THƯỜNG XUẤT HIỆN TRƯỚC ĐÁY
-# =========================
-
-st.subheader("Bước 2: Ngành thường xuất hiện trước đáy")
-
-before_bottom_df = relation_df[
-    relation_df["Lệch so với đáy"] < 0
-].copy()
-
-if before_bottom_df.empty:
-
-    st.info("Không có ngành nào xuất hiện trước đáy.")
+    st.info("Chưa có dữ liệu ngành dẫn sóng theo SMDT.")
 
 else:
 
-    sector_stats = (
-        before_bottom_df
-        .groupby("Ngành")
-        .agg(
-            SoLanTruocDay=("Ngành", "count"),
-            TB_SoPhien=("Lệch so với đáy", "mean"),
-            SomNhat=("Lệch so với đáy", "min"),
-            MuonNhat=("Lệch so với đáy", "max")
+    # =========================
+    # 1. BẢNG NGÀNH CHỦ LỰC DẪN SÓNG
+    # =========================
+
+    core_wave_df = sector_wave_df[
+        sector_wave_df["Nhóm ngành"] == "Chủ lực"
+    ].copy()
+
+    if not core_wave_df.empty:
+
+        core_leader_df = (
+            core_wave_df
+            .sort_values(
+                [
+                    "Ngày xác nhận đáy",
+                    "Số phiên SMDT > 70",
+                    "Max SMDT",
+                    "SMDT TB"
+                ],
+                ascending=[True, False, False, False]
+            )
+            .groupby("Ngày xác nhận đáy")
+            .head(1)
+            .reset_index(drop=True)
         )
-        .reset_index()
-    )
 
-    sector_stats["TB_SoPhien"] = (
-        sector_stats["TB_SoPhien"]
-        .round(1)
-    )
+    else:
 
-    sector_stats = sector_stats.sort_values(
-        [
-            "SoLanTruocDay",
-            "TB_SoPhien"
-        ],
-        ascending=[False, True]
-    )
+        core_leader_df = pd.DataFrame()
 
-    sector_stats = sector_stats.rename(columns={
-        "Ngành": "Ngành",
-        "SoLanTruocDay": "Số lần xuất hiện trước đáy",
-        "TB_SoPhien": "TB số phiên trước đáy",
-        "SomNhat": "Sớm nhất",
-        "MuonNhat": "Muộn nhất"
-    })
+    # =========================
+    # 2. BẢNG NGÀNH PHỤ MẠNH NHẤT
+    # =========================
 
-    st.dataframe(
-        sector_stats,
-        hide_index=True,
-        use_container_width=True,
-        height=350
-    )
+    sub_wave_df = sector_wave_df[
+        sector_wave_df["Nhóm ngành"] == "Phụ"
+    ].copy()
 
-# =========================
-# BƯỚC 3: NGÀNH KHỞI PHÁT SÓNG
-# Mỗi đáy lấy ngành xuất hiện sớm nhất trước đáy
-# =========================
+    if not sub_wave_df.empty:
 
-st.subheader("Bước 3: Ngành khởi phát sóng trước đáy")
+        sub_leader_df = (
+            sub_wave_df
+            .sort_values(
+                [
+                    "Ngày xác nhận đáy",
+                    "Số phiên SMDT > 70",
+                    "Max SMDT",
+                    "SMDT TB"
+                ],
+                ascending=[True, False, False, False]
+            )
+            .groupby("Ngày xác nhận đáy")
+            .head(1)
+            .reset_index(drop=True)
+        )
 
-before_bottom_df = relation_df[
-    relation_df["Lệch so với đáy"] < 0
-].copy()
+    else:
 
-if before_bottom_df.empty:
+        sub_leader_df = pd.DataFrame()
 
-    st.info("Không có ngành nào xuất hiện trước đáy để xác định ngành khởi phát.")
+    # =========================
+    # FORMAT HIỂN THỊ
+    # =========================
 
-else:
+    def format_wave_table(df, leader_col_name):
 
-    first_sector_by_bottom = (
-        before_bottom_df
-        .sort_values(
+        if df.empty:
+            return df
+
+        show_df = df.copy()
+
+        show_df = show_df.rename(columns={
+            "Ngành": leader_col_name
+        })
+
+        show_df["Ngày xác nhận đáy"] = pd.to_datetime(
+            show_df["Ngày xác nhận đáy"]
+        ).dt.strftime("%d/%m/%Y")
+
+        show_df["Đáy kế tiếp"] = pd.to_datetime(
+            show_df["Đáy kế tiếp"]
+        ).dt.strftime("%d/%m/%Y")
+
+        show_df["Max SMDT"] = show_df["Max SMDT"].round(2)
+        show_df["SMDT TB"] = show_df["SMDT TB"].round(2)
+
+        show_df = show_df[
             [
                 "Ngày xác nhận đáy",
-                "Lệch so với đáy"
-            ],
-            ascending=[True, True]
-        )
-        .groupby("Ngày xác nhận đáy")
-        .head(1)
-        .reset_index(drop=True)
-    )
-
-    first_sector_show = first_sector_by_bottom.copy()
-
-    first_sector_show["Ngày xác nhận đáy"] = pd.to_datetime(
-        first_sector_show["Ngày xác nhận đáy"]
-    ).dt.strftime("%d/%m/%Y")
-
-    first_sector_show["Ngày tín hiệu gần đáy"] = pd.to_datetime(
-        first_sector_show["Ngày tín hiệu gần đáy"]
-    ).dt.strftime("%d/%m/%Y")
-
-    first_sector_show = first_sector_show[
-        [
-            "Ngày xác nhận đáy",
-            "Ngành",
-            "Nhóm ngành",
-            "Ngày tín hiệu gần đáy",
-            "Lệch so với đáy",
-            "Tín hiệu"
+                "Đáy kế tiếp",
+                "Số phiên đến đáy mới",
+                leader_col_name,
+                "Số phiên SMDT > 70",
+                "Max SMDT",
+                "SMDT TB"
+            ]
         ]
-    ]
 
-    st.dataframe(
-        first_sector_show,
-        hide_index=True,
-        use_container_width=True,
-        height=300
+        return show_df
+
+
+    core_show = format_wave_table(
+        core_leader_df,
+        "Ngành chủ lực dẫn sóng"
     )
 
-    st.markdown("##### Tần suất ngành khởi phát sóng")
-
-    first_sector_stats = (
-        first_sector_by_bottom
-        .groupby(["Ngành", "Nhóm ngành"])
-        .agg(
-            SoLanKhoiPhat=("Ngành", "count"),
-            TB_SoPhienTruocDay=("Lệch so với đáy", "mean")
-        )
-        .reset_index()
+    sub_show = format_wave_table(
+        sub_leader_df,
+        "Ngành phụ mạnh nhất"
     )
 
-    first_sector_stats["TB_SoPhienTruocDay"] = (
-        first_sector_stats["TB_SoPhienTruocDay"]
-        .round(1)
-    )
+    col_left, col_right = st.columns(2)
 
-    first_sector_stats = first_sector_stats.sort_values(
-        ["SoLanKhoiPhat", "TB_SoPhienTruocDay"],
-        ascending=[False, True]
-    )
+    with col_left:
 
-    first_sector_stats = first_sector_stats.rename(columns={
-        "SoLanKhoiPhat": "Số lần khởi phát",
-        "TB_SoPhienTruocDay": "TB số phiên trước đáy"
-    })
+        st.markdown("##### Ngành chủ lực dẫn sóng")
 
-    st.dataframe(
-        first_sector_stats,
-        hide_index=True,
-        use_container_width=True,
-        height=250
-    )
-    
+        if core_show.empty:
+
+            st.info("Không có ngành chủ lực đạt SMDT > 70 trong các sóng này.")
+
+        else:
+
+            st.dataframe(
+                core_show,
+                hide_index=True,
+                use_container_width=True,
+                height=320
+            )
+
+    with col_right:
+
+        st.markdown("##### Ngành phụ mạnh nhất")
+
+        if sub_show.empty:
+
+            st.info("Không có ngành phụ đạt SMDT > 70 trong các sóng này.")
+
+        else:
+
+            st.dataframe(
+                sub_show,
+                hide_index=True,
+                use_container_width=True,
+                height=320
+            )
+
 # =========================
 # TOP 5 CỔ PHIẾU TĂNG MẠNH
 # =========================
