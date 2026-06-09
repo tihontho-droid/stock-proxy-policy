@@ -882,7 +882,7 @@ with col_right:
 # TOP 5 CỔ PHIẾU TĂNG MẠNH TỪ ĐÁY CỔ PHIẾU LÊN ĐỈNH GẦN NHẤT
 # =========================
 
-st.subheader("🚀 Top 5 cổ phiếu tăng mạnh từ đáy cổ phiếu lên đỉnh gần nhất")
+st.subheader("Top 5 cổ phiếu tăng mạnh")
 
 selected_sectors = lead_sector_show["nganh"].drop_duplicates().tolist()
 
