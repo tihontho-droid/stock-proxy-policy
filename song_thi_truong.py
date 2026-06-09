@@ -1112,7 +1112,129 @@ def get_top_stock_for_bottom(selected_confirm_date):
         .reset_index(drop=True)
     )
 
+# =========================
+# BƯỚC 1: NGÀNH XUẤT HIỆN TRƯỚC / SAU ĐÁY
+# =========================
 
+st.subheader("Bước 1: Ngành xuất hiện trước/sau đáy thị trường")
+
+relation_records = []
+
+all_confirm_dates = (
+    confirm_df["date"]
+    .drop_duplicates()
+    .sort_values()
+    .tolist()
+)
+
+for confirm_date in all_confirm_dates:
+
+    all_signal_dates = (
+        bottom_signal_df["date"]
+        .sort_values()
+        .reset_index(drop=True)
+    )
+
+    if confirm_date not in all_signal_dates.values:
+        continue
+
+    confirm_idx = all_signal_dates[
+        all_signal_dates == confirm_date
+    ].index[0]
+
+    # lấy vùng quanh đáy: 10 phiên trước, 10 phiên sau
+    start_idx = max(confirm_idx - 10, 0)
+    end_idx = min(confirm_idx + 10, len(all_signal_dates) - 1)
+
+    window_dates = all_signal_dates.iloc[start_idx:end_idx + 1]
+
+    sector_window = sector_all_df[
+        (sector_all_df["date"].isin(window_dates))
+        & (
+            (sector_all_df["flow_vua_tich_cuc"] == True)
+            | (sector_all_df["smdt_vua_vuot_70"] == True)
+        )
+    ].copy()
+
+    if sector_window.empty:
+        continue
+
+    sector_window["nhom_nganh"] = sector_window["nganh"].apply(
+        lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
+    )
+
+    sector_window["tin_hieu"] = ""
+
+    sector_window.loc[
+        sector_window["flow_vua_tich_cuc"],
+        "tin_hieu"
+    ] += "Dòng tiền tích cực "
+
+    sector_window.loc[
+        sector_window["smdt_vua_vuot_70"],
+        "tin_hieu"
+    ] += "SMDT vượt 70"
+
+    for nganh in sector_window["nganh"].drop_duplicates():
+
+        nganh_df = sector_window[
+            sector_window["nganh"] == nganh
+        ].sort_values("date").copy()
+
+        first_row = nganh_df.iloc[0]
+
+        signal_date = first_row["date"]
+
+        # số phiên lệch so với đáy
+        signal_idx = all_signal_dates[
+            all_signal_dates == signal_date
+        ].index[0]
+
+        diff_sessions = signal_idx - confirm_idx
+
+        relation_records.append({
+            "Ngày xác nhận đáy": confirm_date,
+            "Ngành": nganh,
+            "Nhóm ngành": first_row["nhom_nganh"],
+            "Ngày tín hiệu đầu tiên": signal_date,
+            "Lệch so với đáy": diff_sessions,
+            "Vị trí": (
+                "Trước đáy" if diff_sessions < 0
+                else ("Đúng ngày đáy" if diff_sessions == 0 else "Sau đáy")
+            ),
+            "Tín hiệu": first_row["tin_hieu"]
+        })
+
+
+relation_df = pd.DataFrame(relation_records)
+
+if relation_df.empty:
+
+    st.info("Chưa có dữ liệu ngành xuất hiện quanh các đáy.")
+
+else:
+
+    relation_show = relation_df.copy()
+
+    relation_show["Ngày xác nhận đáy"] = pd.to_datetime(
+        relation_show["Ngày xác nhận đáy"]
+    ).dt.strftime("%d/%m/%Y")
+
+    relation_show["Ngày tín hiệu đầu tiên"] = pd.to_datetime(
+        relation_show["Ngày tín hiệu đầu tiên"]
+    ).dt.strftime("%d/%m/%Y")
+
+    relation_show = relation_show.sort_values(
+        ["Ngày xác nhận đáy", "Lệch so với đáy"]
+    ).reset_index(drop=True)
+
+    st.dataframe(
+        relation_show,
+        hide_index=True,
+        use_container_width=True,
+        height=350
+    )
+    
 # =========================
 # TOP 5 CỔ PHIẾU TĂNG MẠNH
 # =========================
@@ -1171,75 +1293,3 @@ else:
     )
 
 
-# =========================
-# BẢNG TỔNG HỢP: NGÀNH DẪN SÓNG VÀ MÃ DẪN SÓNG THEO TỪNG ĐÁY
-# =========================
-
-st.subheader("📊 Tổng hợp ngành dẫn sóng và mã dẫn sóng theo từng đáy")
-
-summary_records = []
-
-all_confirm_dates = (
-    confirm_df["date"]
-    .drop_duplicates()
-    .sort_values()
-    .tolist()
-)
-
-for confirm_date in all_confirm_dates:
-
-    top_stock_tmp = get_top_stock_for_bottom(confirm_date)
-
-    if top_stock_tmp.empty:
-        continue
-
-    top_row = top_stock_tmp.iloc[0]
-
-    summary_records.append({
-        "Ngày xác nhận đáy": confirm_date,
-        "Ngành dẫn sóng": top_row["nganh"],
-        "Nhóm ngành": top_row["nhom_nganh"],
-        "Mã dẫn sóng": top_row["ticker"],
-        "CP tạo đáy": top_row["stock_bottom_date"],
-        "CP tạo đỉnh": top_row["peak_date"],
-        "Hiệu suất": top_row["return_pct"],
-        "GTGD TB 20 phiên": top_row["avg_value_20"]
-    })
-
-
-summary_bottom_df = pd.DataFrame(summary_records)
-
-if summary_bottom_df.empty:
-
-    st.info("Chưa có dữ liệu tổng hợp ngành dẫn và mã dẫn.")
-
-else:
-
-    summary_bottom_show = summary_bottom_df.copy()
-
-    for col in [
-        "Ngày xác nhận đáy",
-        "CP tạo đáy",
-        "CP tạo đỉnh"
-    ]:
-        summary_bottom_show[col] = pd.to_datetime(
-            summary_bottom_show[col],
-            errors="coerce"
-        ).dt.strftime("%d/%m/%Y")
-
-    summary_bottom_show["Hiệu suất"] = summary_bottom_show["Hiệu suất"].apply(
-        lambda x: "" if pd.isna(x) else f"+{x:.1f}%"
-    )
-
-    summary_bottom_show["GTGD TB 20 phiên"] = summary_bottom_show[
-        "GTGD TB 20 phiên"
-    ].apply(
-        lambda x: "" if pd.isna(x) else f"{x / 1_000_000_000:.1f} tỷ"
-    )
-
-    st.dataframe(
-        summary_bottom_show,
-        hide_index=True,
-        use_container_width=True,
-        height=300
-    )
