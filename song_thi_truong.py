@@ -879,10 +879,10 @@ with col_right:
         )
 
 # =========================
-# TOP 5 CỔ PHIẾU TĂNG MẠNH TỪ ĐÁY LÊN ĐỈNH GẦN NHẤT
+# TOP 5 CỔ PHIẾU TĂNG MẠNH TỪ ĐÁY CỔ PHIẾU LÊN ĐỈNH GẦN NHẤT
 # =========================
 
-st.subheader("🚀 Top 5 cổ phiếu tăng mạnh từ đáy lên đỉnh gần nhất")
+st.subheader("🚀 Top 5 cổ phiếu tăng mạnh từ đáy cổ phiếu lên đỉnh gần nhất")
 
 # lấy danh sách ngành xuất hiện quanh đáy
 selected_sectors = lead_sector_show["nganh"].drop_duplicates().tolist()
@@ -988,7 +988,7 @@ else:
                 how="inner"
             )
 
-            bottom_date = selected_confirm_date
+            market_bottom_date = selected_confirm_date
 
             records = []
 
@@ -998,20 +998,11 @@ else:
                     price_with_sector["ticker"] == ticker
                 ].sort_values("date").reset_index(drop=True)
 
-                after_bottom = ticker_df[
-                    ticker_df["date"] >= bottom_date
-                ].copy()
-
-                if after_bottom.empty:
+                if ticker_df.empty:
                     continue
 
-                bottom_row = after_bottom.iloc[0]
-
-                close_bottom = bottom_row["close"]
-                real_bottom_date = bottom_row["date"]
-
                 # =========================
-                # TÌM ĐÁY TIẾP THEO CỦA CHÍNH CỔ PHIẾU
+                # TÍNH ĐÁY KỸ THUẬT CỦA CỔ PHIẾU
                 # =========================
 
                 ticker_df["prev_low_5"] = (
@@ -1033,8 +1024,58 @@ else:
                     & (ticker_df["low"] <= ticker_df["next_low_5"])
                 )
 
+                # =========================
+                # TÌM ĐÁY CỔ PHIẾU GẦN VÙNG ĐÁY THỊ TRƯỜNG
+                # Ví dụ thị trường xác nhận 11/03,
+                # cổ phiếu tạo đáy 10/03 thì vẫn lấy 10/03
+                # =========================
+
+                nearest_after = ticker_df[
+                    ticker_df["date"] >= market_bottom_date
+                ].copy()
+
+                if nearest_after.empty:
+                    continue
+
+                market_idx = nearest_after.index[0]
+
+                zone_before = 5
+                zone_after = 5
+
+                start_idx = max(market_idx - zone_before, 0)
+                end_idx = min(market_idx + zone_after, len(ticker_df) - 1)
+
+                stock_bottom_zone = ticker_df.iloc[
+                    start_idx:end_idx + 1
+                ].copy()
+
+                technical_bottoms = stock_bottom_zone[
+                    stock_bottom_zone["stock_bottom"]
+                ].copy()
+
+                if not technical_bottoms.empty:
+                    stock_bottom_row = (
+                        technical_bottoms
+                        .sort_values("low")
+                        .iloc[0]
+                    )
+                else:
+                    stock_bottom_row = (
+                        stock_bottom_zone
+                        .sort_values("low")
+                        .iloc[0]
+                    )
+
+                stock_bottom_date = stock_bottom_row["date"]
+                stock_bottom_price = stock_bottom_row["close"]
+                stock_bottom_low = stock_bottom_row["low"]
+
+                # =========================
+                # TÌM ĐÁY TIẾP THEO CỦA CHÍNH CỔ PHIẾU
+                # =========================
+
                 future_bottoms = ticker_df[
-                    (ticker_df["date"] > real_bottom_date)
+                    (ticker_df["date"] > stock_bottom_date)
                     & (ticker_df["stock_bottom"])
                 ].copy()
 
@@ -1043,8 +1084,12 @@ else:
                 else:
                     stock_next_bottom_date = ticker_df["date"].max()
 
+                # =========================
+                # TÌM ĐỈNH CAO NHẤT TRƯỚC ĐÁY TIẾP THEO
+                # =========================
+
                 period_df = ticker_df[
-                    (ticker_df["date"] >= real_bottom_date)
+                    (ticker_df["date"] >= stock_bottom_date)
                     & (ticker_df["date"] <= stock_next_bottom_date)
                 ].copy()
 
@@ -1058,7 +1103,7 @@ else:
                 peak_date = peak_row["date"]
 
                 return_pct = (
-                    peak_price / close_bottom - 1
+                    peak_price / stock_bottom_price - 1
                 ) * 100
 
                 nganh = ticker_df["nganh"].iloc[0]
@@ -1066,8 +1111,10 @@ else:
                 records.append({
                     "ticker": ticker,
                     "nganh": nganh,
-                    "bottom_date": real_bottom_date,
-                    "bottom_price": close_bottom,
+                    "market_bottom_date": market_bottom_date,
+                    "stock_bottom_date": stock_bottom_date,
+                    "stock_bottom_price": stock_bottom_price,
+                    "stock_bottom_low": stock_bottom_low,
                     "stock_next_bottom_date": stock_next_bottom_date,
                     "peak_date": peak_date,
                     "peak_price": peak_price,
@@ -1108,7 +1155,9 @@ else:
                             st.markdown(
                                 f"""
                                 **Ngành:** {row["nganh"]}  
-                                **Giai đoạn:** {row["bottom_date"].strftime("%Y-%m-%d")} → {row["peak_date"].strftime("%Y-%m-%d")}  
+                                **Đáy thị trường:** {row["market_bottom_date"].strftime("%Y-%m-%d")}  
+                                **Đáy cổ phiếu:** {row["stock_bottom_date"].strftime("%Y-%m-%d")}  
+                                **Đỉnh gần nhất:** {row["peak_date"].strftime("%Y-%m-%d")}  
                                 **Đáy tiếp theo của mã:** {row["stock_next_bottom_date"].strftime("%Y-%m-%d")}
                                 """
                             )
@@ -1120,6 +1169,6 @@ else:
                             )
 
                         st.caption(
-                            f"Giá đáy: {row['bottom_price']:.2f} | "
+                            f"Giá đáy CP: {row['stock_bottom_price']:.2f} | "
                             f"Giá đỉnh: {row['peak_price']:.2f}"
                         )
