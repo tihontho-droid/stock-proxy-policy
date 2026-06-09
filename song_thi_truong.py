@@ -1219,3 +1219,218 @@ else:
                     use_container_width=True,
                     height=220
                 )
+# =========================
+# BẢNG TỔNG HỢP: MỖI NGÀY XÁC NHẬN ĐÁY - NGÀNH NÀO DẪN, MÃ NÀO DẪN
+# =========================
+
+st.subheader("📊 Tổng hợp ngành dẫn sóng và mã dẫn sóng theo từng đáy")
+
+summary_records = []
+
+# dùng các ngày xác nhận đáy đang hiện trên biểu đồ/dropdown
+all_confirm_dates = confirm_df["date"].drop_duplicates().sort_values().tolist()
+
+for confirm_date in all_confirm_dates:
+
+    selected_confirm_date = confirm_date
+
+    # =========================
+    # 1. LẤY VÙNG QUANH ĐÁY
+    # =========================
+
+    all_signal_dates = (
+        bottom_signal_df["date"]
+        .sort_values()
+        .reset_index(drop=True)
+    )
+
+    if selected_confirm_date not in all_signal_dates.values:
+        continue
+
+    confirm_idx = all_signal_dates[
+        all_signal_dates == selected_confirm_date
+    ].index[0]
+
+    start_idx = max(confirm_idx - 5, 0)
+    end_idx = min(confirm_idx + 5, len(all_signal_dates) - 1)
+
+    window_dates = all_signal_dates.iloc[start_idx:end_idx + 1]
+
+    lead_sector_df = sector_all_df[
+        (sector_all_df["date"].isin(window_dates))
+        & (
+            (sector_all_df["flow_vua_tich_cuc"] == True)
+            | (sector_all_df["smdt_vua_vuot_70"] == True)
+        )
+    ].copy()
+
+    if lead_sector_df.empty:
+        continue
+
+    lead_sector_df["nhom_nganh"] = lead_sector_df["nganh"].apply(
+        lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
+    )
+
+    # ngành dẫn = ngành xuất hiện sớm nhất quanh đáy
+    first_sector_row = (
+        lead_sector_df
+        .sort_values(["date", "nhom_nganh"])
+        .iloc[0]
+    )
+
+    nganh_dan = first_sector_row["nganh"]
+    nhom_nganh_dan = first_sector_row["nhom_nganh"]
+    ngay_nganh_dan = first_sector_row["date"]
+
+    # =========================
+    # 2. LẤY MÃ DẪN TRONG NGÀNH ĐÓ
+    # =========================
+
+    sector_tickers = ticker_branch_df[
+        ticker_branch_df["nganh"] == nganh_dan
+    ].copy()
+
+    if sector_tickers.empty:
+        continue
+
+    price_sector_tmp = price_detail.merge(
+        sector_tickers,
+        on="ticker",
+        how="inner"
+    )
+
+    records = []
+
+    for ticker in price_sector_tmp["ticker"].drop_duplicates():
+
+        ticker_df = price_sector_tmp[
+            price_sector_tmp["ticker"] == ticker
+        ].sort_values("date").reset_index(drop=True)
+
+        nearest_after = ticker_df[
+            ticker_df["date"] >= selected_confirm_date
+        ].copy()
+
+        if nearest_after.empty:
+            continue
+
+        market_idx = nearest_after.index[0]
+
+        zone_before = 10
+        zone_after = 5
+
+        bottom_start_idx = max(market_idx - zone_before, 0)
+        bottom_end_idx = min(market_idx + zone_after, len(ticker_df) - 1)
+
+        stock_bottom_zone = ticker_df.iloc[
+            bottom_start_idx:bottom_end_idx + 1
+        ].copy()
+
+        if stock_bottom_zone.empty:
+            continue
+
+        stock_bottom_row = stock_bottom_zone.sort_values("low").iloc[0]
+
+        stock_bottom_date = stock_bottom_row["date"]
+        stock_bottom_price = stock_bottom_row["close"]
+
+        stock_bottom_idx = ticker_df[
+            ticker_df["date"] == stock_bottom_date
+        ].index[0]
+
+        liq_start_idx = max(stock_bottom_idx - 20, 0)
+
+        avg_value_20 = ticker_df.iloc[
+            liq_start_idx:stock_bottom_idx + 1
+        ]["value"].mean()
+
+        if avg_value_20 < min_avg_value:
+            continue
+
+        peak_end_idx = min(
+            stock_bottom_idx + max_holding_sessions,
+            len(ticker_df) - 1
+        )
+
+        period_after_bottom = ticker_df.iloc[
+            stock_bottom_idx:peak_end_idx + 1
+        ].copy()
+
+        if period_after_bottom.empty:
+            continue
+
+        peak_idx = period_after_bottom["high"].idxmax()
+        peak_row = ticker_df.loc[peak_idx]
+
+        peak_price = peak_row["high"]
+        peak_date = peak_row["date"]
+
+        return_pct = (peak_price / stock_bottom_price - 1) * 100
+
+        if return_pct < min_wave_return:
+            continue
+
+        records.append({
+            "ticker": ticker,
+            "stock_bottom_date": stock_bottom_date,
+            "peak_date": peak_date,
+            "return_pct": return_pct,
+            "avg_value_20": avg_value_20
+        })
+
+    if len(records) == 0:
+        ma_dan = ""
+        hieu_suat = None
+        ngay_cp_day = None
+        ngay_cp_dinh = None
+    else:
+        stock_rank_df = pd.DataFrame(records).sort_values(
+            "return_pct",
+            ascending=False
+        ).reset_index(drop=True)
+
+        top_row = stock_rank_df.iloc[0]
+
+        ma_dan = top_row["ticker"]
+        hieu_suat = top_row["return_pct"]
+        ngay_cp_day = top_row["stock_bottom_date"]
+        ngay_cp_dinh = top_row["peak_date"]
+
+    summary_records.append({
+        "Ngày xác nhận đáy": selected_confirm_date,
+        "Ngày ngành dẫn": ngay_nganh_dan,
+        "Ngành dẫn": nganh_dan,
+        "Nhóm ngành": nhom_nganh_dan,
+        "Mã dẫn": ma_dan,
+        "CP tạo đáy": ngay_cp_day,
+        "CP tạo đỉnh": ngay_cp_dinh,
+        "Hiệu suất": hieu_suat
+    })
+
+
+summary_bottom_df = pd.DataFrame(summary_records)
+
+if summary_bottom_df.empty:
+
+    st.info("Chưa có dữ liệu tổng hợp ngành dẫn và mã dẫn.")
+
+else:
+
+    summary_bottom_show = summary_bottom_df.copy()
+
+    for col in ["Ngày xác nhận đáy", "Ngày ngành dẫn", "CP tạo đáy", "CP tạo đỉnh"]:
+        summary_bottom_show[col] = pd.to_datetime(
+            summary_bottom_show[col],
+            errors="coerce"
+        ).dt.strftime("%d/%m/%Y")
+
+    summary_bottom_show["Hiệu suất"] = summary_bottom_show["Hiệu suất"].apply(
+        lambda x: "" if pd.isna(x) else f"+{x:.1f}%"
+    )
+
+    st.dataframe(
+        summary_bottom_show,
+        hide_index=True,
+        use_container_width=True,
+        height=300
+    )
