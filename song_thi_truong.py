@@ -785,8 +785,7 @@ lead_sector_show = lead_sector_df[
         "nganh",
         "nhom_nganh",
         "cashflow",
-        "smdt",
-        "tin_hieu"
+        "smdt"
     ]
 ].copy()
 
@@ -811,7 +810,7 @@ col_left, col_right = st.columns(2)
 
 with col_left:
 
-    st.markdown("###Ngành chủ lực")
+    st.markdown("### Ngành chủ lực")
 
     if chu_luc_df.empty:
 
@@ -826,13 +825,12 @@ with col_left:
                     "giai_doan",
                     "nganh",
                     "cashflow",
-                    "smdt",
-                    "tin_hieu"
+                    "smdt"
                 ]
             ],
             hide_index=True,
             use_container_width=True,
-            height=300
+            height=250
         )
 
 with col_right:
@@ -852,8 +850,7 @@ with col_right:
                     "giai_doan",
                     "nganh",
                     "cashflow",
-                    "smdt",
-                    "tin_hieu"
+                    "smdt"
                 ]
             ],
             hide_index=True,
