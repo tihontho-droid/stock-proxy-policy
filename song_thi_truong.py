@@ -154,6 +154,22 @@ flow_detail = flow_detail[
     ["date", "nganh", "cashflow", "flow_num"]
 ]
 
+# =========================
+# CHUẨN HÓA TÊN NGÀNH FLOW CHO KHỚP SMDT
+# =========================
+
+flow_name_map = {
+    "Ngân hàng thương mại truyền thống": "Ngân hàng",
+    "Môi giới chứng khoán": "Chứng khoán",
+    "Bất động sản dân cư": "BĐS Dân cư",
+    "Bất động sản dân cư": "BĐS Dân cư",
+    "Thương mại (Bán buôn) sắt thép": "Thép"
+}
+
+flow_detail["nganh"] = (
+    flow_detail["nganh"]
+    .replace(flow_name_map)
+)
 
 # =========================
 # 4. GỘP SMDT + FLOW NGÀNH
@@ -702,7 +718,7 @@ else:
                 unsafe_allow_html=True
             )
 # =========================
-# DANH SÁCH NGÀNH DẪN SÓNG TRƯỚC NGÀY TẠO ĐÁY
+# NGÀNH DẪN SÓNG TRƯỚC VÀ SAU ĐÁY
 # =========================
 
 nganh_chu_luc = [
@@ -714,46 +730,72 @@ nganh_chu_luc = [
     "Sóng ngành Vin"
 ]
 
+# lấy 5 phiên trước và 5 phiên sau ngày xác nhận đáy
+all_signal_dates = (
+    bottom_signal_df["date"]
+    .sort_values()
+    .reset_index(drop=True)
+)
+
+confirm_idx = all_signal_dates[
+    all_signal_dates == selected_confirm_date
+].index[0]
+
+start_idx = max(confirm_idx - 5, 0)
+end_idx = min(confirm_idx + 5, len(all_signal_dates) - 1)
+
+window_dates = all_signal_dates.iloc[start_idx:end_idx + 1]
+
 lead_sector_df = sector_all_df[
-    (sector_all_df["date"] >= prepare_row["date"])
-    & (sector_all_df["date"] <= selected_confirm_date)
+    (sector_all_df["date"].isin(window_dates))
     & (
         (sector_all_df["flow_vua_tich_cuc"] == True)
         | (sector_all_df["smdt_vua_vuot_70"] == True)
     )
 ].copy()
 
+# phân nhóm ngành
 lead_sector_df["nhom_nganh"] = lead_sector_df["nganh"].apply(
     lambda x: "Ngành chủ lực" if x in nganh_chu_luc else "Ngành phụ"
 )
 
+# giai đoạn quanh đáy
+lead_sector_df["giai_doan"] = lead_sector_df["date"].apply(
+    lambda x: "Trước đáy" if x < selected_confirm_date
+    else ("Ngày xác nhận" if x == selected_confirm_date else "Sau đáy")
+)
+
+# chỉ hiện tín hiệu dòng tiền và SMDT
 lead_sector_df["tin_hieu"] = ""
 
 lead_sector_df.loc[
     lead_sector_df["flow_vua_tich_cuc"],
     "tin_hieu"
-] += "Flow vừa tích cực "
+] += "Dòng tiền tích cực "
 
 lead_sector_df.loc[
     lead_sector_df["smdt_vua_vuot_70"],
     "tin_hieu"
-] += "SMDT vừa vượt 70"
+] += "SMDT vượt 70"
 
 lead_sector_show = lead_sector_df[
     [
         "date",
+        "giai_doan",
         "nganh",
         "nhom_nganh",
         "cashflow",
         "smdt",
-        "flow_vua_tich_cuc",
-        "smdt_vua_vuot_70",
         "tin_hieu"
     ]
 ].copy()
 
 lead_sector_show["date"] = lead_sector_show["date"].dt.strftime("%Y-%m-%d")
 lead_sector_show["smdt"] = lead_sector_show["smdt"].round(2)
+
+lead_sector_show = lead_sector_show.sort_values(
+    ["date", "nhom_nganh", "nganh"]
+).reset_index(drop=True)
 
 chu_luc_df = lead_sector_show[
     lead_sector_show["nhom_nganh"] == "Ngành chủ lực"
@@ -763,52 +805,58 @@ phu_df = lead_sector_show[
     lead_sector_show["nhom_nganh"] == "Ngành phụ"
 ].copy()
 
-st.subheader("🌊 Ngành dẫn sóng trước đáy")
+st.subheader("Lộ trình dẫn sóng")
 
 col_left, col_right = st.columns(2)
 
 with col_left:
-    st.markdown("### 🟢 Ngành chủ lực")
+
+    st.markdown("###Ngành chủ lực")
 
     if chu_luc_df.empty:
-        st.info("Không có ngành chủ lực dẫn sóng trong giai đoạn này.")
+
+        st.info("Không có ngành chủ lực dẫn sóng quanh đáy này.")
+
     else:
+
         st.dataframe(
             chu_luc_df[
                 [
                     "date",
+                    "giai_doan",
                     "nganh",
                     "cashflow",
                     "smdt",
-                    "flow_vua_tich_cuc",
-                    "smdt_vua_vuot_70",
                     "tin_hieu"
                 ]
             ],
             hide_index=True,
             use_container_width=True,
-            height=280
+            height=300
         )
 
 with col_right:
-    st.markdown("### 🟠 Ngành phụ")
+
+    st.markdown("### Ngành phụ")
 
     if phu_df.empty:
-        st.info("Không có ngành phụ dẫn sóng trong giai đoạn này.")
+
+        st.info("Không có ngành phụ dẫn sóng quanh đáy này.")
+
     else:
+
         st.dataframe(
             phu_df[
                 [
                     "date",
+                    "giai_doan",
                     "nganh",
                     "cashflow",
                     "smdt",
-                    "flow_vua_tich_cuc",
-                    "smdt_vua_vuot_70",
                     "tin_hieu"
                 ]
             ],
             hide_index=True,
             use_container_width=True,
-            height=280
+            height=250
         )
