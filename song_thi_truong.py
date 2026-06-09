@@ -1168,81 +1168,35 @@ else:
                     "return_pct",
                     ascending=False
                 ).head(5).reset_index(drop=True)
-
-                # hiển thị top 5
+                
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
                 
                     nhom_nganh = row.get("nhom_nganh", "phụ")
                 
-                    st.markdown(
-                        f"""
-                        <div style="
-                            border:1px solid #E5E7EB;
-                            border-radius:12px;
-                            padding:12px 18px;
-                            margin-bottom:10px;
-                            background:white;
-                        ">
+                    with st.container(border=True):
                 
-                            <div style="
-                                font-size:12px;
-                                color:#6B7280;
-                                margin-bottom:4px;
-                            ">
-                                TOP {i+1} • {row["nganh"]} ({nhom_nganh})
-                            </div>
+                        top_left, top_right = st.columns([3, 1])
                 
-                            <div style="
-                                display:flex;
-                                justify-content:space-between;
-                                align-items:center;
-                                margin-bottom:10px;
-                            ">
+                        with top_left:
+                            st.caption(f"TOP {i + 1} • {row['nganh']} ({nhom_nganh})")
+                            st.markdown(f"## {row['ticker']}")
                 
-                                <div style="
-                                    font-size:28px;
-                                    font-weight:800;
-                                    color:#111827;
-                                ">
-                                    {row["ticker"]}
-                                </div>
+                        with top_right:
+                            st.metric(
+                                label="Hiệu suất",
+                                value=f"+{row['return_pct']:.1f}%"
+                            )
                 
-                                <div style="
-                                    font-size:24px;
-                                    font-weight:700;
-                                    color:#16A34A;
-                                ">
-                                    +{row["return_pct"]:.1f}%
-                                </div>
+                        d1, d2, d3 = st.columns(3)
                 
-                            </div>
+                        with d1:
+                            st.caption("Thị trường tạo đáy")
+                            st.write(row["market_bottom_date"].strftime("%d/%m/%Y"))
                 
-                            <div style="
-                                display:flex;
-                                justify-content:space-between;
-                                font-size:12px;
-                                color:#6B7280;
-                            ">
-                                <div>
-                                    Thị trường tạo đáy
-                                    <br>
-                                    <b>{row["market_bottom_date"].strftime("%d/%m/%Y")}</b>
-                                </div>
+                        with d2:
+                            st.caption("Cổ phiếu tạo đáy")
+                            st.write(row["stock_bottom_date"].strftime("%d/%m/%Y"))
                 
-                                <div>
-                                    Cổ phiếu tạo đáy
-                                    <br>
-                                    <b>{row["stock_bottom_date"].strftime("%d/%m/%Y")}</b>
-                                </div>
-                
-                                <div>
-                                    Cổ phiếu tạo đỉnh
-                                    <br>
-                                    <b>{row["peak_date"].strftime("%d/%m/%Y")}</b>
-                                </div>
-                            </div>
-                
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+                        with d3:
+                            st.caption("Cổ phiếu tạo đỉnh")
+                            st.write(row["peak_date"].strftime("%d/%m/%Y"))
