@@ -300,22 +300,44 @@ bottom_signal_df = market_df[
 # =========================
 # 8. LẤY MARKER TỪ BẢNG
 # Không thay đổi bảng gốc
-# Chỉ hiện 1 marker xác nhận cho mỗi cụm đáy
+# Nếu các điểm xác nhận gần nhau trong 5 phiên thì chỉ hiện 1 marker
 # =========================
 
 marker_df = bottom_signal_df.copy()
 marker_df = marker_df.sort_values("date").reset_index(drop=True)
 
-marker_df["phase_group"] = (
-    marker_df["bottom_phase"] != marker_df["bottom_phase"].shift(1)
-).cumsum()
+xac_nhan_df = marker_df[
+    marker_df["xac_nhan_tao_day"] == True
+].copy()
 
-xac_nhan_marker_df = (
-    marker_df[marker_df["xac_nhan_tao_day"] == True]
-    .groupby("phase_group")
-    .head(1)
-    .copy()
-)
+xac_nhan_df = xac_nhan_df.sort_values("date").reset_index(drop=True)
+
+marker_rows = []
+
+last_marker_idx = None
+
+for idx, row in xac_nhan_df.iterrows():
+
+    current_date = row["date"]
+
+    if last_marker_idx is None:
+        marker_rows.append(row)
+        last_marker_idx = marker_df.index[
+            marker_df["date"] == current_date
+        ][0]
+
+    else:
+        current_idx = marker_df.index[
+            marker_df["date"] == current_date
+        ][0]
+
+        # Nếu cách marker trước <= 5 phiên thì bỏ qua
+        if current_idx - last_marker_idx > 5:
+            marker_rows.append(row)
+            last_marker_idx = current_idx
+
+xac_nhan_marker_df = pd.DataFrame(marker_rows)
+
 
 # =========================
 # 9. LẤY DỮ LIỆU VNINDEX
