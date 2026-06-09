@@ -392,7 +392,7 @@ else:
             "position": "belowBar",
             "color": "#00C853",
             "shape": "arrowUp",
-            "text": "Đáy"
+            "text": "Xác nhận đáy"
         })
 
     st.subheader(f"📉 {vnindex_ticker} - Tín hiệu tạo đáy")
