@@ -407,7 +407,7 @@ else:
     chart = [
         {
             "chart": {
-                "height": 600,
+                "height": 500,
                 "layout": {
                     "background": {
                         "type": "solid",
@@ -603,7 +603,7 @@ else:
                         color="#333"
                     )
                 ),
-                height=430,
+                height=250,
                 margin=dict(
                     t=60,
                     b=30,
