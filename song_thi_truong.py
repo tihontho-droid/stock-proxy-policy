@@ -1169,44 +1169,51 @@ else:
                     ascending=False
                 ).head(5).reset_index(drop=True)
                                 
-                # nếu chưa có cột nhóm ngành thì tạo thêm
+                # =========================
+                # TOP 5 CARD NGANG
+                # =========================
+                
                 top_stock_df["nhom_nganh"] = top_stock_df["nganh"].apply(
                     lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
                 )
                 
+                cols = st.columns(5)
+                
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
                 
-                    with st.container(border=True):
+                    with cols[i]:
                 
-                        st.caption(
-                            f"TOP {i + 1} • {row['nganh']} ({row['nhom_nganh']})"
-                        )
+                        with st.container(border=True):
                 
-                        c1, c2, c3, c4, c5 = st.columns(
-                            [1.5, 1.4, 1.4, 1.4, 1.2]
-                        )
-                
-                        with c1:
-                            st.markdown(f"## {row['ticker']}")
-                
-                        with c2:
-                            st.markdown(
-                                f"**{row['market_bottom_date'].strftime('%d/%m/%Y')}**"
+                            st.caption(
+                                f"TOP {i+1}"
                             )
+                
+                            st.caption(
+                                f"{row['nganh']} ({row['nhom_nganh']})"
+                            )
+                
+                            st.markdown(
+                                f"## {row['ticker']}"
+                            )
+                
+                            st.markdown(
+                                f"### +{row['return_pct']:.1f}%"
+                            )
+                
+                            st.divider()
+                
                             st.caption("TT tạo đáy")
-                
-                        with c3:
-                            st.markdown(
-                                f"**{row['stock_bottom_date'].strftime('%d/%m/%Y')}**"
+                            st.write(
+                                row["market_bottom_date"].strftime("%d/%m/%Y")
                             )
+                
                             st.caption("CP tạo đáy")
-                
-                        with c4:
-                            st.markdown(
-                                f"**{row['peak_date'].strftime('%d/%m/%Y')}**"
+                            st.write(
+                                row["stock_bottom_date"].strftime("%d/%m/%Y")
                             )
-                            st.caption("CP tạo đỉnh")
                 
-                        with c5:
-                            st.markdown(f"## +{row['return_pct']:.1f}%")
-                            st.caption("Hiệu suất")
+                            st.caption("CP tạo đỉnh")
+                            st.write(
+                                row["peak_date"].strftime("%d/%m/%Y")
+                            )
