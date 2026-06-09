@@ -1168,6 +1168,11 @@ else:
                     "return_pct",
                     ascending=False
                 ).head(5).reset_index(drop=True)
+                                
+                # nếu chưa có cột nhóm ngành thì tạo thêm
+                top_stock_df["nhom_nganh"] = top_stock_df["nganh"].apply(
+                    lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
+                )
                 
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
                 
