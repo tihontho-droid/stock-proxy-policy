@@ -50,7 +50,7 @@ def load_all_data():
         "https://stocktraders.vn/service/data/getBranchPath",
         {"BranchPathRequest": {"account": account}}
     )    
-    return wave_data, smdt_data, flow_data, price_data, branch_
+    return wave_data, smdt_data, flow_data, price_data, branch_data
 
 
 with st.spinner("Đang tải dữ liệu..."):
