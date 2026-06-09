@@ -1186,7 +1186,8 @@ else:
                         )
                                     
                         with c1:
-                        
+                            st.write("")
+                            st.write("")
                             st.caption(f"TOP {i+1}")
                         
                             st.markdown(f"## {row['ticker']}")
