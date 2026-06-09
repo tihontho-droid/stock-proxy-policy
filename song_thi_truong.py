@@ -1170,36 +1170,52 @@ else:
                 ).head(5).reset_index(drop=True)
                                                 
                 # =========================
-                # TOP 5 CARD NGANG - BẢN GỌN
+                # TOP 5 DẠNG DANH SÁCH
                 # =========================
                 
                 top_stock_df["nhom_nganh"] = top_stock_df["nganh"].apply(
                     lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
                 )
                 
-                cols = st.columns(min(len(top_stock_df), 5))
-                
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
                 
-                    with cols[i]:
+                    with st.container(border=True):
                 
-                        with st.container(border=True):
+                        c1, c2, c3, c4 = st.columns(
+                            [1.2, 2.5, 1.5, 1.2]
+                        )
                 
-                            st.caption(f"TOP {i+1}")
-                            
-                            c1, c2 = st.columns([1,1])
-                            
-                            with c1:
-                                st.markdown(f"## {row['ticker']}")
-                            
-                            with c2:
-                                st.markdown(
-                                    f"<h2 style='text-align:right'>+{row['return_pct']:.1f}%</h2>",
-                                    unsafe_allow_html=True
-                                )
-                            
-                            st.caption(row["nganh"])
-                            
-                            st.caption(
-                                f"CP tạo đáy: {row['stock_bottom_date'].strftime('%d/%m/%Y')}"
+                        with c1:
+                
+                            st.markdown(
+                                f"""
+                                **TOP {i+1}**  
+                                ### {row['ticker']}
+                                """
+                            )
+                
+                        with c2:
+                
+                            st.markdown(
+                                f"""
+                                **Ngành:** {row['nganh']} ({row['nhom_nganh']})
+                                """
+                            )
+                
+                        with c3:
+                
+                            st.markdown(
+                                f"""
+                                **CP tạo đáy**  
+                                {row['stock_bottom_date'].strftime('%d/%m/%Y')}
+                                """
+                            )
+                
+                        with c4:
+                
+                            st.markdown(
+                                f"""
+                                **Hiệu suất**  
+                                +{row['return_pct']:.1f}%
+                                """
                             )
