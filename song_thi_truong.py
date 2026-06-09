@@ -323,8 +323,19 @@ market_df.loc[
     "bottom_phase"
 ] = "Xác nhận tạo đáy"
 
+
+# =========================
+# CHỈ DÙNG CHO BIỂU ĐỒ
+# Mỗi cụm xác nhận chỉ lấy ngày đầu tiên
+# =========================
+
+market_df["xac_nhan_tao_day_chart"] = (
+    market_df["xac_nhan_tao_day"]
+    & ~market_df["xac_nhan_tao_day"].shift(1).fillna(False)
+)
+
 bottom_dates = market_df.loc[
-    market_df["xac_nhan_tao_day"],
+    market_df["xac_nhan_tao_day_chart"],
     "date"
 ].tolist()
 
@@ -555,6 +566,7 @@ bottom_signal_df = market_df[
         "nganh_dang_dep",
         "chuan_bi_tao_day",
         "xac_nhan_tao_day",
+        "xac_nhan_tao_day_chart",
         "bottom_phase"
     ]
 ].copy()
