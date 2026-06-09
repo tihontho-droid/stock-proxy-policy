@@ -467,9 +467,8 @@ else:
 
 st.subheader("🔎 Tra cứu ngày xác nhận đáy")
 
-confirm_df = bottom_signal_df[
-    bottom_signal_df["xac_nhan_tao_day"] == True
-].copy()
+# Chỉ lấy những ngày xác nhận đáy đang được dùng làm marker trên biểu đồ
+confirm_df = xac_nhan_marker_df.copy()
 
 confirm_df = confirm_df.sort_values("date").reset_index(drop=True)
 
