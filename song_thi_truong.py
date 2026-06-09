@@ -469,7 +469,6 @@ st.subheader("🔎 Tra cứu ngày xác nhận đáy")
 
 # Chỉ lấy những ngày xác nhận đáy đang được dùng làm marker trên biểu đồ
 confirm_df = xac_nhan_marker_df.copy()
-
 confirm_df = confirm_df.sort_values("date").reset_index(drop=True)
 
 confirm_dates = confirm_df["date"].dt.strftime("%Y-%m-%d").tolist()
@@ -516,15 +515,15 @@ else:
             f"""
             <div style="
                 background:#F7F8FC;
-                padding:18px 22px;
-                border-radius:18px;
-                margin-bottom:18px;
+                padding:14px 18px;
+                border-radius:16px;
+                margin-bottom:12px;
                 border:1px solid #ECEEF5;
             ">
                 <div style="font-size:18px; font-weight:700;">
                     Đáy được chọn: {confirm_date_str}
                 </div>
-                <div style="font-size:15px; color:#666; margin-top:4px;">
+                <div style="font-size:14px; color:#666; margin-top:4px;">
                     Ngày chuẩn bị tạo đáy: {prepare_date_str}
                 </div>
             </div>
@@ -545,16 +544,17 @@ else:
         <div style="
             display:flex;
             justify-content:center;
-            gap:22px;
+            gap:14px;
             margin-top:-18px;
-            margin-bottom:10px;
-            font-size:15px;
+            margin-bottom:4px;
+            font-size:13px;
             color:#444;
+            flex-wrap:wrap;
         ">
-            <div><span style="color:#11D99A; font-size:22px;">●</span> Chờ mua</div>
-            <div><span style="color:#00A86B; font-size:22px;">●</span> Mua</div>
-            <div><span style="color:#FFA114; font-size:22px;">●</span> Chờ bán</div>
-            <div><span style="color:#F23670; font-size:22px;">●</span> Bán</div>
+            <div><span style="color:#11D99A; font-size:18px;">●</span> Chờ mua</div>
+            <div><span style="color:#00A86B; font-size:18px;">●</span> Mua</div>
+            <div><span style="color:#FFA114; font-size:18px;">●</span> Chờ bán</div>
+            <div><span style="color:#F23670; font-size:18px;">●</span> Bán</div>
         </div>
         """
 
@@ -573,17 +573,17 @@ else:
                     go.Pie(
                         labels=labels,
                         values=values,
-                        hole=0.62,
+                        hole=0.70,
                         marker=dict(
                             colors=colors,
                             line=dict(
                                 color="white",
-                                width=2
+                                width=1
                             )
                         ),
                         textinfo="value",
                         textfont=dict(
-                            size=20,
+                            size=12,
                             color="white"
                         ),
                         sort=False,
@@ -599,16 +599,16 @@ else:
                     x=0.5,
                     xanchor="center",
                     font=dict(
-                        size=18,
+                        size=14,
                         color="#333"
                     )
                 ),
                 height=250,
                 margin=dict(
-                    t=60,
-                    b=30,
-                    l=20,
-                    r=20
+                    t=35,
+                    b=5,
+                    l=5,
+                    r=5
                 ),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
@@ -618,7 +618,7 @@ else:
                         x=0.5,
                         y=0.5,
                         font=dict(
-                            size=38,
+                            size=22,
                             color="#111111"
                         ),
                         showarrow=False
@@ -639,7 +639,8 @@ else:
 
             st.plotly_chart(
                 fig_prepare,
-                use_container_width=True
+                use_container_width=True,
+                config={"displayModeBar": False}
             )
 
             st.markdown(legend_html, unsafe_allow_html=True)
@@ -648,22 +649,25 @@ else:
                 f"""
                 <div style="
                     text-align:center;
-                    font-size:15px;
+                    font-size:13px;
                     color:#555;
-                    margin-top:8px;
+                    margin-top:4px;
+                    background:#F8F9FD;
+                    padding:10px;
+                    border-radius:12px;
+                    border:1px solid #ECEEF5;
                 ">
                     Chờ mua: <b>{prepare_row["waitbuy"]}</b> |
                     Mua: <b>{prepare_row["buy"]}</b> |
                     Chờ bán: <b>{prepare_row["waitsell"]}</b> |
                     Bán: <b>{prepare_row["sell"]}</b>
                 </div>
-                </div>
                 """,
                 unsafe_allow_html=True
             )
 
         with col2:
- 
+
             fig_confirm = make_pie(
                 confirm_row,
                 f"Xác nhận đáy - {confirm_date_str}"
@@ -671,7 +675,8 @@ else:
 
             st.plotly_chart(
                 fig_confirm,
-                use_container_width=True
+                use_container_width=True,
+                config={"displayModeBar": False}
             )
 
             st.markdown(legend_html, unsafe_allow_html=True)
@@ -680,15 +685,18 @@ else:
                 f"""
                 <div style="
                     text-align:center;
-                    font-size:15px;
+                    font-size:13px;
                     color:#555;
-                    margin-top:8px;
+                    margin-top:4px;
+                    background:#F8F9FD;
+                    padding:10px;
+                    border-radius:12px;
+                    border:1px solid #ECEEF5;
                 ">
                     Chờ mua: <b>{confirm_row["waitbuy"]}</b> |
                     Mua: <b>{confirm_row["buy"]}</b> |
                     Chờ bán: <b>{confirm_row["waitsell"]}</b> |
                     Bán: <b>{confirm_row["sell"]}</b>
-                </div>
                 </div>
                 """,
                 unsafe_allow_html=True
