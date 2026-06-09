@@ -300,38 +300,22 @@ bottom_signal_df = market_df[
 # =========================
 # 8. LẤY MARKER TỪ BẢNG
 # Không thay đổi bảng gốc
-# Chỉ hiện marker Xác nhận tạo đáy
-# Mỗi cụm xác nhận chỉ lấy ngày đầu tiên
+# Chỉ hiện 1 marker xác nhận cho mỗi cụm đáy
 # =========================
 
 marker_df = bottom_signal_df.copy()
 marker_df = marker_df.sort_values("date").reset_index(drop=True)
 
-# Nếu nhiều ngày xác nhận liên tiếp:
-# 10/04 True, 11/04 True, 12/04 True
-# thì chỉ lấy 10/04 làm marker trên biểu đồ
-marker_df["xac_nhan_marker"] = (
-    marker_df["xac_nhan_tao_day"]
-    & ~marker_df["xac_nhan_tao_day"].shift(1).fillna(False)
+marker_df["phase_group"] = (
+    marker_df["bottom_phase"] != marker_df["bottom_phase"].shift(1)
+).cumsum()
+
+xac_nhan_marker_df = (
+    marker_df[marker_df["xac_nhan_tao_day"] == True]
+    .groupby("phase_group")
+    .head(1)
+    .copy()
 )
-
-xac_nhan_marker_df = marker_df[
-    marker_df["xac_nhan_marker"]
-].copy()
-
-# tạo sẵn danh sách marker cho biểu đồ
-markers = []
-
-for _, row in xac_nhan_marker_df.iterrows():
-
-    markers.append({
-        "time": row["date"].strftime("%Y-%m-%d"),
-        "position": "belowBar",
-        "color": "#00C853",
-        "shape": "arrowUp",
-        "text": "Đáy"
-    })
-
 
 # =========================
 # 9. LẤY DỮ LIỆU VNINDEX
