@@ -826,7 +826,7 @@ phu_df = phu_df.rename(columns={
 
 with col_left:
 
-    st.markdown("### Ngành chủ lực")
+    st.markdown("## Ngành chủ lực")
 
     if chu_luc_df.empty:
 
@@ -851,7 +851,7 @@ with col_left:
 
 with col_right:
 
-    st.markdown("### Ngành phụ")
+    st.markdown("Ngành phụ")
 
     if phu_df.empty:
 
