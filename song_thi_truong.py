@@ -1185,16 +1185,21 @@ else:
                 
                         with st.container(border=True):
                 
-                            st.caption(
-                                f"TOP {i + 1} • {row['nganh']} ({row['nhom_nganh']})"
-                            )
-                
-                            c1, c2 = st.columns([1, 1])
-                
+                            st.caption(f"TOP {i+1}")
+                            
+                            c1, c2 = st.columns([1,1])
+                            
                             with c1:
-                                st.markdown(f"### {row['ticker']}")
-                
+                                st.markdown(f"## {row['ticker']}")
+                            
                             with c2:
-                                st.markdown(f"### +{row['return_pct']:.1f}%")
-                
-                            st.caption(f"CP tạo đáy: {row['stock_bottom_date'].strftime('%d/%m/%Y')}")
+                                st.markdown(
+                                    f"<h2 style='text-align:right'>+{row['return_pct']:.1f}%</h2>",
+                                    unsafe_allow_html=True
+                                )
+                            
+                            st.caption(row["nganh"])
+                            
+                            st.caption(
+                                f"CP tạo đáy: {row['stock_bottom_date'].strftime('%d/%m/%Y')}"
+                            )
