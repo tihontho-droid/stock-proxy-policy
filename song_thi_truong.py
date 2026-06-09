@@ -1184,23 +1184,24 @@ else:
                         c1, c2, c3, c4 = st.columns(
                             [1.8, 3.0, 1.5, 1.2]
                         )
-                
-                        with c1:
-                
-                            st.markdown(
-                                f"""
-                                # TOP {i+1} · {row['ticker']}
-                                """
-                            )
-                
-                        with c2:
-                
-                            st.markdown(
-                                f"""
-                                **Ngành:** {row['nganh']} ({row['nhom_nganh']})
-                                """
-                            )
-                
+                                    
+                    with c1:
+                    
+                        st.caption(f"TOP {i+1}")
+                    
+                        st.markdown(
+                            f"## {row['ticker']}"
+                        )
+                    
+                    with c2:
+                    
+                        st.markdown("<br>", unsafe_allow_html=True)
+                    
+                        st.markdown(
+                            f"""
+                            **Ngành:** {row['nganh']} ({row['nhom_nganh']})
+                            """
+                        )
                         with c3:
                 
                             st.markdown(
