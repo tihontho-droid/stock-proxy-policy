@@ -1096,32 +1096,37 @@ else:
                 ).head(5).reset_index(drop=True)
 
                 # =========================
-                # HIỂN THỊ TOP 5 DẠNG 5 KHUNG
-                # Không dùng HTML để tránh bị hiện code
+                # HIỂN THỊ TOP 5 DẠNG LIST CARD DỌC
                 # =========================
 
-                cols = st.columns(5)
+                rank_icons = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
 
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
 
-                    with cols[i]:
+                    rank_icon = rank_icons[i] if i < len(rank_icons) else f"{i + 1}."
 
-                        with st.container(border=True):
+                    with st.container(border=True):
 
-                            st.markdown(f"### {row['ticker']}")
+                        col_a, col_b, col_c = st.columns([1.2, 2.5, 1.3])
 
-                            st.caption(row["nganh"])
+                        with col_a:
+                            st.markdown(f"### {rank_icon} {row['ticker']}")
 
+                        with col_b:
+                            st.markdown(
+                                f"""
+                                **Ngành:** {row["nganh"]}  
+                                **Giai đoạn:** {row["bottom_date"].strftime("%Y-%m-%d")} → {row["peak_date"].strftime("%Y-%m-%d")}
+                                """
+                            )
+
+                        with col_c:
                             st.metric(
-                                label="Tăng từ đáy lên đỉnh",
+                                label="Tăng",
                                 value=f"+{row['return_pct']:.2f}%"
                             )
 
-                            st.write(
-                                f"""
-                                **Đáy:** {row["bottom_date"].strftime("%Y-%m-%d")}  
-                                **Giá đáy:** {row["bottom_price"]:.2f}  
-                                **Đỉnh gần nhất:** {row["peak_date"].strftime("%Y-%m-%d")}  
-                                **Giá đỉnh:** {row["peak_price"]:.2f}
-                                """
-                            )
+                        st.caption(
+                            f"Giá đáy: {row['bottom_price']:.2f} | "
+                            f"Giá đỉnh: {row['peak_price']:.2f}"
+                        )
