@@ -525,7 +525,7 @@ else:
                     Đáy được chọn: {confirm_date_str}
                 </div>
                 <div style="font-size:15px; color:#666; margin-top:4px;">
-                    Ngày chuẩn bị gần nhất: {prepare_date_str}
+                    Ngày chuẩn bị tạo đáy: {prepare_date_str}
                 </div>
             </div>
             """,
