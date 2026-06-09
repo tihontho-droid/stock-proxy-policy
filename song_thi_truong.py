@@ -4,10 +4,6 @@ import requests
 from streamlit_lightweight_charts import renderLightweightCharts
 
 
-# =========================
-# CẤU HÌNH TRANG
-# =========================
-
 st.set_page_config(
     page_title="Sóng thị trường",
     layout="wide"
@@ -15,18 +11,8 @@ st.set_page_config(
 
 st.title("📈 Giao dịch theo sóng thị trường")
 
-
-# =========================
-# THAM SỐ CỐ ĐỊNH
-# =========================
-
 start_date = "2023-06-08"
-min_gap_days = 30
 
-
-# =========================
-# HÀM GỌI API
-# =========================
 
 @st.cache_data(ttl=3600)
 def post_api(url, payload):
@@ -36,229 +22,190 @@ def post_api(url, payload):
 
 
 @st.cache_data(ttl=3600)
-def load_stock_wave():
-    url = "https://stocktraders.vn/service/data/getStockWave"
+def load_all_data():
+    account = "uyen.png"
 
-    payload = {
-        "StockWaveRequest": {
-            "account": "uyen.png"
-        }
-    }
-
-    data = post_api(url, payload)
-
-    if "StockWaveReply" in data:
-        stock_waves = data["StockWaveReply"]["stockWaves"]
-    else:
-        stock_waves = data["StockWaveRequest"]["stockWaves"]
-
-    waves_df = pd.DataFrame(stock_waves)
-
-    waves_data_df = pd.DataFrame(
-        waves_df["waveDatas"].tolist()
+    wave_data = post_api(
+        "https://stocktraders.vn/service/data/getStockWave",
+        {"StockWaveRequest": {"account": account}}
     )
 
-    waves_data_df["date"] = pd.to_datetime(
-        waves_data_df["date"]
+    smdt_data = post_api(
+        "https://stocktraders.vn/service/data/getSMDTBranch",
+        {"SMDTBranchRequest": {"account": account}}
     )
 
-    waves_data_df = waves_data_df[
-        [
-            "date",
-            "waitbuy",
-            "buy",
-            "waitsell",
-            "sell",
-            "reliability"
-        ]
-    ].copy()
+    flow_data = post_api(
+        "https://stocktraders.vn/service/data/getCashFlowBranch",
+        {"CashFlowBranchRequest": {"account": account}}
+    )
 
-    waves_data_df = waves_data_df.sort_values(
-        "date"
-    ).reset_index(drop=True)
+    price_data = post_api(
+        "https://stocktraders.vn/service/data/getTotalTrade",
+        {"TotalTradeRequest": {"account": account}}
+    )
 
-    return waves_data_df
+    return wave_data, smdt_data, flow_data, price_data
 
-
-@st.cache_data(ttl=3600)
-def load_total_trade():
-    url = "https://stocktraders.vn/service/data/getTotalTrade"
-
-    payload = {
-        "TotalTradeRequest": {
-            "account": "uyen.png"
-        }
-    }
-
-    data = post_api(url, payload)
-
-    stock_data = data["TotalTradeReply"]["stockTotals"]
-
-    price_df = pd.DataFrame(stock_data)
-
-    return price_df
-
-
-# =========================
-# LOAD DATA
-# =========================
 
 with st.spinner("Đang tải dữ liệu..."):
-
-    waves_data_df = load_stock_wave()
-    price_df = load_total_trade()
+    wave_data, smdt_data, flow_data, price_data = load_all_data()
 
 
 # =========================
-# 1. XỬ LÝ STOCK WAVE
+# 1. STOCK WAVE
 # =========================
+
+if "StockWaveReply" in wave_data:
+    stock_waves = wave_data["StockWaveReply"]["stockWaves"]
+else:
+    stock_waves = wave_data["StockWaveRequest"]["stockWaves"]
+
+waves_df = pd.DataFrame(stock_waves)
+
+waves_data_df = pd.DataFrame(
+    waves_df["waveDatas"].tolist()
+)
+
+waves_data_df["date"] = pd.to_datetime(waves_data_df["date"])
+
+waves_data_df = waves_data_df[
+    ["date", "waitbuy", "buy", "waitsell", "sell", "reliability"]
+].copy()
 
 waves_data_df = waves_data_df[
     waves_data_df["date"] >= pd.to_datetime(start_date)
 ].copy()
 
-waves_data_df = waves_data_df.sort_values(
-    "date"
-).reset_index(drop=True)
+waves_data_df = waves_data_df.sort_values("date").reset_index(drop=True)
 
 
 # =========================
-# 2. XÁC ĐỊNH NGÀY XÁC NHẬN TẠO ĐÁY
+# 2. SMDT TOÀN BỘ NGÀNH
 # =========================
 
-waves_data_df["xac_nhan_tao_day_raw"] = (
-    (waves_data_df["buy"] > 25)
-    & (waves_data_df["waitbuy"] > waves_data_df["waitsell"])
+smdt_branch_df = pd.DataFrame(
+    smdt_data["SMDTBranchReply"]["SMDTDatas"]
 )
 
-bottom_dates = []
-last_bottom_date = None
+smdt_expand = smdt_branch_df.explode("smdts").copy()
 
-for _, row in waves_data_df.iterrows():
-
-    if row["xac_nhan_tao_day_raw"]:
-
-        if (
-            last_bottom_date is None
-            or (row["date"] - last_bottom_date).days > min_gap_days
-        ):
-
-            bottom_dates.append(row["date"])
-            last_bottom_date = row["date"]
-
-waves_data_df["xac_nhan_tao_day"] = (
-    waves_data_df["date"].isin(bottom_dates)
+smdt_detail = pd.DataFrame(
+    smdt_expand["smdts"].tolist()
 )
 
-
-# =========================
-# 3. BUNG DỮ LIỆU GIÁ
-# =========================
-
-price_expand = price_df.explode(
-    "totalDatas"
-).copy()
-
-price_detail = pd.DataFrame(
-    price_expand["totalDatas"].tolist()
+smdt_detail["nganh"] = smdt_expand["keyName"].values
+smdt_detail["date"] = pd.to_datetime(smdt_detail["date"])
+smdt_detail["smdt"] = pd.to_numeric(
+    smdt_detail["smdt"],
+    errors="coerce"
 )
 
-price_detail["ticker"] = price_expand["ticker"].values
-
-price_detail["date"] = pd.to_datetime(
-    price_detail["date"]
-)
-
-for col in ["open", "high", "low", "close"]:
-    price_detail[col] = pd.to_numeric(
-        price_detail[col],
-        errors="coerce"
-    )
-
-price_detail = price_detail[
-    [
-        "date",
-        "ticker",
-        "open",
-        "high",
-        "low",
-        "close"
-    ]
-].sort_values(["ticker", "date"]).reset_index(drop=True)
-
-
-# =========================
-# 4. TÌM VNINDEX
-# =========================
-
-all_tickers = (
-    price_detail["ticker"]
-    .drop_duplicates()
-    .astype(str)
-    .sort_values()
-    .tolist()
-)
-
-possible_vnindex_names = [
-    "VNINDEX",
-    "VN-INDEX",
-    "VN_INDEX",
-    "INDEX",
-    "VNI"
-]
-
-vnindex_ticker = None
-
-for name in possible_vnindex_names:
-
-    if name in all_tickers:
-        vnindex_ticker = name
-        break
-
-
-if vnindex_ticker is None:
-
-    st.error("Không tìm thấy mã VNINDEX trong API getTotalTrade.")
-
-    st.write("Một số ticker có trong dữ liệu:")
-
-    st.write(all_tickers[:100])
-
-    st.stop()
-
-
-vnindex_df = price_detail[
-    price_detail["ticker"] == vnindex_ticker
+smdt_detail = smdt_detail[
+    smdt_detail["date"] >= pd.to_datetime(start_date)
 ].copy()
 
-vnindex_df = vnindex_df.sort_values(
-    "date"
+smdt_detail = smdt_detail[
+    ["date", "nganh", "smdt"]
+].sort_values(["nganh", "date"]).reset_index(drop=True)
+
+
+# =========================
+# 3. FLOW TOÀN BỘ NGÀNH
+# =========================
+
+flow_branch_df = pd.DataFrame(
+    flow_data["CashFlowBranchReply"]["cashFlowBranchs"]
+)
+
+flow_expand = flow_branch_df.explode("cashFlowBranchDatas").copy()
+
+flow_detail = pd.DataFrame(
+    flow_expand["cashFlowBranchDatas"].tolist()
+)
+
+flow_detail["date"] = flow_expand["date"].values
+flow_detail["date"] = pd.to_datetime(flow_detail["date"])
+
+flow_detail = flow_detail.rename(columns={
+    "name": "nganh",
+    "content": "cashflow"
+})
+
+flow_map = {
+    "Nhen nhóm đổ vào": 1,
+    "Tiếp tục đổ vào": 1,
+    "Đang thoát ra": -1,
+    "Tiếp tục thoát ra": -1
+}
+
+flow_detail["flow_num"] = flow_detail["cashflow"].map(flow_map)
+
+flow_detail = flow_detail[
+    ["date", "nganh", "cashflow", "flow_num"]
+]
+
+
+# =========================
+# 4. GỘP SMDT + FLOW NGÀNH
+# =========================
+
+sector_all_df = smdt_detail.merge(
+    flow_detail,
+    on=["date", "nganh"],
+    how="left"
+)
+
+sector_all_df = sector_all_df.sort_values(
+    ["nganh", "date"]
 ).reset_index(drop=True)
 
+sector_all_df["flow_num"] = (
+    sector_all_df
+    .groupby("nganh")["flow_num"]
+    .ffill()
+)
+
+sector_all_df["flow_vua_tich_cuc"] = (
+    (sector_all_df["flow_num"] == 1)
+    & (sector_all_df.groupby("nganh")["flow_num"].shift(1) == -1)
+)
+
+sector_all_df["smdt_vua_vuot_70"] = (
+    (sector_all_df["smdt"] > 70)
+    & (sector_all_df.groupby("nganh")["smdt"].shift(1) <= 70)
+)
+
+sector_all_df["nganh_vua_dep"] = (
+    sector_all_df["flow_vua_tich_cuc"]
+    | sector_all_df["smdt_vua_vuot_70"]
+)
+
 
 # =========================
-# 5. XÁC ĐỊNH NGÀY TẠO ĐÁY GIỐNG NOTEBOOK
+# 5. XÁC ĐỊNH ĐÁY GIỐNG NOTEBOOK
 # =========================
+
+nganh_signal_by_date = (
+    sector_all_df
+    .groupby("date")
+    .agg(
+        nganh_vua_dep=("nganh_vua_dep", "any"),
+        so_nganh_flow_vua_tich_cuc=("flow_vua_tich_cuc", "sum"),
+        so_nganh_smdt_vua_vuot_70=("smdt_vua_vuot_70", "sum")
+    )
+    .reset_index()
+)
 
 market_df = waves_data_df.merge(
-    sector_all_df[
-        [
-            "date",
-            "nganh_vua_dep"
-        ]
-    ].groupby("date")
-    .agg(
-        nganh_vua_dep=("nganh_vua_dep", "any")
-    )
-    .reset_index(),
+    nganh_signal_by_date,
     on="date",
     how="left"
 )
 
-market_df["nganh_vua_dep"] = (
-    market_df["nganh_vua_dep"]
-    .fillna(False)
-)
+market_df["nganh_vua_dep"] = market_df["nganh_vua_dep"].fillna(False)
+market_df["so_nganh_flow_vua_tich_cuc"] = market_df["so_nganh_flow_vua_tich_cuc"].fillna(0)
+market_df["so_nganh_smdt_vua_vuot_70"] = market_df["so_nganh_smdt_vua_vuot_70"].fillna(0)
 
 market_df = market_df.sort_values("date").reset_index(drop=True)
 
@@ -268,7 +215,7 @@ nganh_dang_dep_list = []
 chuan_bi_list = []
 xac_nhan_list = []
 
-for i, row in market_df.iterrows():
+for _, row in market_df.iterrows():
 
     if row["nganh_vua_dep"]:
         is_nganh_dep = True
@@ -297,13 +244,112 @@ market_df["nganh_dang_dep"] = nganh_dang_dep_list
 market_df["chuan_bi_tao_day"] = chuan_bi_list
 market_df["xac_nhan_tao_day"] = xac_nhan_list
 
+market_df["bottom_phase"] = "Bình thường"
+
+market_df.loc[
+    market_df["chuan_bi_tao_day"],
+    "bottom_phase"
+] = "Chuẩn bị tạo đáy"
+
+market_df.loc[
+    market_df["xac_nhan_tao_day"],
+    "bottom_phase"
+] = "Xác nhận tạo đáy"
+
 bottom_dates = market_df.loc[
     market_df["xac_nhan_tao_day"],
     "date"
-].drop_duplicates().tolist()
+].tolist()
+
 
 # =========================
-# 6. TẠO MARKER ĐÁY
+# 6. BUNG GIÁ
+# =========================
+
+price_df = pd.DataFrame(
+    price_data["TotalTradeReply"]["stockTotals"]
+)
+
+price_expand = price_df.explode("totalDatas").copy()
+
+price_detail = pd.DataFrame(
+    price_expand["totalDatas"].tolist()
+)
+
+price_detail["ticker"] = price_expand["ticker"].values
+price_detail["date"] = pd.to_datetime(price_detail["date"])
+
+for col in ["open", "high", "low", "close"]:
+    price_detail[col] = pd.to_numeric(
+        price_detail[col],
+        errors="coerce"
+    )
+
+price_detail = price_detail[
+    ["date", "ticker", "open", "high", "low", "close"]
+].sort_values(["ticker", "date"]).reset_index(drop=True)
+
+
+# =========================
+# 7. TÌM VNINDEX
+# =========================
+
+all_tickers = (
+    price_detail["ticker"]
+    .drop_duplicates()
+    .astype(str)
+    .sort_values()
+    .tolist()
+)
+
+possible_vnindex_names = [
+    "VNINDEX",
+    "VN-INDEX",
+    "VN_INDEX",
+    "INDEX",
+    "VNI"
+]
+
+vnindex_ticker = None
+
+for name in possible_vnindex_names:
+    if name in all_tickers:
+        vnindex_ticker = name
+        break
+
+if vnindex_ticker is None:
+
+    st.error("Không tìm thấy mã VNINDEX trong API getTotalTrade.")
+    st.write("Một số ticker có trong dữ liệu:")
+    st.write(all_tickers[:100])
+    st.stop()
+
+vnindex_df = price_detail[
+    price_detail["ticker"] == vnindex_ticker
+].copy()
+
+vnindex_df = vnindex_df.sort_values("date").reset_index(drop=True)
+
+
+# =========================
+# 8. TẠO DỮ LIỆU NẾN
+# =========================
+
+candle_data = []
+
+for _, row in vnindex_df.iterrows():
+
+    candle_data.append({
+        "time": row["date"].strftime("%Y-%m-%d"),
+        "open": float(row["open"]),
+        "high": float(row["high"]),
+        "low": float(row["low"]),
+        "close": float(row["close"])
+    })
+
+
+# =========================
+# 9. MARKER TRÊN BIỂU ĐỒ
 # =========================
 
 bottom_points = vnindex_df[
@@ -319,12 +365,12 @@ for _, row in bottom_points.iterrows():
         "position": "belowBar",
         "color": "#00C853",
         "shape": "arrowUp",
-        "text": "Đáy"
+        "text": "Xác nhận đáy"
     })
 
 
 # =========================
-# 7. VẼ BIỂU ĐỒ NẾN
+# 10. VẼ BIỂU ĐỒ NẾN
 # =========================
 
 st.subheader(
@@ -332,7 +378,7 @@ st.subheader(
 )
 
 st.write(
-    f"Số điểm tạo đáy hiển thị: {len(bottom_markers)}"
+    f"Số điểm xác nhận tạo đáy: {len(bottom_markers)}"
 )
 
 vnindex_series = [
@@ -410,30 +456,32 @@ renderLightweightCharts(
 
 
 # =========================
-# 8. BẢNG NGÀY TẠO ĐÁY
+# 11. BẢNG GIỐNG NOTEBOOK
 # =========================
 
-st.subheader("📌 Danh sách ngày xác nhận tạo đáy")
+st.subheader("📌 Bảng tín hiệu tạo đáy")
 
-bottom_show = waves_data_df[
-    waves_data_df["xac_nhan_tao_day"]
-][
+bottom_signal_df = market_df[
     [
         "date",
         "waitbuy",
         "buy",
         "waitsell",
         "sell",
-        "reliability"
+        "reliability",
+        "nganh_vua_dep",
+        "nganh_dang_dep",
+        "chuan_bi_tao_day",
+        "xac_nhan_tao_day",
+        "bottom_phase"
     ]
 ].copy()
 
-bottom_show["date"] = bottom_show["date"].dt.strftime(
-    "%Y-%m-%d"
-)
+bottom_signal_df["date"] = bottom_signal_df["date"].dt.strftime("%Y-%m-%d")
 
 st.dataframe(
-    bottom_show,
+    bottom_signal_df,
     hide_index=True,
-    use_container_width=True
+    use_container_width=True,
+    height=500
 )
