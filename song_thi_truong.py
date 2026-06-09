@@ -1182,42 +1182,47 @@ else:
                     with st.container(border=True):
                 
                         c1, c2, c3, c4 = st.columns(
-                            [1.8, 3.0, 1.5, 1.2]
+                            [1.4, 2.5, 1.2, 1.0]
                         )
                                     
-                    with c1:
-                    
-                        st.caption(f"TOP {i+1}")
-                    
-                        st.markdown(
-                            f"## {row['ticker']}"
-                        )
-                    
-                    with c2:
-                    
-                        st.markdown("<br>", unsafe_allow_html=True)
-                    
-                        st.markdown(
-                            f"""
-                            **Ngành:** {row['nganh']} ({row['nhom_nganh']})
-                            """
-                        )
-                        with c3:
-                
+                        with c1:
+                        
+                            st.caption(f"TOP {i+1}")
+                        
+                            st.write("")
+                            st.write("")
+                        
+                            st.markdown(f"## {row['ticker']}")
+                        
+                        with c2:
+                        
+                            st.write("")
+                            st.write("")
+                        
                             st.markdown(
                                 f"""
-                                **CP tạo đáy**
-                
-                                {row['stock_bottom_date'].strftime('%d/%m/%Y')}
+                                **Ngành:** {row['nganh']} ({row['nhom_nganh']})
                                 """
                             )
-                
+                        
+                        with c3:
+                        
+                            st.write("")
+                            st.write("")
+                        
+                            st.markdown("**CP tạo đáy**")
+                        
+                            st.write(
+                                row["stock_bottom_date"].strftime("%d/%m/%Y")
+                            )
+                        
                         with c4:
-                
-                            st.markdown(
-                                f"""
-                                **Hiệu suất**
-                
-                                +{row['return_pct']:.1f}%
-                                """
+                        
+                            st.write("")
+                            st.write("")
+                        
+                            st.markdown("**Hiệu suất**")
+                        
+                            st.write(
+                                f"+{row['return_pct']:.1f}%"
                             )
