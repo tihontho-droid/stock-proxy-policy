@@ -382,17 +382,8 @@ else:
             "close": float(row["close"])
         })
 
+    # chỉ dùng marker xác nhận đáy, không dùng chuẩn bị
     markers = []
-
-    for _, row in chuan_bi_marker_df.iterrows():
-
-        markers.append({
-            "time": row["date"].strftime("%Y-%m-%d"),
-            "position": "belowBar",
-            "color": "#F9A825",
-            "shape": "circle",
-            "text": "Chuẩn bị"
-        })
 
     for _, row in xac_nhan_marker_df.iterrows():
 
@@ -401,7 +392,7 @@ else:
             "position": "belowBar",
             "color": "#00C853",
             "shape": "arrowUp",
-            "text": "Xác nhận"
+            "text": "Đáy"
         })
 
     st.subheader(f"📉 {vnindex_ticker} - Tín hiệu tạo đáy")
