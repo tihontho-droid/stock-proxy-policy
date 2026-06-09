@@ -884,21 +884,18 @@ with col_right:
 
 st.subheader("🚀 Top 5 cổ phiếu tăng mạnh từ đáy cổ phiếu lên đỉnh gần nhất")
 
-# lấy danh sách ngành xuất hiện quanh đáy
 selected_sectors = lead_sector_show["nganh"].drop_duplicates().tolist()
 
-# ngưỡng thanh khoản tối thiểu
-min_avg_value = 5_000_000_000   # 5 tỷ/phiên
+min_avg_value = 5_000_000_000      # 5 tỷ/phiên
+min_wave_return = 15               # sóng tăng tối thiểu 15%
+max_holding_sessions = 120         # tối đa 120 phiên sau đáy
+drawdown_to_end_wave = -15         # giảm 15% từ đỉnh thì coi là kết thúc sóng
 
 if len(selected_sectors) == 0:
 
     st.info("Không có ngành dẫn sóng quanh đáy này để lọc cổ phiếu.")
 
 else:
-
-    # =========================
-    # MAP TICKER VỚI NGÀNH
-    # =========================
 
     branch_df = pd.DataFrame(
         branch_data["BranchPathReply"]["branchs"]
@@ -946,10 +943,6 @@ else:
 
     else:
 
-        # =========================
-        # BUNG GIÁ CÁC MÃ THUỘC NGÀNH ĐÃ CHỌN
-        # =========================
-
         price_all_df = pd.DataFrame(
             price_data["TotalTradeReply"]["stockTotals"]
         )
@@ -985,7 +978,6 @@ else:
             if "vol" not in price_detail.columns:
 
                 st.warning("Dữ liệu giá không có cột vol nên chưa lọc được thanh khoản.")
-
                 price_detail["vol"] = 0
                 price_detail["value"] = 0
 
@@ -996,7 +988,16 @@ else:
                 )
 
             price_detail = price_detail[
-                ["date", "ticker", "open", "high", "low", "close", "vol", "value"]
+                [
+                    "date",
+                    "ticker",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "vol",
+                    "value"
+                ]
             ].dropna().sort_values(["ticker", "date"]).reset_index(drop=True)
 
             price_with_sector = price_detail.merge(
@@ -1018,33 +1019,6 @@ else:
                 if ticker_df.empty:
                     continue
 
-                # =========================
-                # TÍNH ĐÁY KỸ THUẬT CỦA CỔ PHIẾU
-                # =========================
-
-                ticker_df["prev_low_5"] = (
-                    ticker_df["low"]
-                    .rolling(5)
-                    .min()
-                    .shift(1)
-                )
-
-                ticker_df["next_low_5"] = (
-                    ticker_df["low"]
-                    .rolling(5)
-                    .min()
-                    .shift(-5)
-                )
-
-                ticker_df["stock_bottom"] = (
-                    (ticker_df["low"] <= ticker_df["prev_low_5"])
-                    & (ticker_df["low"] <= ticker_df["next_low_5"])
-                )
-
-                # =========================
-                # TÌM ĐÁY CỔ PHIẾU GẦN VÙNG ĐÁY THỊ TRƯỜNG
-                # =========================
-
                 nearest_after = ticker_df[
                     ticker_df["date"] >= market_bottom_date
                 ].copy()
@@ -1054,44 +1028,40 @@ else:
 
                 market_idx = nearest_after.index[0]
 
-                zone_before = 5
+                # =========================
+                # 1. TÌM ĐÁY CỔ PHIẾU GẦN VÙNG ĐÁY THỊ TRƯỜNG
+                # =========================
+
+                zone_before = 10
                 zone_after = 5
 
-                start_idx = max(market_idx - zone_before, 0)
-                end_idx = min(market_idx + zone_after, len(ticker_df) - 1)
+                bottom_start_idx = max(market_idx - zone_before, 0)
+                bottom_end_idx = min(market_idx + zone_after, len(ticker_df) - 1)
 
                 stock_bottom_zone = ticker_df.iloc[
-                    start_idx:end_idx + 1
+                    bottom_start_idx:bottom_end_idx + 1
                 ].copy()
 
-                technical_bottoms = stock_bottom_zone[
-                    stock_bottom_zone["stock_bottom"]
-                ].copy()
+                if stock_bottom_zone.empty:
+                    continue
 
-                if not technical_bottoms.empty:
-                    stock_bottom_row = (
-                        technical_bottoms
-                        .sort_values("low")
-                        .iloc[0]
-                    )
-                else:
-                    stock_bottom_row = (
-                        stock_bottom_zone
-                        .sort_values("low")
-                        .iloc[0]
-                    )
+                stock_bottom_row = (
+                    stock_bottom_zone
+                    .sort_values("low")
+                    .iloc[0]
+                )
 
                 stock_bottom_date = stock_bottom_row["date"]
                 stock_bottom_price = stock_bottom_row["close"]
                 stock_bottom_low = stock_bottom_row["low"]
 
-                # =========================
-                # LỌC THANH KHOẢN QUANH ĐÁY CỔ PHIẾU
-                # =========================
-
                 stock_bottom_idx = ticker_df[
                     ticker_df["date"] == stock_bottom_date
                 ].index[0]
+
+                # =========================
+                # 2. LỌC THANH KHOẢN 20 PHIÊN TRƯỚC ĐÁY CỔ PHIẾU
+                # =========================
 
                 liq_start_idx = max(stock_bottom_idx - 20, 0)
                 liq_end_idx = stock_bottom_idx
@@ -1106,33 +1076,23 @@ else:
                     continue
 
                 # =========================
-                # TÌM ĐÁY TIẾP THEO CỦA CHÍNH CỔ PHIẾU
+                # 3. TÌM ĐỈNH CAO NHẤT SAU ĐÁY TRONG 120 PHIÊN
                 # =========================
 
-                future_bottoms = ticker_df[
-                    (ticker_df["date"] > stock_bottom_date)
-                    & (ticker_df["stock_bottom"])
+                peak_end_idx = min(
+                    stock_bottom_idx + max_holding_sessions,
+                    len(ticker_df) - 1
+                )
+
+                period_after_bottom = ticker_df.iloc[
+                    stock_bottom_idx:peak_end_idx + 1
                 ].copy()
 
-                if not future_bottoms.empty:
-                    stock_next_bottom_date = future_bottoms.iloc[0]["date"]
-                else:
-                    stock_next_bottom_date = ticker_df["date"].max()
-
-                # =========================
-                # TÌM ĐỈNH CAO NHẤT TRƯỚC ĐÁY TIẾP THEO
-                # =========================
-
-                period_df = ticker_df[
-                    (ticker_df["date"] >= stock_bottom_date)
-                    & (ticker_df["date"] <= stock_next_bottom_date)
-                ].copy()
-
-                if period_df.empty:
+                if period_after_bottom.empty:
                     continue
 
-                peak_idx = period_df["high"].idxmax()
-                peak_row = period_df.loc[peak_idx]
+                peak_idx = period_after_bottom["high"].idxmax()
+                peak_row = ticker_df.loc[peak_idx]
 
                 peak_price = peak_row["high"]
                 peak_date = peak_row["date"]
@@ -1140,6 +1100,44 @@ else:
                 return_pct = (
                     peak_price / stock_bottom_price - 1
                 ) * 100
+
+                if return_pct < min_wave_return:
+                    continue
+
+                # =========================
+                # 4. TÌM ĐÁY TIẾP THEO SAU ĐỈNH
+                # Đáy lớn = giảm ít nhất 15% từ đỉnh
+                # =========================
+
+                after_peak = ticker_df[
+                    ticker_df["date"] > peak_date
+                ].copy()
+
+                if after_peak.empty:
+
+                    stock_next_bottom_date = ticker_df["date"].max()
+                    stock_next_bottom_price = ticker_df["close"].iloc[-1]
+
+                else:
+
+                    after_peak["drawdown_from_peak_pct"] = (
+                        after_peak["low"] / peak_price - 1
+                    ) * 100
+
+                    next_bottom_candidates = after_peak[
+                        after_peak["drawdown_from_peak_pct"] <= drawdown_to_end_wave
+                    ].copy()
+
+                    if not next_bottom_candidates.empty:
+
+                        stock_next_bottom_row = next_bottom_candidates.iloc[0]
+                        stock_next_bottom_date = stock_next_bottom_row["date"]
+                        stock_next_bottom_price = stock_next_bottom_row["low"]
+
+                    else:
+
+                        stock_next_bottom_date = ticker_df["date"].max()
+                        stock_next_bottom_price = ticker_df["close"].iloc[-1]
 
                 nganh = ticker_df["nganh"].iloc[0]
 
@@ -1150,9 +1148,10 @@ else:
                     "stock_bottom_date": stock_bottom_date,
                     "stock_bottom_price": stock_bottom_price,
                     "stock_bottom_low": stock_bottom_low,
-                    "stock_next_bottom_date": stock_next_bottom_date,
                     "peak_date": peak_date,
                     "peak_price": peak_price,
+                    "stock_next_bottom_date": stock_next_bottom_date,
+                    "stock_next_bottom_price": stock_next_bottom_price,
                     "return_pct": return_pct,
                     "avg_value_20": avg_value_20
                 })
@@ -1169,10 +1168,6 @@ else:
                     "return_pct",
                     ascending=False
                 ).head(5).reset_index(drop=True)
-
-                # =========================
-                # HIỂN THỊ TOP 5 DẠNG LIST CARD DỌC
-                # =========================
 
                 rank_icons = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
 
@@ -1194,7 +1189,7 @@ else:
                                 **Đáy thị trường:** {row["market_bottom_date"].strftime("%Y-%m-%d")}  
                                 **Đáy cổ phiếu:** {row["stock_bottom_date"].strftime("%Y-%m-%d")}  
                                 **Đỉnh gần nhất:** {row["peak_date"].strftime("%Y-%m-%d")}  
-                                **Đáy tiếp theo của mã:** {row["stock_next_bottom_date"].strftime("%Y-%m-%d")}  
+                                **Kết thúc sóng:** {row["stock_next_bottom_date"].strftime("%Y-%m-%d")}  
                                 **GTGD TB 20 phiên:** {row["avg_value_20"] / 1_000_000_000:.2f} tỷ
                                 """
                             )
@@ -1207,5 +1202,6 @@ else:
 
                         st.caption(
                             f"Giá đáy CP: {row['stock_bottom_price']:.2f} | "
-                            f"Giá đỉnh: {row['peak_price']:.2f}"
+                            f"Giá đỉnh: {row['peak_price']:.2f} | "
+                            f"Giá kết thúc sóng: {row['stock_next_bottom_price']:.2f}"
                         )
