@@ -1270,6 +1270,62 @@ else:
         use_container_width=True,
         height=350
     )
+
+# =========================
+# BƯỚC 2: NGÀNH THƯỜNG XUẤT HIỆN TRƯỚC ĐÁY
+# =========================
+
+st.subheader("Bước 2: Ngành thường xuất hiện trước đáy")
+
+before_bottom_df = relation_df[
+    relation_df["Lệch so với đáy"] < 0
+].copy()
+
+if before_bottom_df.empty:
+
+    st.info("Không có ngành nào xuất hiện trước đáy.")
+
+else:
+
+    sector_stats = (
+        before_bottom_df
+        .groupby("Ngành")
+        .agg(
+            SoLanTruocDay=("Ngành", "count"),
+            TB_SoPhien=("Lệch so với đáy", "mean"),
+            SomNhat=("Lệch so với đáy", "min"),
+            MuonNhat=("Lệch so với đáy", "max")
+        )
+        .reset_index()
+    )
+
+    sector_stats["TB_SoPhien"] = (
+        sector_stats["TB_SoPhien"]
+        .round(1)
+    )
+
+    sector_stats = sector_stats.sort_values(
+        [
+            "SoLanTruocDay",
+            "TB_SoPhien"
+        ],
+        ascending=[False, True]
+    )
+
+    sector_stats = sector_stats.rename(columns={
+        "Ngành": "Ngành",
+        "SoLanTruocDay": "Số lần xuất hiện trước đáy",
+        "TB_SoPhien": "TB số phiên trước đáy",
+        "SomNhat": "Sớm nhất",
+        "MuonNhat": "Muộn nhất"
+    })
+
+    st.dataframe(
+        sector_stats,
+        hide_index=True,
+        use_container_width=True,
+        height=350
+    )
     
 # =========================
 # TOP 5 CỔ PHIẾU TĂNG MẠNH
