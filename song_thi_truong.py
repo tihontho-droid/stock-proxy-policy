@@ -46,11 +46,15 @@ def load_all_data():
         {"TotalTradeRequest": {"account": account}}
     )
 
-    return wave_data, smdt_data, flow_data, price_data
+    branch_data = post_api(
+        "https://stocktraders.vn/service/data/getBranchPath",
+        {"BranchPathRequest": {"account": account}}
+    )    
+    return wave_data, smdt_data, flow_data, price_data, branch_
 
 
 with st.spinner("Đang tải dữ liệu..."):
-    wave_data, smdt_data, flow_data, price_data = load_all_data()
+    wave_data, smdt_data, flow_data, price_data, branch_data = load_all_data()
 
 
 # =========================
@@ -874,3 +878,238 @@ with col_right:
             height=250
         )
 
+# =========================
+# TOP 5 CỔ PHIẾU TĂNG MẠNH TỪ ĐÁY LÊN ĐỈNH GẦN NHẤT
+# =========================
+
+st.subheader("🚀 Top 5 cổ phiếu tăng mạnh từ đáy lên đỉnh gần nhất")
+
+# lấy danh sách ngành xuất hiện quanh đáy
+selected_sectors = lead_sector_show["nganh"].drop_duplicates().tolist()
+
+# map ticker với ngành
+branch_df = pd.DataFrame(
+    branch_data["BranchPathReply"]["branchs"]
+)
+
+ticker_branch_df = branch_df[
+    ["name", "tickers"]
+].copy()
+
+ticker_branch_df = ticker_branch_df.rename(columns={
+    "name": "nganh"
+})
+
+ticker_branch_df = ticker_branch_df.explode("tickers")
+
+ticker_branch_df = ticker_branch_df.rename(columns={
+    "tickers": "ticker"
+})
+
+ticker_branch_df = ticker_branch_df[
+    ["ticker", "nganh"]
+].dropna().drop_duplicates()
+
+ticker_branch_df["ticker"] = ticker_branch_df["ticker"].astype(str)
+
+# chuẩn hóa tên ngành cho khớp
+ticker_branch_df["nganh"] = ticker_branch_df["nganh"].replace({
+    "Ngân hàng thương mại truyền thống": "Ngân hàng",
+    "Môi giới chứng khoán": "Chứng khoán",
+    "Bất động sản dân cư": "BĐS Dân cư",
+    "Bất động sản dân cư": "BĐS Dân cư",
+    "Thương mại (Bán buôn) sắt thép": "Thép"
+})
+
+selected_tickers = ticker_branch_df[
+    ticker_branch_df["nganh"].isin(selected_sectors)
+].copy()
+
+# bung giá toàn bộ mã
+price_all_df = pd.DataFrame(
+    price_data["TotalTradeReply"]["stockTotals"]
+)
+
+price_expand = price_all_df.explode("totalDatas").copy()
+
+price_detail = pd.DataFrame(
+    price_expand["totalDatas"].tolist()
+)
+
+price_detail["ticker"] = price_expand["ticker"].values
+price_detail["date"] = pd.to_datetime(price_detail["date"])
+
+for col in ["open", "high", "low", "close"]:
+    price_detail[col] = pd.to_numeric(
+        price_detail[col],
+        errors="coerce"
+    )
+
+price_detail = price_detail[
+    ["date", "ticker", "open", "high", "low", "close"]
+].dropna().sort_values(["ticker", "date"]).reset_index(drop=True)
+
+# gộp ngành vào giá
+price_with_sector = price_detail.merge(
+    selected_tickers,
+    on="ticker",
+    how="inner"
+)
+
+# lấy mốc đáy được chọn
+bottom_date = selected_confirm_date
+
+# tìm ngày đáy kế tiếp để làm điểm kết thúc giai đoạn
+all_bottom_dates = pd.to_datetime(confirm_df["date"]).sort_values().tolist()
+
+next_bottom_dates = [
+    d for d in all_bottom_dates
+    if d > bottom_date
+]
+
+if len(next_bottom_dates) > 0:
+    end_date = next_bottom_dates[0]
+else:
+    # nếu chưa có đáy kế tiếp thì lấy tối đa 60 phiên giao dịch sau đáy
+    all_dates = (
+        price_detail["date"]
+        .drop_duplicates()
+        .sort_values()
+        .reset_index(drop=True)
+    )
+
+    if bottom_date in all_dates.values:
+        bottom_idx = all_dates[all_dates == bottom_date].index[0]
+        end_idx = min(bottom_idx + 60, len(all_dates) - 1)
+        end_date = all_dates.iloc[end_idx]
+    else:
+        end_date = price_detail["date"].max()
+
+records = []
+
+for ticker in price_with_sector["ticker"].drop_duplicates():
+
+    ticker_df = price_with_sector[
+        price_with_sector["ticker"] == ticker
+    ].sort_values("date").reset_index(drop=True)
+
+    after_bottom = ticker_df[
+        ticker_df["date"] >= bottom_date
+    ].copy()
+
+    if after_bottom.empty:
+        continue
+
+    # lấy giá đóng cửa tại ngày đáy hoặc phiên gần nhất sau đáy
+    bottom_row = after_bottom.iloc[0]
+
+    close_bottom = bottom_row["close"]
+    real_bottom_date = bottom_row["date"]
+
+    period_df = ticker_df[
+        (ticker_df["date"] >= real_bottom_date)
+        & (ticker_df["date"] <= end_date)
+    ].copy()
+
+    if period_df.empty:
+        continue
+
+    peak_idx = period_df["high"].idxmax()
+    peak_row = period_df.loc[peak_idx]
+
+    peak_price = peak_row["high"]
+    peak_date = peak_row["date"]
+
+    return_pct = (
+        peak_price / close_bottom - 1
+    ) * 100
+
+    nganh = ticker_df["nganh"].iloc[0]
+
+    records.append({
+        "ticker": ticker,
+        "nganh": nganh,
+        "bottom_date": real_bottom_date,
+        "bottom_price": close_bottom,
+        "peak_date": peak_date,
+        "peak_price": peak_price,
+        "return_pct": return_pct
+    })
+
+top_stock_df = pd.DataFrame(records)
+
+if top_stock_df.empty:
+
+    st.info("Không tìm thấy cổ phiếu phù hợp trong các ngành quanh đáy này.")
+
+else:
+
+    top_stock_df = top_stock_df.sort_values(
+        "return_pct",
+        ascending=False
+    ).head(5).reset_index(drop=True)
+
+    # tạo khung kéo ngang
+    cards_html = """
+    <div style="
+        display:flex;
+        gap:16px;
+        overflow-x:auto;
+        padding:8px 4px 18px 4px;
+        scroll-snap-type:x mandatory;
+    ">
+    """
+
+    for _, row in top_stock_df.iterrows():
+
+        cards_html += f"""
+        <div style="
+            min-width:240px;
+            background:#F8F9FD;
+            border:1px solid #ECEEF5;
+            border-radius:18px;
+            padding:16px;
+            scroll-snap-align:start;
+        ">
+            <div style="
+                font-size:24px;
+                font-weight:800;
+                color:#111;
+            ">
+                {row["ticker"]}
+            </div>
+
+            <div style="
+                font-size:14px;
+                color:#666;
+                margin-top:2px;
+            ">
+                {row["nganh"]}
+            </div>
+
+            <div style="
+                font-size:28px;
+                font-weight:800;
+                color:#00A86B;
+                margin-top:14px;
+            ">
+                +{row["return_pct"]:.2f}%
+            </div>
+
+            <div style="
+                font-size:13px;
+                color:#555;
+                margin-top:10px;
+                line-height:1.7;
+            ">
+                Đáy: <b>{row["bottom_date"].strftime("%Y-%m-%d")}</b><br>
+                Giá đáy: <b>{row["bottom_price"]:.2f}</b><br>
+                Đỉnh gần nhất: <b>{row["peak_date"].strftime("%Y-%m-%d")}</b><br>
+                Giá đỉnh: <b>{row["peak_price"]:.2f}</b>
+            </div>
+        </div>
+        """
+
+    cards_html += "</div>"
+
+    st.markdown(cards_html, unsafe_allow_html=True)
