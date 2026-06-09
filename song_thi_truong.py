@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from streamlit_lightweight_charts import renderLightweightCharts
+import plotly.graph_objects as go
 
 
 st.set_page_config(
@@ -461,21 +462,139 @@ else:
 
 
 # =========================
-# 10. HIỂN THỊ BẢNG
+# 10. TRA CỨU NGÀY XÁC NHẬN ĐÁY
 # =========================
 
-st.subheader("Bảng tín hiệu tạo đáy")
+st.subheader("🔎 Tra cứu ngày xác nhận đáy")
 
-bottom_signal_df_show = bottom_signal_df.copy()
+# Lấy danh sách ngày xác nhận đáy từ bảng
+confirm_df = bottom_signal_df[
+    bottom_signal_df["xac_nhan_tao_day"] == True
+].copy()
 
-bottom_signal_df_show["date"] = (
-    bottom_signal_df_show["date"]
-    .dt.strftime("%Y-%m-%d")
-)
+confirm_df = confirm_df.sort_values("date").reset_index(drop=True)
 
-st.dataframe(
-    bottom_signal_df_show,
-    hide_index=True,
-    use_container_width=True,
-    height=600
-)
+confirm_dates = confirm_df["date"].dt.strftime("%Y-%m-%d").tolist()
+
+if len(confirm_dates) == 0:
+
+    st.warning("Chưa có ngày xác nhận tạo đáy.")
+
+else:
+
+    selected_confirm_date_str = st.selectbox(
+        "Chọn ngày xác nhận đáy",
+        confirm_dates
+    )
+
+    selected_confirm_date = pd.to_datetime(selected_confirm_date_str)
+
+    # =========================
+    # LẤY NGÀY CHUẨN BỊ GẦN NHẤT TRƯỚC NGÀY XÁC NHẬN
+    # =========================
+
+    prepare_df = bottom_signal_df[
+        (bottom_signal_df["chuan_bi_tao_day"] == True)
+        & (bottom_signal_df["date"] < selected_confirm_date)
+    ].copy()
+
+    if prepare_df.empty:
+
+        st.warning("Không tìm thấy ngày chuẩn bị tạo đáy trước ngày xác nhận này.")
+
+    else:
+
+        prepare_row = (
+            prepare_df
+            .sort_values("date")
+            .tail(1)
+            .iloc[0]
+        )
+
+        confirm_row = bottom_signal_df[
+            bottom_signal_df["date"] == selected_confirm_date
+        ].iloc[0]
+
+        prepare_date_str = prepare_row["date"].strftime("%Y-%m-%d")
+        confirm_date_str = confirm_row["date"].strftime("%Y-%m-%d")
+
+        st.write(
+            f"Ngày chuẩn bị tạo đáy: **{prepare_date_str}** | "
+            f"Ngày xác nhận đáy: **{confirm_date_str}**"
+        )
+
+        # =========================
+        # HÀM VẼ BIỂU ĐỒ TRÒN
+        # =========================
+
+        labels = ["Chờ mua", "Mua", "Chờ bán", "Bán"]
+
+        colors = [
+            "#A5D6A7",  # chờ mua - xanh lá nhạt
+            "#2E7D32",  # mua - xanh lá đậm
+            "#FB8C00",  # chờ bán - cam
+            "#D32F2F"   # bán - đỏ
+        ]
+
+        def make_pie(row, title):
+            values = [
+                row["waitbuy"],
+                row["buy"],
+                row["waitsell"],
+                row["sell"]
+            ]
+
+            fig = go.Figure(
+                data=[
+                    go.Pie(
+                        labels=labels,
+                        values=values,
+                        hole=0.35,
+                        marker=dict(colors=colors),
+                        textinfo="label+value+percent"
+                    )
+                ]
+            )
+
+            fig.update_layout(
+                title=title,
+                height=420,
+                margin=dict(t=60, b=20, l=20, r=20),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.15,
+                    xanchor="center",
+                    x=0.5
+                )
+            )
+
+            return fig
+
+        # =========================
+        # HIỂN THỊ 2 BIỂU ĐỒ TRÒN
+        # =========================
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig_prepare = make_pie(
+                prepare_row,
+                f"Chuẩn bị tạo đáy - {prepare_date_str}"
+            )
+
+            st.plotly_chart(
+                fig_prepare,
+                use_container_width=True
+            )
+
+        with col2:
+            fig_confirm = make_pie(
+                confirm_row,
+                f"Xác nhận đáy - {confirm_date_str}"
+            )
+
+            st.plotly_chart(
+                fig_confirm,
+                use_container_width=True
+            )
