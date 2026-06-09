@@ -9,7 +9,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📌 Bảng tín hiệu tạo đáy thị trường")
+st.title("📉 Giao dịch theo sóng thị trường")
 
 start_date = "2023-06-08"
 
@@ -401,7 +401,7 @@ else:
             "text": "Xác nhận đáy"
         })
 
-    st.subheader(f"📉 {vnindex_ticker} - Tín hiệu tạo đáy")
+    st.subheader(f"{vnindex_ticker} - Tín hiệu tạo đáy")
 
     chart = [
         {
@@ -464,7 +464,7 @@ else:
 # 10. HIỂN THỊ BẢNG
 # =========================
 
-st.subheader("📌 Bảng tín hiệu tạo đáy")
+st.subheader("Bảng tín hiệu tạo đáy")
 
 bottom_signal_df_show = bottom_signal_df.copy()
 
