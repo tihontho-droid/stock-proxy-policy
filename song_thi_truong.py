@@ -1170,57 +1170,52 @@ else:
                 ).head(5).reset_index(drop=True)
                                                 
                 # =========================
-                # TOP 5 DẠNG DANH SÁCH
+                # TOP 5 DẠNG BẢNG GỌN
                 # =========================
                 
                 top_stock_df["nhom_nganh"] = top_stock_df["nganh"].apply(
                     lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
                 )
                 
-                for i, (_, row) in enumerate(top_stock_df.iterrows()):
+                top5_show = top_stock_df.copy()
                 
-                    with st.container(border=True):
+                top5_show["Top"] = [
+                    f"TOP {i + 1}" for i in range(len(top5_show))
+                ]
                 
-                        c1, c2, c3, c4 = st.columns(
-                            [1.4, 2.5, 1.2, 1.0]
-                        )
-                                    
-                        with c1:
-                            st.write("")
-                            st.write("")
-                            st.caption(f"TOP {i+1}")
-                        
-                            st.markdown(f"## {row['ticker']}")
-                        
-                        with c2:
-                        
-                            st.write("")
-                            st.write("")
-                        
-                            st.markdown(
-                                f"""
-                                **Ngành:** {row['nganh']} ({row['nhom_nganh']})
-                                """
-                            )
-                        
-                        with c3:
-                        
-                            st.write("")
-                            st.write("")
-                        
-                            st.markdown("**CP tạo đáy**")
-                        
-                            st.write(
-                                row["stock_bottom_date"].strftime("%d/%m/%Y")
-                            )
-                        
-                        with c4:
-                        
-                            st.write("")
-                            st.write("")
-                        
-                            st.markdown("**Hiệu suất**")
-                        
-                            st.write(
-                                f"+{row['return_pct']:.1f}%"
-                            )
+                top5_show["Mã"] = top5_show["ticker"]
+                
+                top5_show["Ngành"] = (
+                    top5_show["nganh"]
+                    + " ("
+                    + top5_show["nhom_nganh"]
+                    + ")"
+                )
+                
+                top5_show["CP tạo đáy"] = (
+                    top5_show["stock_bottom_date"]
+                    .dt.strftime("%d/%m/%Y")
+                )
+                
+                top5_show["Hiệu suất"] = (
+                    "+"
+                    + top5_show["return_pct"].round(1).astype(str)
+                    + "%"
+                )
+                
+                top5_show = top5_show[
+                    [
+                        "Top",
+                        "Mã",
+                        "Ngành",
+                        "CP tạo đáy",
+                        "Hiệu suất"
+                    ]
+                ]
+                
+                st.dataframe(
+                    top5_show,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=220
+                )
