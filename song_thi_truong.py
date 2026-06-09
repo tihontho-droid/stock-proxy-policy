@@ -879,364 +879,92 @@ with col_right:
         )
 
 # =========================
-# TOP 5 CỔ PHIẾU TĂNG MẠNH TỪ ĐÁY CỔ PHIẾU LÊN ĐỈNH GẦN NHẤT
+# HÀM CHUNG: TÍNH TOP CỔ PHIẾU CHO MỖI NGÀY ĐÁY
 # =========================
 
-st.subheader("Top 5 cổ phiếu tăng mạnh")
+min_avg_value = 5_000_000_000
+min_wave_return = 15
+max_holding_sessions = 120
 
-selected_sectors = lead_sector_show["nganh"].drop_duplicates().tolist()
+# map ticker với ngành
+branch_df = pd.DataFrame(
+    branch_data["BranchPathReply"]["branchs"]
+)
 
-min_avg_value = 5_000_000_000      # 5 tỷ/phiên
-min_wave_return = 15               # sóng tăng tối thiểu 15%
-max_holding_sessions = 120         # tối đa 120 phiên sau đáy
-drawdown_to_end_wave = -15         # giảm 15% từ đỉnh thì coi là kết thúc sóng
+ticker_branch_df = branch_df[
+    ["name", "tickers"]
+].copy()
 
-if len(selected_sectors) == 0:
+ticker_branch_df = ticker_branch_df.rename(columns={
+    "name": "nganh"
+})
 
-    st.info("Không có ngành dẫn sóng quanh đáy này để lọc cổ phiếu.")
+ticker_branch_df = ticker_branch_df.explode("tickers")
 
-else:
+ticker_branch_df = ticker_branch_df.rename(columns={
+    "tickers": "ticker"
+})
 
-    branch_df = pd.DataFrame(
-        branch_data["BranchPathReply"]["branchs"]
-    )
+ticker_branch_df = ticker_branch_df[
+    ["ticker", "nganh"]
+].dropna().drop_duplicates()
 
-    ticker_branch_df = branch_df[
-        ["name", "tickers"]
-    ].copy()
+ticker_branch_df["ticker"] = ticker_branch_df["ticker"].astype(str)
 
-    ticker_branch_df = ticker_branch_df.rename(columns={
-        "name": "nganh"
-    })
+sector_name_map = {
+    "Ngân hàng thương mại truyền thống": "Ngân hàng",
+    "Môi giới chứng khoán": "Chứng khoán",
+    "Bất động sản dân cư": "BĐS Dân cư",
+    "Bất động sản dân cư": "BĐS Dân cư",
+    "Thương mại (Bán buôn) sắt thép": "Thép"
+}
 
-    ticker_branch_df = ticker_branch_df.explode("tickers")
+ticker_branch_df["nganh"] = ticker_branch_df["nganh"].replace(sector_name_map)
 
-    ticker_branch_df = ticker_branch_df.rename(columns={
-        "tickers": "ticker"
-    })
 
-    ticker_branch_df = ticker_branch_df[
-        ["ticker", "nganh"]
-    ].dropna().drop_duplicates()
+# bung giá toàn bộ mã một lần
+price_all_df = pd.DataFrame(
+    price_data["TotalTradeReply"]["stockTotals"]
+)
 
-    ticker_branch_df["ticker"] = ticker_branch_df["ticker"].astype(str)
+price_expand = price_all_df.explode("totalDatas").copy()
 
-    sector_name_map = {
-        "Ngân hàng thương mại truyền thống": "Ngân hàng",
-        "Môi giới chứng khoán": "Chứng khoán",
-        "Bất động sản dân cư": "BĐS Dân cư",
-        "Bất động sản dân cư": "BĐS Dân cư",
-        "Thương mại (Bán buôn) sắt thép": "Thép"
-    }
+price_detail = pd.DataFrame(
+    price_expand["totalDatas"].tolist()
+)
 
-    ticker_branch_df["nganh"] = ticker_branch_df["nganh"].replace(
-        sector_name_map
-    )
+price_detail["ticker"] = price_expand["ticker"].values
+price_detail["date"] = pd.to_datetime(price_detail["date"])
 
-    selected_tickers = ticker_branch_df[
-        ticker_branch_df["nganh"].isin(selected_sectors)
-    ].copy()
-
-    if selected_tickers.empty:
-
-        st.info("Không tìm thấy mã cổ phiếu thuộc các ngành dẫn sóng quanh đáy này.")
-
-    else:
-
-        price_all_df = pd.DataFrame(
-            price_data["TotalTradeReply"]["stockTotals"]
+for col in ["open", "high", "low", "close", "vol"]:
+    if col in price_detail.columns:
+        price_detail[col] = pd.to_numeric(
+            price_detail[col],
+            errors="coerce"
         )
 
-        price_all_df = price_all_df[
-            price_all_df["ticker"].astype(str).isin(
-                selected_tickers["ticker"].astype(str)
-            )
-        ].copy()
-
-        price_expand = price_all_df.explode("totalDatas").copy()
-
-        price_detail = pd.DataFrame(
-            price_expand["totalDatas"].tolist()
-        )
-
-        if price_detail.empty:
-
-            st.info("Không có dữ liệu giá cho các mã thuộc ngành dẫn sóng.")
-
-        else:
-
-            price_detail["ticker"] = price_expand["ticker"].values
-            price_detail["date"] = pd.to_datetime(price_detail["date"])
-
-            for col in ["open", "high", "low", "close", "vol"]:
-                if col in price_detail.columns:
-                    price_detail[col] = pd.to_numeric(
-                        price_detail[col],
-                        errors="coerce"
-                    )
-
-            if "vol" not in price_detail.columns:
-
-                st.warning("Dữ liệu giá không có cột vol nên chưa lọc được thanh khoản.")
-                price_detail["vol"] = 0
-                price_detail["value"] = 0
-
-            else:
-
-                price_detail["value"] = (
-                    price_detail["close"] * price_detail["vol"] * 1000
-                )
-
-            price_detail = price_detail[
-                [
-                    "date",
-                    "ticker",
-                    "open",
-                    "high",
-                    "low",
-                    "close",
-                    "vol",
-                    "value"
-                ]
-            ].dropna().sort_values(["ticker", "date"]).reset_index(drop=True)
-
-            price_with_sector = price_detail.merge(
-                selected_tickers,
-                on="ticker",
-                how="inner"
-            )
-
-            market_bottom_date = selected_confirm_date
-
-            records = []
-
-            for ticker in price_with_sector["ticker"].drop_duplicates():
-
-                ticker_df = price_with_sector[
-                    price_with_sector["ticker"] == ticker
-                ].sort_values("date").reset_index(drop=True)
-
-                if ticker_df.empty:
-                    continue
-
-                nearest_after = ticker_df[
-                    ticker_df["date"] >= market_bottom_date
-                ].copy()
-
-                if nearest_after.empty:
-                    continue
-
-                market_idx = nearest_after.index[0]
-
-                # =========================
-                # 1. TÌM ĐÁY CỔ PHIẾU GẦN VÙNG ĐÁY THỊ TRƯỜNG
-                # =========================
-
-                zone_before = 10
-                zone_after = 5
-
-                bottom_start_idx = max(market_idx - zone_before, 0)
-                bottom_end_idx = min(market_idx + zone_after, len(ticker_df) - 1)
-
-                stock_bottom_zone = ticker_df.iloc[
-                    bottom_start_idx:bottom_end_idx + 1
-                ].copy()
-
-                if stock_bottom_zone.empty:
-                    continue
-
-                stock_bottom_row = (
-                    stock_bottom_zone
-                    .sort_values("low")
-                    .iloc[0]
-                )
-
-                stock_bottom_date = stock_bottom_row["date"]
-                stock_bottom_price = stock_bottom_row["close"]
-                stock_bottom_low = stock_bottom_row["low"]
-
-                stock_bottom_idx = ticker_df[
-                    ticker_df["date"] == stock_bottom_date
-                ].index[0]
-
-                # =========================
-                # 2. LỌC THANH KHOẢN 20 PHIÊN TRƯỚC ĐÁY CỔ PHIẾU
-                # =========================
-
-                liq_start_idx = max(stock_bottom_idx - 20, 0)
-                liq_end_idx = stock_bottom_idx
-
-                liquidity_window = ticker_df.iloc[
-                    liq_start_idx:liq_end_idx + 1
-                ].copy()
-
-                avg_value_20 = liquidity_window["value"].mean()
-
-                if avg_value_20 < min_avg_value:
-                    continue
-
-                # =========================
-                # 3. TÌM ĐỈNH CAO NHẤT SAU ĐÁY TRONG 120 PHIÊN
-                # =========================
-
-                peak_end_idx = min(
-                    stock_bottom_idx + max_holding_sessions,
-                    len(ticker_df) - 1
-                )
-
-                period_after_bottom = ticker_df.iloc[
-                    stock_bottom_idx:peak_end_idx + 1
-                ].copy()
-
-                if period_after_bottom.empty:
-                    continue
-
-                peak_idx = period_after_bottom["high"].idxmax()
-                peak_row = ticker_df.loc[peak_idx]
-
-                peak_price = peak_row["high"]
-                peak_date = peak_row["date"]
-
-                return_pct = (
-                    peak_price / stock_bottom_price - 1
-                ) * 100
-
-                if return_pct < min_wave_return:
-                    continue
-
-                # =========================
-                # 4. TÌM ĐÁY TIẾP THEO SAU ĐỈNH
-                # Đáy lớn = giảm ít nhất 15% từ đỉnh
-                # =========================
-
-                after_peak = ticker_df[
-                    ticker_df["date"] > peak_date
-                ].copy()
-
-                if after_peak.empty:
-
-                    stock_next_bottom_date = ticker_df["date"].max()
-                    stock_next_bottom_price = ticker_df["close"].iloc[-1]
-
-                else:
-
-                    after_peak["drawdown_from_peak_pct"] = (
-                        after_peak["low"] / peak_price - 1
-                    ) * 100
-
-                    next_bottom_candidates = after_peak[
-                        after_peak["drawdown_from_peak_pct"] <= drawdown_to_end_wave
-                    ].copy()
-
-                    if not next_bottom_candidates.empty:
-
-                        stock_next_bottom_row = next_bottom_candidates.iloc[0]
-                        stock_next_bottom_date = stock_next_bottom_row["date"]
-                        stock_next_bottom_price = stock_next_bottom_row["low"]
-
-                    else:
-
-                        stock_next_bottom_date = ticker_df["date"].max()
-                        stock_next_bottom_price = ticker_df["close"].iloc[-1]
-
-                nganh = ticker_df["nganh"].iloc[0]
-
-                records.append({
-                    "ticker": ticker,
-                    "nganh": nganh,
-                    "market_bottom_date": market_bottom_date,
-                    "stock_bottom_date": stock_bottom_date,
-                    "stock_bottom_price": stock_bottom_price,
-                    "stock_bottom_low": stock_bottom_low,
-                    "peak_date": peak_date,
-                    "peak_price": peak_price,
-                    "stock_next_bottom_date": stock_next_bottom_date,
-                    "stock_next_bottom_price": stock_next_bottom_price,
-                    "return_pct": return_pct,
-                    "avg_value_20": avg_value_20
-                })
-
-            top_stock_df = pd.DataFrame(records)
-
-            if top_stock_df.empty:
-
-                st.info("Không tìm thấy cổ phiếu thanh khoản cao phù hợp trong các ngành quanh đáy này.")
-
-            else:
-
-                top_stock_df = top_stock_df.sort_values(
-                    "return_pct",
-                    ascending=False
-                ).head(5).reset_index(drop=True)
-                                                
-                # =========================
-                # TOP 5 DẠNG BẢNG GỌN
-                # =========================
-                
-                top_stock_df["nhom_nganh"] = top_stock_df["nganh"].apply(
-                    lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
-                )
-                
-                top5_show = top_stock_df.copy()
-                
-                top5_show["Top"] = [
-                    f"TOP {i + 1}" for i in range(len(top5_show))
-                ]
-                
-                top5_show["Mã"] = top5_show["ticker"]
-                
-                top5_show["Ngành"] = (
-                    top5_show["nganh"]
-                    + " ("
-                    + top5_show["nhom_nganh"]
-                    + ")"
-                )
-                
-                top5_show["Ngày tạo đáy"] = (
-                    top5_show["stock_bottom_date"]
-                    .dt.strftime("%d/%m/%Y")
-                )
-                
-                top5_show["Hiệu suất"] = (
-                    "+"
-                    + top5_show["return_pct"].round(1).astype(str)
-                    + "%"
-                )
-                
-                top5_show = top5_show[
-                    [
-                        "Top",
-                        "Mã",
-                        "Ngành",
-                        "Ngày tạo đáy",
-                        "Hiệu suất"
-                    ]
-                ]
-                
-                st.dataframe(
-                    top5_show,
-                    hide_index=True,
-                    use_container_width=True,
-                    height=220
-                )
-# =========================
-# BẢNG TỔNG HỢP: MỖI NGÀY XÁC NHẬN ĐÁY - NGÀNH NÀO DẪN, MÃ NÀO DẪN
-# =========================
-
-st.subheader("📊 Tổng hợp ngành dẫn sóng và mã dẫn sóng theo từng đáy")
-
-summary_records = []
-
-# dùng các ngày xác nhận đáy đang hiện trên biểu đồ/dropdown
-all_confirm_dates = confirm_df["date"].drop_duplicates().sort_values().tolist()
-
-for confirm_date in all_confirm_dates:
-
-    selected_confirm_date = confirm_date
-
-    # =========================
-    # 1. LẤY VÙNG QUANH ĐÁY
-    # =========================
+if "vol" not in price_detail.columns:
+    price_detail["vol"] = 0
+
+price_detail["value"] = (
+    price_detail["close"] * price_detail["vol"] * 1000
+)
+
+price_detail = price_detail[
+    [
+        "date",
+        "ticker",
+        "open",
+        "high",
+        "low",
+        "close",
+        "vol",
+        "value"
+    ]
+].dropna().sort_values(["ticker", "date"]).reset_index(drop=True)
+
+
+def get_top_stock_for_bottom(selected_confirm_date):
 
     all_signal_dates = (
         bottom_signal_df["date"]
@@ -1245,7 +973,7 @@ for confirm_date in all_confirm_dates:
     )
 
     if selected_confirm_date not in all_signal_dates.values:
-        continue
+        return pd.DataFrame()
 
     confirm_idx = all_signal_dates[
         all_signal_dates == selected_confirm_date
@@ -1256,7 +984,7 @@ for confirm_date in all_confirm_dates:
 
     window_dates = all_signal_dates.iloc[start_idx:end_idx + 1]
 
-    lead_sector_df = sector_all_df[
+    lead_sector_tmp = sector_all_df[
         (sector_all_df["date"].isin(window_dates))
         & (
             (sector_all_df["flow_vua_tich_cuc"] == True)
@@ -1264,33 +992,24 @@ for confirm_date in all_confirm_dates:
         )
     ].copy()
 
-    if lead_sector_df.empty:
-        continue
+    if lead_sector_tmp.empty:
+        return pd.DataFrame()
 
-    lead_sector_df["nhom_nganh"] = lead_sector_df["nganh"].apply(
-        lambda x: "chủ lực" if x in nganh_chu_luc else "phụ"
-    )
-
-    # lấy tất cả ngành xuất hiện quanh vùng đáy
-    selected_sectors_in_bottom = (
-        lead_sector_df["nganh"]
+    selected_sectors = (
+        lead_sector_tmp["nganh"]
         .drop_duplicates()
         .tolist()
     )
 
-    # =========================
-    # 2. LẤY TOÀN BỘ MÃ THUỘC CÁC NGÀNH QUANH ĐÁY
-    # =========================
-
-    sector_tickers = ticker_branch_df[
-        ticker_branch_df["nganh"].isin(selected_sectors_in_bottom)
+    selected_tickers_tmp = ticker_branch_df[
+        ticker_branch_df["nganh"].isin(selected_sectors)
     ].copy()
 
-    if sector_tickers.empty:
-        continue
+    if selected_tickers_tmp.empty:
+        return pd.DataFrame()
 
     price_sector_tmp = price_detail.merge(
-        sector_tickers,
+        selected_tickers_tmp,
         on="ticker",
         how="inner"
     )
@@ -1315,10 +1034,6 @@ for confirm_date in all_confirm_dates:
 
         market_idx = nearest_after.index[0]
 
-        # =========================
-        # 3. TÌM ĐÁY CỔ PHIẾU GẦN VÙNG ĐÁY THỊ TRƯỜNG
-        # =========================
-
         zone_before = 10
         zone_after = 5
 
@@ -1341,10 +1056,6 @@ for confirm_date in all_confirm_dates:
             ticker_df["date"] == stock_bottom_date
         ].index[0]
 
-        # =========================
-        # 4. LỌC THANH KHOẢN
-        # =========================
-
         liq_start_idx = max(stock_bottom_idx - 20, 0)
 
         avg_value_20 = ticker_df.iloc[
@@ -1353,10 +1064,6 @@ for confirm_date in all_confirm_dates:
 
         if avg_value_20 < min_avg_value:
             continue
-
-        # =========================
-        # 5. TÌM ĐỈNH CAO NHẤT SAU ĐÁY TRONG 120 PHIÊN
-        # =========================
 
         peak_end_idx = min(
             stock_bottom_idx + max_holding_sessions,
@@ -1385,14 +1092,11 @@ for confirm_date in all_confirm_dates:
 
         nganh = ticker_df["nganh"].iloc[0]
 
-        nhom_nganh = (
-            "chủ lực" if nganh in nganh_chu_luc else "phụ"
-        )
-
         records.append({
             "ticker": ticker,
             "nganh": nganh,
-            "nhom_nganh": nhom_nganh,
+            "nhom_nganh": "chủ lực" if nganh in nganh_chu_luc else "phụ",
+            "market_bottom_date": selected_confirm_date,
             "stock_bottom_date": stock_bottom_date,
             "peak_date": peak_date,
             "return_pct": return_pct,
@@ -1400,42 +1104,106 @@ for confirm_date in all_confirm_dates:
         })
 
     if len(records) == 0:
+        return pd.DataFrame()
 
-        nganh_dan = ""
-        nhom_nganh_dan = ""
-        ma_dan = ""
-        hieu_suat = None
-        ngay_cp_day = None
-        ngay_cp_dinh = None
-        avg_value_20 = None
+    return (
+        pd.DataFrame(records)
+        .sort_values("return_pct", ascending=False)
+        .reset_index(drop=True)
+    )
 
-    else:
 
-        stock_rank_df = pd.DataFrame(records).sort_values(
-            "return_pct",
-            ascending=False
-        ).reset_index(drop=True)
+# =========================
+# TOP 5 CỔ PHIẾU TĂNG MẠNH
+# =========================
 
-        top_row = stock_rank_df.iloc[0]
+st.subheader("Top 5 cổ phiếu tăng mạnh")
 
-        # ngành dẫn = ngành của mã tăng mạnh nhất
-        nganh_dan = top_row["nganh"]
-        nhom_nganh_dan = top_row["nhom_nganh"]
-        ma_dan = top_row["ticker"]
-        hieu_suat = top_row["return_pct"]
-        ngay_cp_day = top_row["stock_bottom_date"]
-        ngay_cp_dinh = top_row["peak_date"]
-        avg_value_20 = top_row["avg_value_20"]
+top_stock_df = get_top_stock_for_bottom(selected_confirm_date).head(5)
+
+if top_stock_df.empty:
+
+    st.info("Không tìm thấy cổ phiếu thanh khoản cao phù hợp trong các ngành quanh đáy này.")
+
+else:
+
+    top5_show = top_stock_df.copy()
+
+    top5_show["Top"] = [
+        f"TOP {i + 1}" for i in range(len(top5_show))
+    ]
+
+    top5_show["Mã"] = top5_show["ticker"]
+
+    top5_show["Ngành"] = (
+        top5_show["nganh"]
+        + " ("
+        + top5_show["nhom_nganh"]
+        + ")"
+    )
+
+    top5_show["Ngày tạo đáy"] = (
+        top5_show["stock_bottom_date"]
+        .dt.strftime("%d/%m/%Y")
+    )
+
+    top5_show["Hiệu suất"] = (
+        "+"
+        + top5_show["return_pct"].round(1).astype(str)
+        + "%"
+    )
+
+    top5_show = top5_show[
+        [
+            "Top",
+            "Mã",
+            "Ngành",
+            "Ngày tạo đáy",
+            "Hiệu suất"
+        ]
+    ]
+
+    st.dataframe(
+        top5_show,
+        hide_index=True,
+        use_container_width=True,
+        height=220
+    )
+
+
+# =========================
+# BẢNG TỔNG HỢP: NGÀNH DẪN SÓNG VÀ MÃ DẪN SÓNG THEO TỪNG ĐÁY
+# =========================
+
+st.subheader("📊 Tổng hợp ngành dẫn sóng và mã dẫn sóng theo từng đáy")
+
+summary_records = []
+
+all_confirm_dates = (
+    confirm_df["date"]
+    .drop_duplicates()
+    .sort_values()
+    .tolist()
+)
+
+for confirm_date in all_confirm_dates:
+
+    top_stock_tmp = get_top_stock_for_bottom(confirm_date)
+
+    if top_stock_tmp.empty:
+        continue
+
+    top_row = top_stock_tmp.iloc[0]
 
     summary_records.append({
-        "Ngày xác nhận đáy": selected_confirm_date,
-        "Ngành dẫn sóng": nganh_dan,
-        "Nhóm ngành": nhom_nganh_dan,
-        "Mã dẫn sóng": ma_dan,
-        "CP tạo đáy": ngay_cp_day,
-        "CP tạo đỉnh": ngay_cp_dinh,
-        "Hiệu suất": hieu_suat,
-        "GTGD TB 20 phiên": avg_value_20
+        "Ngày xác nhận đáy": confirm_date,
+        "Ngành dẫn sóng": top_row["nganh"],
+        "Nhóm ngành": top_row["nhom_nganh"],
+        "Mã dẫn sóng": top_row["ticker"],
+        "CP tạo đáy": top_row["stock_bottom_date"],
+        "CP tạo đỉnh": top_row["peak_date"],
+        "Hiệu suất": top_row["return_pct"],
+        "GTGD TB 20 phiên": top_row["avg_value_20"]
     })
 
 
