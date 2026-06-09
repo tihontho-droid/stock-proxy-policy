@@ -1182,15 +1182,14 @@ else:
                     with st.container(border=True):
                 
                         c1, c2, c3, c4 = st.columns(
-                            [1.2, 2.5, 1.5, 1.2]
+                            [1.8, 3.0, 1.5, 1.2]
                         )
                 
                         with c1:
                 
                             st.markdown(
                                 f"""
-                                **TOP {i+1}**  
-                                ### {row['ticker']}
+                                ### TOP {i+1} · {row['ticker']}
                                 """
                             )
                 
@@ -1206,7 +1205,8 @@ else:
                 
                             st.markdown(
                                 f"""
-                                **CP tạo đáy**  
+                                **CP tạo đáy**
+                
                                 {row['stock_bottom_date'].strftime('%d/%m/%Y')}
                                 """
                             )
@@ -1215,7 +1215,8 @@ else:
                 
                             st.markdown(
                                 f"""
-                                **Hiệu suất**  
+                                **Hiệu suất**
+                
                                 +{row['return_pct']:.1f}%
                                 """
                             )
