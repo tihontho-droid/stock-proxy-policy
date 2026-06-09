@@ -1096,75 +1096,32 @@ else:
                 ).head(5).reset_index(drop=True)
 
                 # =========================
-                # HIỂN THỊ CARD KÉO NGANG
+                # HIỂN THỊ TOP 5 DẠNG 5 KHUNG
+                # Không dùng HTML để tránh bị hiện code
                 # =========================
 
-                cards_html = """
-                <div style="
-                    display:flex;
-                    gap:16px;
-                    overflow-x:auto;
-                    padding:8px 4px 18px 4px;
-                    scroll-snap-type:x mandatory;
-                ">
-                """
+                cols = st.columns(5)
 
-                for _, row in top_stock_df.iterrows():
+                for i, (_, row) in enumerate(top_stock_df.iterrows()):
 
-                    cards_html += f"""
-                    <div style="
-                        min-width:240px;
-                        max-width:240px;
-                        background:#F8F9FD;
-                        border:1px solid #ECEEF5;
-                        border-radius:18px;
-                        padding:16px;
-                        scroll-snap-align:start;
-                        box-shadow:0 4px 12px rgba(0,0,0,0.04);
-                    ">
-                        <div style="
-                            font-size:24px;
-                            font-weight:800;
-                            color:#111;
-                        ">
-                            {row["ticker"]}
-                        </div>
+                    with cols[i]:
 
-                        <div style="
-                            font-size:14px;
-                            color:#666;
-                            margin-top:2px;
-                            min-height:36px;
-                        ">
-                            {row["nganh"]}
-                        </div>
+                        with st.container(border=True):
 
-                        <div style="
-                            font-size:28px;
-                            font-weight:800;
-                            color:#00A86B;
-                            margin-top:12px;
-                        ">
-                            +{row["return_pct"]:.2f}%
-                        </div>
+                            st.markdown(f"### {row['ticker']}")
 
-                        <div style="
-                            font-size:13px;
-                            color:#555;
-                            margin-top:10px;
-                            line-height:1.7;
-                        ">
-                            Đáy: <b>{row["bottom_date"].strftime("%Y-%m-%d")}</b><br>
-                            Giá đáy: <b>{row["bottom_price"]:.2f}</b><br>
-                            Đỉnh gần nhất: <b>{row["peak_date"].strftime("%Y-%m-%d")}</b><br>
-                            Giá đỉnh: <b>{row["peak_price"]:.2f}</b>
-                        </div>
-                    </div>
-                    """
+                            st.caption(row["nganh"])
 
-                cards_html += "</div>"
+                            st.metric(
+                                label="Tăng từ đáy lên đỉnh",
+                                value=f"+{row['return_pct']:.2f}%"
+                            )
 
-                st.markdown(
-                    cards_html,
-                    unsafe_allow_html=True
-                )
+                            st.write(
+                                f"""
+                                **Đáy:** {row["bottom_date"].strftime("%Y-%m-%d")}  
+                                **Giá đáy:** {row["bottom_price"]:.2f}  
+                                **Đỉnh gần nhất:** {row["peak_date"].strftime("%Y-%m-%d")}  
+                                **Giá đỉnh:** {row["peak_price"]:.2f}
+                                """
+                            )
