@@ -300,56 +300,37 @@ bottom_signal_df = market_df[
 # =========================
 # 8. LẤY MARKER TỪ BẢNG
 # Không thay đổi bảng gốc
-# Chỉ hiện Chuẩn bị nếu sau đó có Xác nhận
+# Chỉ hiện marker Xác nhận tạo đáy
+# Mỗi cụm xác nhận chỉ lấy ngày đầu tiên
 # =========================
 
 marker_df = bottom_signal_df.copy()
 marker_df = marker_df.sort_values("date").reset_index(drop=True)
 
-marker_df["phase_group"] = (
-    marker_df["bottom_phase"] != marker_df["bottom_phase"].shift(1)
-).cumsum()
+# Nếu nhiều ngày xác nhận liên tiếp:
+# 10/04 True, 11/04 True, 12/04 True
+# thì chỉ lấy 10/04 làm marker trên biểu đồ
+marker_df["xac_nhan_marker"] = (
+    marker_df["xac_nhan_tao_day"]
+    & ~marker_df["xac_nhan_tao_day"].shift(1).fillna(False)
+)
 
-valid_chuan_bi_rows = []
-valid_xac_nhan_rows = []
+xac_nhan_marker_df = marker_df[
+    marker_df["xac_nhan_marker"]
+].copy()
 
-groups = list(marker_df.groupby("phase_group"))
+# tạo sẵn danh sách marker cho biểu đồ
+markers = []
 
-for i, (group_id, group_df) in enumerate(groups):
+for _, row in xac_nhan_marker_df.iterrows():
 
-    phase = group_df["bottom_phase"].iloc[0]
-
-    if phase != "Chuẩn bị tạo đáy":
-        continue
-
-    # Tìm cụm tiếp theo
-    if i + 1 >= len(groups):
-        continue
-
-    next_group_df = groups[i + 1][1]
-    next_phase = next_group_df["bottom_phase"].iloc[0]
-
-    # Chỉ lấy nếu cụm ngay sau là Xác nhận tạo đáy
-    if next_phase == "Xác nhận tạo đáy":
-
-        # Marker chuẩn bị: ngày cuối cùng của cụm chuẩn bị
-        valid_chuan_bi_rows.append(group_df.tail(1))
-
-        # Marker xác nhận: ngày đầu tiên của cụm xác nhận
-        valid_xac_nhan_rows.append(next_group_df.head(1))
-
-
-if valid_chuan_bi_rows:
-    chuan_bi_marker_df = pd.concat(valid_chuan_bi_rows)
-else:
-    chuan_bi_marker_df = pd.DataFrame(columns=marker_df.columns)
-
-
-if valid_xac_nhan_rows:
-    xac_nhan_marker_df = pd.concat(valid_xac_nhan_rows)
-else:
-    xac_nhan_marker_df = pd.DataFrame(columns=marker_df.columns)
-
+    markers.append({
+        "time": row["date"].strftime("%Y-%m-%d"),
+        "position": "belowBar",
+        "color": "#00C853",
+        "shape": "arrowUp",
+        "text": "Đáy"
+    })
 
 
 # =========================
