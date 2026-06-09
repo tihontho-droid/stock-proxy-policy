@@ -632,18 +632,6 @@ else:
 
         with col1:
 
-            st.markdown(
-                f"""
-                <div style="
-                    background:#F8F9FD;
-                    padding:16px;
-                    border-radius:20px;
-                    border:1px solid #ECEEF5;
-                ">
-                """,
-                unsafe_allow_html=True
-            )
-
             fig_prepare = make_pie(
                 prepare_row,
                 f"Chuẩn bị tạo đáy - {prepare_date_str}"
@@ -675,19 +663,7 @@ else:
             )
 
         with col2:
-
-            st.markdown(
-                f"""
-                <div style="
-                    background:#F8F9FD;
-                    padding:16px;
-                    border-radius:20px;
-                    border:1px solid #ECEEF5;
-                ">
-                """,
-                unsafe_allow_html=True
-            )
-
+ 
             fig_confirm = make_pie(
                 confirm_row,
                 f"Xác nhận đáy - {confirm_date_str}"
