@@ -1127,13 +1127,13 @@ all_confirm_dates = (
     .tolist()
 )
 
-for confirm_date in all_confirm_dates:
+all_signal_dates = (
+    bottom_signal_df["date"]
+    .sort_values()
+    .reset_index(drop=True)
+)
 
-    all_signal_dates = (
-        bottom_signal_df["date"]
-        .sort_values()
-        .reset_index(drop=True)
-    )
+for confirm_date in all_confirm_dates:
 
     if confirm_date not in all_signal_dates.values:
         continue
@@ -1175,34 +1175,65 @@ for confirm_date in all_confirm_dates:
         "tin_hieu"
     ] += "SMDT vượt 70"
 
+    # tính số phiên lệch so với đáy cho từng dòng
+    date_to_idx = {
+        date: idx for idx, date in enumerate(all_signal_dates)
+    }
+
+    sector_window["signal_idx"] = sector_window["date"].map(date_to_idx)
+
+    sector_window = sector_window.dropna(
+        subset=["signal_idx"]
+    ).copy()
+
+    sector_window["signal_idx"] = sector_window["signal_idx"].astype(int)
+
+    sector_window["Lệch so với đáy"] = (
+        sector_window["signal_idx"] - confirm_idx
+    )
+
+    sector_window["abs_diff"] = (
+        sector_window["Lệch so với đáy"].abs()
+    )
+
     for nganh in sector_window["nganh"].drop_duplicates():
 
         nganh_df = sector_window[
             sector_window["nganh"] == nganh
-        ].sort_values("date").copy()
+        ].copy()
 
-        first_row = nganh_df.iloc[0]
+        # lấy tín hiệu gần đáy nhất của ngành đó
+        # nếu cùng khoảng cách thì ưu tiên tín hiệu trước đáy
+        nganh_df["uu_tien_truoc_day"] = (
+            nganh_df["Lệch so với đáy"] > 0
+        ).astype(int)
 
-        signal_date = first_row["date"]
+        signal_row = (
+            nganh_df
+            .sort_values(
+                [
+                    "abs_diff",
+                    "uu_tien_truoc_day",
+                    "date"
+                ],
+                ascending=[True, True, True]
+            )
+            .iloc[0]
+        )
 
-        # số phiên lệch so với đáy
-        signal_idx = all_signal_dates[
-            all_signal_dates == signal_date
-        ].index[0]
-
-        diff_sessions = signal_idx - confirm_idx
+        diff_sessions = signal_row["Lệch so với đáy"]
 
         relation_records.append({
             "Ngày xác nhận đáy": confirm_date,
-            "Ngành": nganh,
-            "Nhóm ngành": first_row["nhom_nganh"],
-            "Ngày tín hiệu đầu tiên": signal_date,
+            "Ngành": signal_row["nganh"],
+            "Nhóm ngành": signal_row["nhom_nganh"],
+            "Ngày tín hiệu gần đáy": signal_row["date"],
             "Lệch so với đáy": diff_sessions,
             "Vị trí": (
                 "Trước đáy" if diff_sessions < 0
                 else ("Đúng ngày đáy" if diff_sessions == 0 else "Sau đáy")
             ),
-            "Tín hiệu": first_row["tin_hieu"]
+            "Tín hiệu": signal_row["tin_hieu"]
         })
 
 
@@ -1216,17 +1247,22 @@ else:
 
     relation_show = relation_df.copy()
 
+    # sort khi cột ngày vẫn còn là datetime
+    relation_show = relation_show.sort_values(
+        [
+            "Ngày xác nhận đáy",
+            "Lệch so với đáy"
+        ]
+    ).reset_index(drop=True)
+
+    # format ngày sau khi sort
     relation_show["Ngày xác nhận đáy"] = pd.to_datetime(
         relation_show["Ngày xác nhận đáy"]
     ).dt.strftime("%d/%m/%Y")
 
-    relation_show["Ngày tín hiệu đầu tiên"] = pd.to_datetime(
-        relation_show["Ngày tín hiệu đầu tiên"]
+    relation_show["Ngày tín hiệu gần đáy"] = pd.to_datetime(
+        relation_show["Ngày tín hiệu gần đáy"]
     ).dt.strftime("%d/%m/%Y")
-
-    relation_show = relation_show.sort_values(
-        ["Ngày xác nhận đáy", "Lệch so với đáy"]
-    ).reset_index(drop=True)
 
     st.dataframe(
         relation_show,
