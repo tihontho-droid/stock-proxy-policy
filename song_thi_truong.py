@@ -1169,39 +1169,114 @@ else:
                     ascending=False
                 ).head(5).reset_index(drop=True)
 
-                rank_icons = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+                # =========================
+                # HIỂN THỊ TOP 5
+                # =========================
 
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
 
-                    rank_icon = rank_icons[i] if i < len(rank_icons) else f"{i + 1}."
-
                     with st.container(border=True):
 
-                        col_a, col_b, col_c = st.columns([1.2, 2.5, 1.3])
+                        # =====================
+                        # HEADER
+                        # =====================
 
-                        with col_a:
-                            st.markdown(f"### {rank_icon} {row['ticker']}")
+                        left, right = st.columns([4, 1])
 
-                        with col_b:
+                        with left:
+
                             st.markdown(
                                 f"""
-                                **Ngành:** {row["nganh"]}  
-                                **Đáy thị trường:** {row["market_bottom_date"].strftime("%Y-%m-%d")}  
-                                **Đáy cổ phiếu:** {row["stock_bottom_date"].strftime("%Y-%m-%d")}  
-                                **Đỉnh gần nhất:** {row["peak_date"].strftime("%Y-%m-%d")}  
-                                **Kết thúc sóng:** {row["stock_next_bottom_date"].strftime("%Y-%m-%d")}  
-                                **GTGD TB 20 phiên:** {row["avg_value_20"] / 1_000_000_000:.2f} tỷ
+                                ### #{i + 1} • {row['ticker']}
+
+                                **{row['nganh']}**
                                 """
                             )
 
-                        with col_c:
+                        with right:
+
                             st.metric(
-                                label="Tăng",
-                                value=f"+{row['return_pct']:.2f}%"
+                                label="Hiệu suất",
+                                value=f"+{row['return_pct']:.1f}%"
+                            )
+
+                        st.divider()
+
+                        # =====================
+                        # MỐC THỜI GIAN
+                        # =====================
+
+                        time1, time2, time3, time4 = st.columns(4)
+
+                        with time1:
+
+                            st.caption("🌎 Đáy thị trường")
+
+                            st.write(
+                                row["market_bottom_date"].strftime("%d/%m/%Y")
+                            )
+
+                        with time2:
+
+                            st.caption("📉 Đáy cổ phiếu")
+
+                            st.write(
+                                row["stock_bottom_date"].strftime("%d/%m/%Y")
+                            )
+
+                        with time3:
+
+                            st.caption("📈 Đỉnh gần nhất")
+
+                            st.write(
+                                row["peak_date"].strftime("%d/%m/%Y")
+                            )
+
+                        with time4:
+
+                            st.caption("🔻 Kết thúc sóng")
+
+                            st.write(
+                                row["stock_next_bottom_date"].strftime("%d/%m/%Y")
+                            )
+
+                        st.divider()
+
+                        # =====================
+                        # THÔNG SỐ
+                        # =====================
+
+                        metric1, metric2, metric3, metric4 = st.columns(4)
+
+                        with metric1:
+
+                            st.metric(
+                                "Giá đáy",
+                                f"{row['stock_bottom_price']:.2f}"
+                            )
+
+                        with metric2:
+
+                            st.metric(
+                                "Giá đỉnh",
+                                f"{row['peak_price']:.2f}"
+                            )
+
+                        with metric3:
+
+                            st.metric(
+                                "Thanh khoản",
+                                f"{row['avg_value_20'] / 1_000_000_000:.0f} tỷ"
+                            )
+
+                        with metric4:
+
+                            st.metric(
+                                "Biên tăng",
+                                f"{row['return_pct']:.1f}%"
                             )
 
                         st.caption(
-                            f"Giá đáy CP: {row['stock_bottom_price']:.2f} | "
-                            f"Giá đỉnh: {row['peak_price']:.2f} | "
-                            f"Giá kết thúc sóng: {row['stock_next_bottom_price']:.2f}"
+                            f"Giá kết thúc sóng: "
+                            f"{row['stock_next_bottom_price']:.2f}"
                         )
