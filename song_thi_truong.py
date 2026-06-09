@@ -1171,32 +1171,37 @@ else:
                 
                 for i, (_, row) in enumerate(top_stock_df.iterrows()):
                 
-                    nhom_nganh = row.get("nhom_nganh", "phụ")
-                
                     with st.container(border=True):
                 
-                        top_left, top_right = st.columns([3, 1])
+                        st.caption(
+                            f"TOP {i + 1} • {row['nganh']} ({row['nhom_nganh']})"
+                        )
                 
-                        with top_left:
-                            st.caption(f"TOP {i + 1} • {row['nganh']} ({nhom_nganh})")
+                        c1, c2, c3, c4, c5 = st.columns(
+                            [1.5, 1.4, 1.4, 1.4, 1.2]
+                        )
+                
+                        with c1:
                             st.markdown(f"## {row['ticker']}")
                 
-                        with top_right:
-                            st.metric(
-                                label="Hiệu suất",
-                                value=f"+{row['return_pct']:.1f}%"
+                        with c2:
+                            st.markdown(
+                                f"**{row['market_bottom_date'].strftime('%d/%m/%Y')}**"
                             )
+                            st.caption("TT tạo đáy")
                 
-                        d1, d2, d3 = st.columns(3)
+                        with c3:
+                            st.markdown(
+                                f"**{row['stock_bottom_date'].strftime('%d/%m/%Y')}**"
+                            )
+                            st.caption("CP tạo đáy")
                 
-                        with d1:
-                            st.caption("Thị trường tạo đáy")
-                            st.write(row["market_bottom_date"].strftime("%d/%m/%Y"))
+                        with c4:
+                            st.markdown(
+                                f"**{row['peak_date'].strftime('%d/%m/%Y')}**"
+                            )
+                            st.caption("CP tạo đỉnh")
                 
-                        with d2:
-                            st.caption("Cổ phiếu tạo đáy")
-                            st.write(row["stock_bottom_date"].strftime("%d/%m/%Y"))
-                
-                        with d3:
-                            st.caption("Cổ phiếu tạo đỉnh")
-                            st.write(row["peak_date"].strftime("%d/%m/%Y"))
+                        with c5:
+                            st.markdown(f"## +{row['return_pct']:.1f}%")
+                            st.caption("Hiệu suất")
