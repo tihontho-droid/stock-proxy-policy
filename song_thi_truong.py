@@ -701,3 +701,114 @@ else:
                 """,
                 unsafe_allow_html=True
             )
+# =========================
+# DANH SÁCH NGÀNH DẪN SÓNG TRƯỚC NGÀY TẠO ĐÁY
+# =========================
+
+nganh_chu_luc = [
+    "Ngân hàng",
+    "Chứng khoán",
+    "BĐS Dân cư",
+    "Xây dựng",
+    "Thép",
+    "Sóng ngành Vin"
+]
+
+lead_sector_df = sector_all_df[
+    (sector_all_df["date"] >= prepare_row["date"])
+    & (sector_all_df["date"] <= selected_confirm_date)
+    & (
+        (sector_all_df["flow_vua_tich_cuc"] == True)
+        | (sector_all_df["smdt_vua_vuot_70"] == True)
+    )
+].copy()
+
+lead_sector_df["nhom_nganh"] = lead_sector_df["nganh"].apply(
+    lambda x: "Ngành chủ lực" if x in nganh_chu_luc else "Ngành phụ"
+)
+
+lead_sector_df["tin_hieu"] = ""
+
+lead_sector_df.loc[
+    lead_sector_df["flow_vua_tich_cuc"],
+    "tin_hieu"
+] += "Flow vừa tích cực "
+
+lead_sector_df.loc[
+    lead_sector_df["smdt_vua_vuot_70"],
+    "tin_hieu"
+] += "SMDT vừa vượt 70"
+
+lead_sector_show = lead_sector_df[
+    [
+        "date",
+        "nganh",
+        "nhom_nganh",
+        "cashflow",
+        "smdt",
+        "flow_vua_tich_cuc",
+        "smdt_vua_vuot_70",
+        "tin_hieu"
+    ]
+].copy()
+
+lead_sector_show["date"] = lead_sector_show["date"].dt.strftime("%Y-%m-%d")
+lead_sector_show["smdt"] = lead_sector_show["smdt"].round(2)
+
+chu_luc_df = lead_sector_show[
+    lead_sector_show["nhom_nganh"] == "Ngành chủ lực"
+].copy()
+
+phu_df = lead_sector_show[
+    lead_sector_show["nhom_nganh"] == "Ngành phụ"
+].copy()
+
+st.subheader("🌊 Ngành dẫn sóng trước đáy")
+
+col_left, col_right = st.columns(2)
+
+with col_left:
+    st.markdown("### 🟢 Ngành chủ lực")
+
+    if chu_luc_df.empty:
+        st.info("Không có ngành chủ lực dẫn sóng trong giai đoạn này.")
+    else:
+        st.dataframe(
+            chu_luc_df[
+                [
+                    "date",
+                    "nganh",
+                    "cashflow",
+                    "smdt",
+                    "flow_vua_tich_cuc",
+                    "smdt_vua_vuot_70",
+                    "tin_hieu"
+                ]
+            ],
+            hide_index=True,
+            use_container_width=True,
+            height=280
+        )
+
+with col_right:
+    st.markdown("### 🟠 Ngành phụ")
+
+    if phu_df.empty:
+        st.info("Không có ngành phụ dẫn sóng trong giai đoạn này.")
+    else:
+        st.dataframe(
+            phu_df[
+                [
+                    "date",
+                    "nganh",
+                    "cashflow",
+                    "smdt",
+                    "flow_vua_tich_cuc",
+                    "smdt_vua_vuot_70",
+                    "tin_hieu"
+                ]
+            ],
+            hide_index=True,
+            use_container_width=True,
+            height=280
+        )
