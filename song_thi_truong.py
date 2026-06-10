@@ -953,3 +953,63 @@ top_stock_df = top_stock_all_bottoms[
 ].copy()
 
 top_stock_df = top_stock_df.head(10)
+
+st.subheader("Top 10 cổ phiếu tăng mạnh")
+
+if top_stock_df.empty:
+
+    st.info("Không có dữ liệu Top 10 cho ngày đáy này.")
+
+else:
+
+    top10_show = top_stock_df.copy()
+
+    top10_show["Top"] = [
+        f"TOP {i + 1}"
+        for i in range(len(top10_show))
+    ]
+
+    top10_show["Mã"] = top10_show["ticker"]
+
+    top10_show["Ngành"] = (
+        top10_show["nganh"]
+        + " ("
+        + top10_show["nhom_nganh"]
+        + ")"
+    )
+
+    top10_show["Ngày tạo đáy"] = (
+        top10_show["stock_bottom_date"]
+        .dt.strftime("%d/%m/%Y")
+    )
+
+    top10_show["Ngày tạo đỉnh"] = (
+        top10_show["peak_date"]
+        .dt.strftime("%d/%m/%Y")
+    )
+
+    top10_show["Hiệu suất"] = (
+        "+"
+        + top10_show["return_pct"]
+        .round(1)
+        .astype(str)
+        + "%"
+    )
+
+    top10_show = top10_show[
+        [
+            "Top",
+            "Mã",
+            "Ngành",
+            "Ngày tạo đáy",
+            "Ngày tạo đỉnh",
+            "Hiệu suất"
+        ]
+    ]
+
+    st.dataframe(
+        top10_show,
+        hide_index=True,
+        use_container_width=True,
+        height=350
+    )
