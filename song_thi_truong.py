@@ -511,7 +511,17 @@ renderLightweightCharts(
     key="vnindex_bottom_chart"
 )
 
+import time
 
+start = time.time()
+
+# code nghi ngờ
+
+st.write(
+    "Mất",
+    round(time.time() - start, 2),
+    "giây"
+)
 # =========================
 # 10. TRA CỨU NGÀY XÁC NHẬN ĐÁY
 # =========================
@@ -756,6 +766,18 @@ with col2:
         """,
         unsafe_allow_html=True
     )
+
+import time
+
+start = time.time()
+
+# code nghi ngờ
+
+st.write(
+    "Mất",
+    round(time.time() - start, 2),
+    "giây"
+)
 # =========================
 # NGÀNH DẪN SÓNG TRƯỚC VÀ SAU ĐÁY
 # =========================
@@ -912,7 +934,17 @@ with col_right:
             use_container_width=True,
             height=250
         )
+import time
 
+start = time.time()
+
+# code nghi ngờ
+
+st.write(
+    "Mất",
+    round(time.time() - start, 2),
+    "giây"
+)
 # =========================
 # HÀM CHUNG: TÍNH TOP CỔ PHIẾU CHO MỖI NGÀY ĐÁY
 # =========================
