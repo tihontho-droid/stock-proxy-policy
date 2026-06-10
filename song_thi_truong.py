@@ -3,7 +3,7 @@ import pandas as pd
 import requests 
 from streamlit_lightweight_charts import renderLightweightCharts
 import plotly.graph_objects as go
-
+import 
 
 st.set_page_config(
     page_title="Bảng tạo đáy thị trường",
@@ -364,22 +364,38 @@ xac_nhan_marker_df = pd.DataFrame(marker_rows)
 # 9. LẤY DỮ LIỆU VNINDEX
 # =========================
 
-price_df = pd.DataFrame(
-    price_data["TotalTradeReply"]["stockTotals"]
-)
+# =========================
+# 9. LẤY DỮ LIỆU VNINDEX
+# Khóa dữ liệu nến lại bằng file parquet
+# =========================
 
-vnindex_row = price_df[
-    price_df["ticker"].isin(
-        ["VNINDEX", "VN-INDEX", "VN_INDEX", "VNI", "INDEX"]
-    )
-].copy()
+vnindex_cache_path = "vnindex_df.parquet"
 
-if vnindex_row.empty:
+if os.path.exists(vnindex_cache_path):
 
-    st.warning("Không tìm thấy VNINDEX trong dữ liệu giá.")
-    st.write(price_df["ticker"].drop_duplicates().head(100).tolist())
+    vnindex_ticker = "VNINDEX"
+
+    vnindex_df = pd.read_parquet(vnindex_cache_path)
+
+    vnindex_df["date"] = pd.to_datetime(vnindex_df["date"])
 
 else:
+
+    price_df = pd.DataFrame(
+        price_data["TotalTradeReply"]["stockTotals"]
+    )
+
+    vnindex_row = price_df[
+        price_df["ticker"].isin(
+            ["VNINDEX", "VN-INDEX", "VN_INDEX", "VNI", "INDEX"]
+        )
+    ].copy()
+
+    if vnindex_row.empty:
+
+        st.warning("Không tìm thấy VNINDEX trong dữ liệu giá.")
+        st.write(price_df["ticker"].drop_duplicates().head(100).tolist())
+        st.stop()
 
     vnindex_ticker = vnindex_row["ticker"].iloc[0]
 
@@ -397,88 +413,108 @@ else:
 
     vnindex_df = vnindex_df.sort_values("date").reset_index(drop=True)
 
-    candle_data = []
-
-    for _, row in vnindex_df.iterrows():
-
-        candle_data.append({
-            "time": row["date"].strftime("%Y-%m-%d"),
-            "open": float(row["open"]),
-            "high": float(row["high"]),
-            "low": float(row["low"]),
-            "close": float(row["close"])
-        })
-
-    # chỉ dùng marker xác nhận đáy, không dùng chuẩn bị
-    markers = []
-
-    for _, row in xac_nhan_marker_df.iterrows():
-
-        markers.append({
-            "time": row["date"].strftime("%Y-%m-%d"),
-            "position": "belowBar",
-            "color": "#00C853",
-            "shape": "arrowUp",
-            "text": "Xác nhận đáy"
-        })
-
-    st.subheader(f"{vnindex_ticker} - Tín hiệu tạo đáy")
-
-    chart = [
-        {
-            "chart": {
-                "height": 500,
-                "layout": {
-                    "background": {
-                        "type": "solid",
-                        "color": "transparent"
-                    },
-                    "textColor": "#999999"
-                },
-                "grid": {
-                    "vertLines": {"color": "rgba(150,150,150,0.12)"},
-                    "horzLines": {"color": "rgba(150,150,150,0.12)"}
-                },
-                "timeScale": {
-                    "visible": True,
-                    "timeVisible": True,
-                    "secondsVisible": False,
-                    "barSpacing": 6,
-                    "rightOffset": 5
-                },
-                "handleScroll": {
-                    "mouseWheel": True,
-                    "pressedMouseMove": True
-                },
-                "handleScale": {
-                    "axisPressedMouseMove": True,
-                    "mouseWheel": True,
-                    "pinch": True
-                }
-            },
-            "series": [
-                {
-                    "type": "Candlestick",
-                    "data": candle_data,
-                    "markers": markers,
-                    "options": {
-                        "upColor": "#26A69A",
-                        "downColor": "#EF5350",
-                        "borderUpColor": "#26A69A",
-                        "borderDownColor": "#EF5350",
-                        "wickUpColor": "#26A69A",
-                        "wickDownColor": "#EF5350",
-                        "priceLineVisible": False
-                    }
-                }
-            ]
-        }
-    ]
-
-    renderLightweightCharts(
-        chart,
-        key="vnindex_bottom_chart"
+    vnindex_df.to_parquet(
+        vnindex_cache_path,
+        index=False
     )
+
+
+# =========================
+# TẠO CANDLE DATA TỪ FILE ĐÃ KHÓA
+# =========================
+
+candle_data = []
+
+for _, row in vnindex_df.iterrows():
+
+    candle_data.append({
+        "time": row["date"].strftime("%Y-%m-%d"),
+        "open": float(row["open"]),
+        "high": float(row["high"]),
+        "low": float(row["low"]),
+        "close": float(row["close"])
+    })
+
+
+# =========================
+# MARKER XÁC NHẬN ĐÁY
+# Marker vẫn tính lại vì phụ thuộc xac_nhan_marker_df
+# =========================
+
+markers = []
+
+for _, row in xac_nhan_marker_df.iterrows():
+
+    markers.append({
+        "time": row["date"].strftime("%Y-%m-%d"),
+        "position": "belowBar",
+        "color": "#00C853",
+        "shape": "arrowUp",
+        "text": "Xác nhận đáy"
+    })
+
+
+# =========================
+# VẼ BIỂU ĐỒ
+# =========================
+
+st.subheader(f"{vnindex_ticker} - Tín hiệu tạo đáy")
+
+chart = [
+    {
+        "chart": {
+            "height": 500,
+            "layout": {
+                "background": {
+                    "type": "solid",
+                    "color": "transparent"
+                },
+                "textColor": "#999999"
+            },
+            "grid": {
+                "vertLines": {"color": "rgba(150,150,150,0.12)"},
+                "horzLines": {"color": "rgba(150,150,150,0.12)"}
+            },
+            "timeScale": {
+                "visible": True,
+                "timeVisible": True,
+                "secondsVisible": False,
+                "barSpacing": 6,
+                "rightOffset": 5
+            },
+            "handleScroll": {
+                "mouseWheel": True,
+                "pressedMouseMove": True
+            },
+            "handleScale": {
+                "axisPressedMouseMove": True,
+                "mouseWheel": True,
+                "pinch": True
+            }
+        },
+        "series": [
+            {
+                "type": "Candlestick",
+                "data": candle_data,
+                "markers": markers,
+                "options": {
+                    "upColor": "#26A69A",
+                    "downColor": "#EF5350",
+                    "borderUpColor": "#26A69A",
+                    "borderDownColor": "#EF5350",
+                    "wickUpColor": "#26A69A",
+                    "wickDownColor": "#EF5350",
+                    "priceLineVisible": False
+                }
+            }
+        ]
+    }
+]
+
+renderLightweightCharts(
+    chart,
+    key="vnindex_bottom_chart"
+)
 
 
 # =========================
