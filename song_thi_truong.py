@@ -503,9 +503,17 @@ else:
         "Chọn ngày xác nhận đáy",
         confirm_dates
     )
-
+    
     selected_confirm_date = pd.to_datetime(selected_confirm_date_str)
+    
+    run_analysis = st.button(
+        "Phân tích đáy này",
+        type="primary"
+    )
 
+if not run_analysis:
+    st.info("Chọn ngày xác nhận đáy rồi bấm 'Phân tích đáy này' để chạy phân tích.")
+    st.stop()
     prepare_df = bottom_signal_df[
         (bottom_signal_df["chuan_bi_tao_day"] == True)
         & (bottom_signal_df["date"] < selected_confirm_date)
