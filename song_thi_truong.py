@@ -359,11 +359,6 @@ for idx, row in xac_nhan_df.iterrows():
 
 xac_nhan_marker_df = pd.DataFrame(marker_rows)
 
-
-# =========================
-# 9. LẤY DỮ LIỆU VNINDEX
-# =========================
-
 # =========================
 # 9. LẤY DỮ LIỆU VNINDEX
 # Khóa dữ liệu nến lại bằng file parquet
@@ -539,17 +534,6 @@ selected_confirm_date_str = st.selectbox(
 )
 
 selected_confirm_date = pd.to_datetime(selected_confirm_date_str)
-
-run_analysis = st.button(
-    "Phân tích đáy này",
-    type="primary"
-)
-
-if not run_analysis:
-
-    st.info("Chọn ngày xác nhận đáy rồi bấm 'Phân tích đáy này' để chạy phân tích.")
-    st.stop()
-
 
 prepare_df = bottom_signal_df[
     (bottom_signal_df["chuan_bi_tao_day"] == True)
