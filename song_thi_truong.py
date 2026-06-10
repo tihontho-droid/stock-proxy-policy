@@ -793,6 +793,7 @@ ticker_branch_df["ticker"] = (
 # LỘ TRÌNH DẪN SÓNG + ĐỘ LAN TỎA NỘI NGÀNH
 # =========================
 
+st.write("")
 st.subheader("Lộ trình dẫn sóng và độ lan tỏa nội ngành")
 
 nganh_chu_luc = [
