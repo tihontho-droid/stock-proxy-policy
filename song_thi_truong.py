@@ -761,10 +761,11 @@ with col2:
         unsafe_allow_html=True
     )
 
+# =========================
+# LỘ TRÌNH DẪN SÓNG + ĐỘ LAN TỎA NỘI NGÀNH
+# =========================
 
-# =========================
-# NGÀNH DẪN SÓNG TRƯỚC VÀ SAU ĐÁY
-# =========================
+st.subheader("Lộ trình dẫn sóng và độ lan tỏa nội ngành")
 
 nganh_chu_luc = [
     "Ngân hàng",
@@ -775,7 +776,43 @@ nganh_chu_luc = [
     "Sóng ngành Vin"
 ]
 
-# lấy 5 phiên trước và 5 phiên sau ngày xác nhận đáy
+# =========================
+# ĐỌC FILE TÍN HIỆU MÃ
+# =========================
+
+if "stock_signal_df" not in globals():
+
+    if os.path.exists("stock_signal_df.parquet"):
+
+        stock_signal_df = pd.read_parquet(
+            "stock_signal_df.parquet"
+        )
+
+    elif os.path.exists("flow/stock_signal_df.parquet"):
+
+        stock_signal_df = pd.read_parquet(
+            "flow/stock_signal_df.parquet"
+        )
+
+    else:
+
+        stock_signal_df = pd.DataFrame()
+
+if not stock_signal_df.empty:
+
+    stock_signal_df["date"] = pd.to_datetime(
+        stock_signal_df["date"]
+    )
+
+    stock_signal_df["ticker"] = (
+        stock_signal_df["ticker"]
+        .astype(str)
+    )
+
+# =========================
+# LẤY VÙNG QUANH ĐÁY
+# =========================
+
 all_signal_dates = (
     bottom_signal_df["date"]
     .sort_values()
@@ -789,7 +826,9 @@ confirm_idx = all_signal_dates[
 start_idx = max(confirm_idx - 5, 0)
 end_idx = min(confirm_idx + 5, len(all_signal_dates) - 1)
 
-window_dates = all_signal_dates.iloc[start_idx:end_idx + 1]
+window_dates = all_signal_dates.iloc[
+    start_idx:end_idx + 1
+]
 
 lead_sector_df = sector_all_df[
     (sector_all_df["date"].isin(window_dates))
@@ -799,125 +838,237 @@ lead_sector_df = sector_all_df[
     )
 ].copy()
 
-# phân nhóm ngành
-lead_sector_df["nhom_nganh"] = lead_sector_df["nganh"].apply(
-    lambda x: "Ngành chủ lực" if x in nganh_chu_luc else "Ngành phụ"
-)
+if lead_sector_df.empty:
 
-# giai đoạn quanh đáy
-lead_sector_df["giai_doan"] = lead_sector_df["date"].apply(
-    lambda x: "Trước đáy" if x < selected_confirm_date
-    else ("Ngày xác nhận" if x == selected_confirm_date else "Sau đáy")
-)
+    st.info("Không có ngành xuất hiện tín hiệu quanh đáy này.")
 
-# chỉ hiện tín hiệu dòng tiền và SMDT
-lead_sector_df["tin_hieu"] = ""
+else:
 
-lead_sector_df.loc[
-    lead_sector_df["flow_vua_tich_cuc"],
-    "tin_hieu"
-] += "Dòng tiền tích cực "
+    # =========================
+    # PHÂN NHÓM NGÀNH
+    # =========================
 
-lead_sector_df.loc[
-    lead_sector_df["smdt_vua_vuot_70"],
-    "tin_hieu"
-] += "SMDT vượt 70"
+    lead_sector_df["nhom_nganh"] = lead_sector_df["nganh"].apply(
+        lambda x: "Ngành chủ lực" if x in nganh_chu_luc else "Ngành phụ"
+    )
 
-lead_sector_show = lead_sector_df[
-    [
-        "date",
-        "giai_doan",
-        "nganh",
-        "nhom_nganh",
-        "cashflow",
-        "smdt"
+    lead_sector_df["giai_doan"] = lead_sector_df["date"].apply(
+        lambda x: "Trước đáy" if x < selected_confirm_date
+        else ("Ngày xác nhận" if x == selected_confirm_date else "Sau đáy")
+    )
+
+    # =========================
+    # TÍNH ĐỘ LAN TỎA NỘI NGÀNH
+    # =========================
+
+    breadth_records = []
+
+    for _, row in lead_sector_df.iterrows():
+
+        signal_date = row["date"]
+        nganh = row["nganh"]
+
+        sector_tickers = (
+            ticker_branch_df[
+                ticker_branch_df["nganh"] == nganh
+            ]["ticker"]
+            .astype(str)
+            .drop_duplicates()
+            .tolist()
+        )
+
+        tong_ma = len(sector_tickers)
+
+        so_ma_flow_good = 0
+        so_ma_smdt_good = 0
+        so_ma_ca_hai_good = 0
+
+        if (not stock_signal_df.empty) and tong_ma > 0:
+
+            stock_tmp = stock_signal_df[
+                (stock_signal_df["date"] == signal_date)
+                & (stock_signal_df["ticker"].isin(sector_tickers))
+            ].copy()
+
+            if not stock_tmp.empty:
+
+                so_ma_flow_good = (
+                    stock_tmp["flow_ma_num"] == 1
+                ).sum()
+
+                so_ma_smdt_good = (
+                    stock_tmp["smdt_ma"] > 70
+                ).sum()
+
+                so_ma_ca_hai_good = (
+                    (stock_tmp["flow_ma_num"] == 1)
+                    & (stock_tmp["smdt_ma"] > 70)
+                ).sum()
+
+        ty_le_flow_good = (
+            so_ma_flow_good / tong_ma * 100
+            if tong_ma > 0 else 0
+        )
+
+        ty_le_smdt_good = (
+            so_ma_smdt_good / tong_ma * 100
+            if tong_ma > 0 else 0
+        )
+
+        ty_le_ca_hai_good = (
+            so_ma_ca_hai_good / tong_ma * 100
+            if tong_ma > 0 else 0
+        )
+
+        breadth_records.append({
+            "date": signal_date,
+            "nganh": nganh,
+            "Tổng mã ngành": tong_ma,
+            "Số mã dòng tiền tích cực": so_ma_flow_good,
+            "% mã dòng tiền tích cực": ty_le_flow_good,
+            "Số mã SMDT > 70": so_ma_smdt_good,
+            "% mã SMDT > 70": ty_le_smdt_good,
+            "Số mã cả 2 tín hiệu tốt": so_ma_ca_hai_good,
+            "% mã cả 2 tín hiệu tốt": ty_le_ca_hai_good
+        })
+
+    breadth_df = pd.DataFrame(breadth_records)
+
+    lead_sector_df = lead_sector_df.merge(
+        breadth_df,
+        on=["date", "nganh"],
+        how="left"
+    )
+
+    # =========================
+    # BẢNG HIỂN THỊ
+    # =========================
+
+    lead_sector_show = lead_sector_df[
+        [
+            "date",
+            "giai_doan",
+            "nganh",
+            "nhom_nganh",
+            "cashflow",
+            "smdt",
+            "Tổng mã ngành",
+            "Số mã dòng tiền tích cực",
+            "% mã dòng tiền tích cực",
+            "Số mã SMDT > 70",
+            "% mã SMDT > 70",
+            "Số mã cả 2 tín hiệu tốt",
+            "% mã cả 2 tín hiệu tốt"
+        ]
+    ].copy()
+
+    lead_sector_show["date"] = (
+        lead_sector_show["date"]
+        .dt.strftime("%Y-%m-%d")
+    )
+
+    lead_sector_show["smdt"] = (
+        lead_sector_show["smdt"]
+        .round(2)
+    )
+
+    for col in [
+        "% mã dòng tiền tích cực",
+        "% mã SMDT > 70",
+        "% mã cả 2 tín hiệu tốt"
+    ]:
+
+        lead_sector_show[col] = (
+            lead_sector_show[col]
+            .round(1)
+        )
+
+    lead_sector_show = lead_sector_show.sort_values(
+        [
+            "date",
+            "nhom_nganh",
+            "% mã cả 2 tín hiệu tốt",
+            "% mã SMDT > 70"
+        ],
+        ascending=[True, True, False, False]
+    ).reset_index(drop=True)
+
+    chu_luc_df = lead_sector_show[
+        lead_sector_show["nhom_nganh"] == "Ngành chủ lực"
+    ].copy()
+
+    phu_df = lead_sector_show[
+        lead_sector_show["nhom_nganh"] == "Ngành phụ"
+    ].copy()
+
+    chu_luc_df = chu_luc_df.rename(columns={
+        "date": "Ngày",
+        "giai_doan": "Giai đoạn",
+        "nganh": "Ngành",
+        "cashflow": "Dòng tiền",
+        "smdt": "SMDT"
+    })
+
+    phu_df = phu_df.rename(columns={
+        "date": "Ngày",
+        "giai_doan": "Giai đoạn",
+        "nganh": "Ngành",
+        "cashflow": "Dòng tiền",
+        "smdt": "SMDT"
+    })
+
+    show_cols = [
+        "Ngày",
+        "Giai đoạn",
+        "Ngành",
+        "Dòng tiền",
+        "SMDT",
+        "Tổng mã ngành",
+        "Số mã dòng tiền tích cực",
+        "% mã dòng tiền tích cực",
+        "Số mã SMDT > 70",
+        "% mã SMDT > 70",
+        "Số mã cả 2 tín hiệu tốt",
+        "% mã cả 2 tín hiệu tốt"
     ]
-].copy()
 
-lead_sector_show["date"] = lead_sector_show["date"].dt.strftime("%Y-%m-%d")
-lead_sector_show["smdt"] = lead_sector_show["smdt"].round(2)
+    col_left, col_right = st.columns(2)
 
-lead_sector_show = lead_sector_show.sort_values(
-    ["date", "nhom_nganh", "nganh"]
-).reset_index(drop=True)
+    with col_left:
 
-chu_luc_df = lead_sector_show[
-    lead_sector_show["nhom_nganh"] == "Ngành chủ lực"
-].copy()
+        st.markdown("##### Ngành chủ lực")
 
-phu_df = lead_sector_show[
-    lead_sector_show["nhom_nganh"] == "Ngành phụ"
-].copy()
+        if chu_luc_df.empty:
 
-st.subheader("Lộ trình dẫn sóng")
+            st.info("Không có ngành chủ lực dẫn sóng quanh đáy này.")
 
-col_left, col_right = st.columns(2)
+        else:
 
-chu_luc_df = chu_luc_df.rename(columns={
-    "date": "Ngày",
-    "giai_doan": "Giai đoạn",
-    "nganh": "Ngành",
-    "cashflow": "Dòng tiền",
-    "smdt": "SMDT"
-})
+            st.dataframe(
+                chu_luc_df[show_cols],
+                hide_index=True,
+                use_container_width=True,
+                height=320
+            )
 
-phu_df = phu_df.rename(columns={
-    "date": "Ngày",
-    "giai_doan": "Giai đoạn",
-    "nganh": "Ngành",
-    "cashflow": "Dòng tiền",
-    "smdt": "SMDT"
-})
+    with col_right:
 
-with col_left:
+        st.markdown("##### Ngành phụ")
 
-    st.markdown("##### Ngành chủ lực")
+        if phu_df.empty:
 
-    if chu_luc_df.empty:
+            st.info("Không có ngành phụ dẫn sóng quanh đáy này.")
 
-        st.info("Không có ngành chủ lực dẫn sóng quanh đáy này.")
+        else:
 
-    else:
+            st.dataframe(
+                phu_df[show_cols],
+                hide_index=True,
+                use_container_width=True,
+                height=320
+            )
 
-        st.dataframe(
-            chu_luc_df[
-                [
-                    "Ngày",
-                    "Giai đoạn",
-                    "Ngành",
-                    "Dòng tiền",
-                    "SMDT"
-                ]
-            ],
-            hide_index=True,
-            use_container_width=True,
-            height=250
-        )
 
-with col_right:
-
-    st.markdown("##### Ngành phụ")
-
-    if phu_df.empty:
-
-        st.info("Không có ngành phụ dẫn sóng quanh đáy này.")
-
-    else:
-
-        st.dataframe(
-            phu_df[
-                [
-                    "Ngày",
-                    "Giai đoạn",
-                    "Ngành",
-                    "Dòng tiền",
-                    "SMDT"
-                ]
-            ],
-            hide_index=True,
-            use_container_width=True,
-            height=250
-        )
 # ==================
 # TOP 10 MÃ MẠNH 
 # ==================
