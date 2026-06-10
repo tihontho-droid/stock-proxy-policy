@@ -1216,3 +1216,14 @@ else:
         use_container_width=True,
         height=350
     )
+import time
+
+start = time.time()
+
+# code nghi ngờ
+
+st.write(
+    "Mất",
+    round(time.time() - start, 2),
+    "giây"
+)
