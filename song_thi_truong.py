@@ -3,7 +3,7 @@ import pandas as pd
 import requests 
 from streamlit_lightweight_charts import renderLightweightCharts
 import plotly.graph_objects as go
-import 
+import os
 
 st.set_page_config(
     page_title="Bảng tạo đáy thị trường",
