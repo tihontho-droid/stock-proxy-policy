@@ -938,14 +938,18 @@ with col_right:
             use_container_width=True,
             height=250
         )
-import time
 
-start = time.time()
-
-# code nghi ngờ
-
-st.write(
-    "Mất",
-    round(time.time() - start, 2),
-    "giây"
+top_stock_all_bottoms = pd.read_parquet(
+    "top_stock_all_bottoms.parquet"
 )
+
+top_stock_all_bottoms["market_bottom_date"] = pd.to_datetime(
+    top_stock_all_bottoms["market_bottom_date"]
+)
+
+top_stock_df = top_stock_all_bottoms[
+    top_stock_all_bottoms["market_bottom_date"]
+    == selected_confirm_date
+].copy()
+
+top_stock_df = top_stock_df.head(10)
