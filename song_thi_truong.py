@@ -1113,280 +1113,71 @@ def get_top_stock_for_bottom(selected_confirm_date):
     )
     
 # =========================
-# TOP 5 CỔ PHIẾU TĂNG MẠNH
+# TOP 10 CỔ PHIẾU TĂNG MẠNH
 # =========================
 
-st.subheader("Top 5 cổ phiếu tăng mạnh")
+st.subheader("Top 10 cổ phiếu tăng mạnh")
 
-top_stock_df = get_top_stock_for_bottom(selected_confirm_date).head(5)
+top_stock_df = get_top_stock_for_bottom(
+    selected_confirm_date
+).head(10)
 
 if top_stock_df.empty:
 
-    st.info("Không tìm thấy cổ phiếu thanh khoản cao phù hợp trong các ngành quanh đáy này.")
+    st.info(
+        "Không tìm thấy cổ phiếu thanh khoản cao phù hợp trong các ngành quanh đáy này."
+    )
 
 else:
 
-    top5_show = top_stock_df.copy()
+    top10_show = top_stock_df.copy()
 
-    top5_show["Top"] = [
-        f"TOP {i + 1}" for i in range(len(top5_show))
+    top10_show["Top"] = [
+        f"TOP {i + 1}"
+        for i in range(len(top10_show))
     ]
 
-    top5_show["Mã"] = top5_show["ticker"]
+    top10_show["Mã"] = top10_show["ticker"]
 
-    top5_show["Ngành"] = (
-        top5_show["nganh"]
+    top10_show["Ngành"] = (
+        top10_show["nganh"]
         + " ("
-        + top5_show["nhom_nganh"]
+        + top10_show["nhom_nganh"]
         + ")"
     )
 
-    top5_show["Ngày tạo đáy"] = (
-        top5_show["stock_bottom_date"]
+    top10_show["Ngày tạo đáy"] = (
+        top10_show["stock_bottom_date"]
         .dt.strftime("%d/%m/%Y")
     )
 
-    top5_show["Hiệu suất"] = (
+    top10_show["Ngày tạo đỉnh"] = (
+        top10_show["peak_date"]
+        .dt.strftime("%d/%m/%Y")
+    )
+
+    top10_show["Hiệu suất"] = (
         "+"
-        + top5_show["return_pct"].round(1).astype(str)
+        + top10_show["return_pct"]
+        .round(1)
+        .astype(str)
         + "%"
     )
 
-    top5_show = top5_show[
+    top10_show = top10_show[
         [
             "Top",
             "Mã",
             "Ngành",
             "Ngày tạo đáy",
+            "Ngày tạo đỉnh",
             "Hiệu suất"
         ]
     ]
 
     st.dataframe(
-        top5_show,
-        hide_index=True,
-        use_container_width=True,
-        height=220
-    )
-# =========================
-# BACKTEST DANH MỤC 1 TỶ: TOP 1 80% + TOP 2 20%
-# =========================
-
-st.subheader("💰 Backtest danh mục Top 1 + Top 2")
-
-initial_cash = 1_000_000_000
-
-portfolio_records = []
-trade_records = []
-
-all_confirm_dates = (
-    confirm_df["date"]
-    .drop_duplicates()
-    .sort_values()
-    .tolist()
-)
-
-for i, confirm_date in enumerate(all_confirm_dates):
-
-    if i + 1 < len(all_confirm_dates):
-        next_confirm_date = all_confirm_dates[i + 1]
-    else:
-        next_confirm_date = price_detail["date"].max()
-
-    top_stock_tmp = get_top_stock_for_bottom(confirm_date).head(2)
-
-    if len(top_stock_tmp) < 2:
-        continue
-
-    weights = [0.8, 0.2]
-
-    period_nav = 0
-    period_invested = 0
-
-    for j, (_, stock_row) in enumerate(top_stock_tmp.iterrows()):
-
-        ticker = stock_row["ticker"]
-        nganh = stock_row["nganh"]
-        weight = weights[j]
-        capital = initial_cash * weight
-
-        ticker_df = price_detail[
-            price_detail["ticker"] == ticker
-        ].sort_values("date").reset_index(drop=True)
-
-        if ticker_df.empty:
-            continue
-
-        buy_date = stock_row["stock_bottom_date"]
-
-        buy_data = ticker_df[
-            ticker_df["date"] >= buy_date
-        ].copy()
-
-        if buy_data.empty:
-            continue
-
-        buy_row = buy_data.iloc[0]
-        real_buy_date = buy_row["date"]
-        buy_price = buy_row["close"]
-
-        shares = int(capital // buy_price)
-
-        if shares <= 0:
-            continue
-
-        invested_value = shares * buy_price
-        period_invested += invested_value
-
-        # =========================
-        # TÌM NGÀY BÁN
-        # 1. Bán khi có đáy thị trường kế tiếp
-        # 2. Hoặc bán sớm nếu ngành xấu đi
-        # =========================
-
-        sector_signal = sector_all_df[
-            (sector_all_df["nganh"] == nganh)
-            & (sector_all_df["date"] > real_buy_date)
-            & (sector_all_df["date"] <= next_confirm_date)
-        ].sort_values("date").copy()
-
-        sell_date = next_confirm_date
-        sell_reason = "Đáy thị trường tiếp theo"
-
-        if not sector_signal.empty:
-
-            bad_signal = sector_signal[
-                (sector_signal["flow_num"] == -1)
-                | (sector_signal["smdt"] < 70)
-            ].copy()
-
-            if not bad_signal.empty:
-                sell_date = bad_signal.iloc[0]["date"]
-                sell_reason = "Tín hiệu ngành tiêu cực"
-
-        sell_data = ticker_df[
-            ticker_df["date"] >= sell_date
-        ].copy()
-
-        if sell_data.empty:
-            sell_row = ticker_df.iloc[-1]
-        else:
-            sell_row = sell_data.iloc[0]
-
-        real_sell_date = sell_row["date"]
-        sell_price = sell_row["close"]
-
-        sell_value = shares * sell_price
-
-        pnl = sell_value - invested_value
-        return_pct = (sell_price / buy_price - 1) * 100
-
-        period_nav += sell_value
-
-        trade_records.append({
-            "Ngày đáy thị trường": confirm_date,
-            "Mã": ticker,
-            "Ngành": nganh,
-            "Tỷ trọng": weight,
-            "Ngày mua": real_buy_date,
-            "Giá mua": buy_price,
-            "Số lượng": shares,
-            "Ngày bán": real_sell_date,
-            "Giá bán": sell_price,
-            "Lý do bán": sell_reason,
-            "PnL": pnl,
-            "Hiệu suất %": return_pct
-        })
-
-    if period_invested > 0:
-
-        portfolio_return_pct = (
-            period_nav / period_invested - 1
-        ) * 100
-
-        portfolio_records.append({
-            "Ngày đáy thị trường": confirm_date,
-            "Đáy tiếp theo": next_confirm_date,
-            "Vốn giải ngân": period_invested,
-            "Giá trị cuối kỳ": period_nav,
-            "Lãi/Lỗ": period_nav - period_invested,
-            "Hiệu suất danh mục %": portfolio_return_pct
-        })
-
-
-trade_df = pd.DataFrame(trade_records)
-portfolio_df = pd.DataFrame(portfolio_records)
-
-if portfolio_df.empty:
-
-    st.info("Chưa có đủ dữ liệu để backtest danh mục.")
-
-else:
-
-    summary_return = (
-        portfolio_df["Giá trị cuối kỳ"].sum()
-        / portfolio_df["Vốn giải ngân"].sum()
-        - 1
-    ) * 100
-
-    win_rate = (
-        (portfolio_df["Hiệu suất danh mục %"] > 0).mean()
-        * 100
-    )
-
-    col_a, col_b, col_c = st.columns(3)
-
-    with col_a:
-        st.metric("Tổng hiệu suất", f"{summary_return:.2f}%")
-
-    with col_b:
-        st.metric("Tỷ lệ thắng", f"{win_rate:.2f}%")
-
-    with col_c:
-        st.metric("Số giai đoạn", len(portfolio_df))
-
-    portfolio_show = portfolio_df.copy()
-
-    for col in ["Ngày đáy thị trường", "Đáy tiếp theo"]:
-        portfolio_show[col] = pd.to_datetime(
-            portfolio_show[col]
-        ).dt.strftime("%d/%m/%Y")
-
-    for col in ["Vốn giải ngân", "Giá trị cuối kỳ", "Lãi/Lỗ"]:
-        portfolio_show[col] = portfolio_show[col].round(0).astype(int)
-
-    portfolio_show["Hiệu suất danh mục %"] = (
-        portfolio_show["Hiệu suất danh mục %"]
-        .round(2)
-    )
-
-    st.dataframe(
-        portfolio_show,
-        hide_index=True,
-        use_container_width=True,
-        height=300
-    )
-
-    st.markdown("##### Chi tiết giao dịch")
-
-    trade_show = trade_df.copy()
-
-    for col in ["Ngày đáy thị trường", "Ngày mua", "Ngày bán"]:
-        trade_show[col] = pd.to_datetime(
-            trade_show[col]
-        ).dt.strftime("%d/%m/%Y")
-
-    trade_show["Tỷ trọng"] = (
-        trade_show["Tỷ trọng"] * 100
-    ).round(0).astype(int).astype(str) + "%"
-
-    trade_show["PnL"] = trade_show["PnL"].round(0).astype(int)
-    trade_show["Hiệu suất %"] = trade_show["Hiệu suất %"].round(2)
-
-    st.dataframe(
-        trade_show,
+        top10_show,
         hide_index=True,
         use_container_width=True,
         height=350
     )
-
