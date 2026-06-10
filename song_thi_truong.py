@@ -762,6 +762,34 @@ with col2:
     )
 
 # =========================
+# ĐỌC FILE MAP TICKER - NGÀNH
+# =========================
+
+if "ticker_branch_df" not in globals():
+
+    if os.path.exists("ticker_branch_df.parquet"):
+
+        ticker_branch_df = pd.read_parquet(
+            "ticker_branch_df.parquet"
+        )
+
+    elif os.path.exists("flow/ticker_branch_df.parquet"):
+
+        ticker_branch_df = pd.read_parquet(
+            "flow/ticker_branch_df.parquet"
+        )
+
+    else:
+
+        st.error("Không tìm thấy file ticker_branch_df.parquet.")
+        st.stop()
+
+ticker_branch_df["ticker"] = (
+    ticker_branch_df["ticker"]
+    .astype(str)
+)
+
+# =========================
 # LỘ TRÌNH DẪN SÓNG + ĐỘ LAN TỎA NỘI NGÀNH
 # =========================
 
