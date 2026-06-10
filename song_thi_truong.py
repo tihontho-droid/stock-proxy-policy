@@ -11,7 +11,11 @@ st.set_page_config(
 )
 
 st.title("📉 Giao dịch theo sóng thị trường")
-
+if st.button("🔄 Tải lại dữ liệu API"):
+    if os.path.exists("api_cache.pkl"):
+        os.remove("api_cache.pkl")
+    st.cache_data.clear()
+    st.rerun()
 start_date = "2023-06-08"
 
 
