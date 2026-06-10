@@ -515,17 +515,7 @@ renderLightweightCharts(
     key="vnindex_bottom_chart"
 )
 
-import time
 
-start = time.time()
-
-# code nghi ngờ
-
-st.write(
-    "Mất",
-    round(time.time() - start, 2),
-    "giây"
-)
 # =========================
 # 10. TRA CỨU NGÀY XÁC NHẬN ĐÁY
 # =========================
@@ -771,19 +761,10 @@ with col2:
         unsafe_allow_html=True
     )
 
-import time
 
-start = time.time()
-
-# code nghi ngờ
-
-st.write(
-    "Mất",
-    round(time.time() - start, 2),
-    "giây"
-)
 # =========================
 # NGÀNH DẪN SÓNG TRƯỚC VÀ SAU ĐÁY
+# THÊM ĐỘ LAN TỎA NỘI NGÀNH
 # =========================
 
 nganh_chu_luc = [
@@ -819,29 +800,76 @@ lead_sector_df = sector_all_df[
     )
 ].copy()
 
-# phân nhóm ngành
 lead_sector_df["nhom_nganh"] = lead_sector_df["nganh"].apply(
     lambda x: "Ngành chủ lực" if x in nganh_chu_luc else "Ngành phụ"
 )
 
-# giai đoạn quanh đáy
 lead_sector_df["giai_doan"] = lead_sector_df["date"].apply(
     lambda x: "Trước đáy" if x < selected_confirm_date
     else ("Ngày xác nhận" if x == selected_confirm_date else "Sau đáy")
 )
 
-# chỉ hiện tín hiệu dòng tiền và SMDT
-lead_sector_df["tin_hieu"] = ""
+# =========================
+# TÍNH ĐỘ LAN TỎA NỘI NGÀNH
+# =========================
 
-lead_sector_df.loc[
-    lead_sector_df["flow_vua_tich_cuc"],
-    "tin_hieu"
-] += "Dòng tiền tích cực "
+top_stock_all_bottoms = pd.read_parquet(
+    "top_stock_all_bottoms.parquet"
+)
 
-lead_sector_df.loc[
-    lead_sector_df["smdt_vua_vuot_70"],
-    "tin_hieu"
-] += "SMDT vượt 70"
+top_stock_all_bottoms["market_bottom_date"] = pd.to_datetime(
+    top_stock_all_bottoms["market_bottom_date"]
+)
+
+top_stock_at_bottom = top_stock_all_bottoms[
+    top_stock_all_bottoms["market_bottom_date"] == selected_confirm_date
+].copy()
+
+breadth_records = []
+
+for nganh in lead_sector_df["nganh"].drop_duplicates():
+
+    # tổng số mã trong ngành
+    total_tickers = ticker_branch_df[
+        ticker_branch_df["nganh"] == nganh
+    ]["ticker"].nunique()
+
+    # số mã hưởng ứng: số mã thuộc ngành đó lọt vào danh sách mã mạnh của đáy đang chọn
+    active_tickers = top_stock_at_bottom[
+        top_stock_at_bottom["nganh"] == nganh
+    ]["ticker"].nunique()
+
+    if total_tickers > 0:
+        breadth_pct = active_tickers / total_tickers * 100
+    else:
+        breadth_pct = 0
+
+    breadth_records.append({
+        "nganh": nganh,
+        "so_ma_cung_nganh": total_tickers,
+        "so_ma_huong_ung": active_tickers,
+        "do_lan_toa": breadth_pct
+    })
+
+breadth_df = pd.DataFrame(breadth_records)
+
+lead_sector_df = lead_sector_df.merge(
+    breadth_df,
+    on="nganh",
+    how="left"
+)
+
+lead_sector_df["so_ma_cung_nganh"] = lead_sector_df[
+    "so_ma_cung_nganh"
+].fillna(0).astype(int)
+
+lead_sector_df["so_ma_huong_ung"] = lead_sector_df[
+    "so_ma_huong_ung"
+].fillna(0).astype(int)
+
+lead_sector_df["do_lan_toa"] = lead_sector_df[
+    "do_lan_toa"
+].fillna(0)
 
 lead_sector_show = lead_sector_df[
     [
@@ -850,15 +878,28 @@ lead_sector_show = lead_sector_df[
         "nganh",
         "nhom_nganh",
         "cashflow",
-        "smdt"
+        "smdt",
+        "so_ma_huong_ung",
+        "so_ma_cung_nganh",
+        "do_lan_toa"
     ]
 ].copy()
 
 lead_sector_show["date"] = lead_sector_show["date"].dt.strftime("%Y-%m-%d")
 lead_sector_show["smdt"] = lead_sector_show["smdt"].round(2)
 
+lead_sector_show["Độ lan tỏa"] = (
+    lead_sector_show["so_ma_huong_ung"].astype(str)
+    + "/"
+    + lead_sector_show["so_ma_cung_nganh"].astype(str)
+    + " mã ("
+    + lead_sector_show["do_lan_toa"].round(1).astype(str)
+    + "%)"
+)
+
 lead_sector_show = lead_sector_show.sort_values(
-    ["date", "nhom_nganh", "nganh"]
+    ["date", "nhom_nganh", "do_lan_toa", "nganh"],
+    ascending=[True, True, False, True]
 ).reset_index(drop=True)
 
 chu_luc_df = lead_sector_show[
@@ -869,7 +910,7 @@ phu_df = lead_sector_show[
     lead_sector_show["nhom_nganh"] == "Ngành phụ"
 ].copy()
 
-st.subheader("Lộ trình dẫn sóng")
+st.subheader("Lộ trình dẫn sóng và độ lan tỏa nội ngành")
 
 col_left, col_right = st.columns(2)
 
@@ -906,12 +947,13 @@ with col_left:
                     "Giai đoạn",
                     "Ngành",
                     "Dòng tiền",
-                    "SMDT"
+                    "SMDT",
+                    "Độ lan tỏa"
                 ]
             ],
             hide_index=True,
             use_container_width=True,
-            height=250
+            height=280
         )
 
 with col_right:
@@ -931,14 +973,18 @@ with col_right:
                     "Giai đoạn",
                     "Ngành",
                     "Dòng tiền",
-                    "SMDT"
+                    "SMDT",
+                    "Độ lan tỏa"
                 ]
             ],
             hide_index=True,
             use_container_width=True,
-            height=250
+            height=280
         )
 
+# ==================
+# TOP 10 MÃ MẠNH 
+# ==================
 top_stock_all_bottoms = pd.read_parquet(
     "top_stock_all_bottoms.parquet"
 )
