@@ -1609,310 +1609,98 @@ else:
         use_container_width=True
     )
 
-
 # =========================
-# RULE: NGÀNH VỪA VƯỢT SMDT 70
-# MÃ TRONG NGÀNH VƯỢT TỪ <70 LÊN >100
-# LỌC THANH KHOẢN CAO
+# RULE CHỌN MÃ LEADER TỪ FILE ĐÃ CHUẨN BỊ
 # =========================
 
-st.subheader("Rule chọn mã: Ngành vừa vượt SMDT, mã vượt từ <70 lên >100")
+st.subheader("Rule chọn mã: Ngành vừa vượt SMDT, mã vượt từ <70 lên >95")
 
-min_avg_value = 5_000_000_000
+if os.path.exists("sector_leader_rule.parquet"):
 
-# =========================
-# ĐỌC stock_signal_df
-# =========================
+    sector_leader_df = pd.read_parquet(
+        "sector_leader_rule.parquet"
+    )
 
-if "stock_signal_df" not in globals():
+elif os.path.exists("flow/sector_leader_rule.parquet"):
 
-    if os.path.exists("stock_signal_df.parquet"):
-
-        stock_signal_df = pd.read_parquet(
-            "stock_signal_df.parquet"
-        )
-
-    elif os.path.exists("flow/stock_signal_df.parquet"):
-
-        stock_signal_df = pd.read_parquet(
-            "flow/stock_signal_df.parquet"
-        )
-
-    else:
-
-        stock_signal_df = pd.DataFrame()
-
-
-# =========================
-# ĐỌC ticker_branch_df
-# =========================
-
-if "ticker_branch_df" not in globals():
-
-    if os.path.exists("ticker_branch_df.parquet"):
-
-        ticker_branch_df = pd.read_parquet(
-            "ticker_branch_df.parquet"
-        )
-
-    elif os.path.exists("flow/ticker_branch_df.parquet"):
-
-        ticker_branch_df = pd.read_parquet(
-            "flow/ticker_branch_df.parquet"
-        )
-
-    else:
-
-        ticker_branch_df = pd.DataFrame()
-
-
-# =========================
-# ĐỌC price_detail ĐỂ TÍNH THANH KHOẢN
-# =========================
-
-if "price_detail" not in globals():
-
-    if os.path.exists("price_detail.parquet"):
-
-        price_detail = pd.read_parquet(
-            "price_detail.parquet"
-        )
-
-    elif os.path.exists("flow/price_detail.parquet"):
-
-        price_detail = pd.read_parquet(
-            "flow/price_detail.parquet"
-        )
-
-    else:
-
-        price_detail = pd.DataFrame()
-
-
-if stock_signal_df.empty or ticker_branch_df.empty or price_detail.empty:
-
-    st.info("Chưa có đủ dữ liệu stock_signal_df, ticker_branch_df hoặc price_detail.")
+    sector_leader_df = pd.read_parquet(
+        "flow/sector_leader_rule.parquet"
+    )
 
 else:
 
-    # =========================
-    # CHUẨN HÓA DỮ LIỆU
-    # =========================
+    sector_leader_df = pd.DataFrame()
 
-    stock_signal_df["date"] = pd.to_datetime(
-        stock_signal_df["date"]
-    )
 
-    stock_signal_df["ticker"] = (
-        stock_signal_df["ticker"]
-        .astype(str)
-    )
+if sector_leader_df.empty:
 
-    ticker_branch_df["ticker"] = (
-        ticker_branch_df["ticker"]
-        .astype(str)
-    )
+    st.info("Chưa có dữ liệu sector_leader_rule.parquet.")
 
-    price_detail["date"] = pd.to_datetime(
-        price_detail["date"]
-    )
+else:
 
-    price_detail["ticker"] = (
-        price_detail["ticker"]
-        .astype(str)
-    )
-
-    # nếu price_detail chưa có cột value thì tự tạo
-    if "value" not in price_detail.columns:
-
-        price_detail["value"] = (
-            price_detail["close"]
-            * price_detail["vol"]
-            * 1000
-        )
-
-    # =========================
-    # TẠO CỘT SMDT HÔM TRƯỚC CỦA MÃ
-    # =========================
-
-    stock_signal_df = (
-        stock_signal_df
-        .sort_values(["ticker", "date"])
-        .reset_index(drop=True)
-    )
-
-    stock_signal_df["smdt_ma_prev_1"] = (
-        stock_signal_df
-        .groupby("ticker")["smdt_ma"]
-        .shift(1)
-    )
-    
-    stock_signal_df["smdt_ma_prev_2"] = (
-        stock_signal_df
-        .groupby("ticker")["smdt_ma"]
-        .shift(2)
-    )
-    
-    stock_signal_df["ma_vuot_70_len_95"] = (
-        (stock_signal_df["smdt_ma_prev_2"] < 70)
-        & (stock_signal_df["smdt_ma"] > 95)
+    sector_leader_df["date"] = pd.to_datetime(
+        sector_leader_df["date"]
     )
 
     # =========================
-    # LẤY NGÀY NGÀNH VỪA VƯỢT SMDT 70
+    # BẢNG TOÀN BỘ TÍN HIỆU
     # =========================
 
-    sector_signal_df = sector_all_df[
-        sector_all_df["smdt_vua_vuot_70"] == True
-    ].copy()
+    leader_show = sector_leader_df.copy()
 
-    if sector_signal_df.empty:
+    leader_show["Ngày ngành vượt SMDT"] = (
+        leader_show["date"]
+        .dt.strftime("%d/%m/%Y")
+    )
 
-        st.info("Không có ngày ngành vừa vượt SMDT 70.")
+    leader_show["SMDT ngành"] = (
+        leader_show["smdt_nganh"]
+        .round(2)
+    )
 
-    else:
+    leader_show["SMDT mã T-2"] = (
+        leader_show["smdt_t2"]
+        .round(2)
+    )
 
-        result_records = []
+    leader_show["SMDT mã T-1"] = (
+        leader_show["smdt_t1"]
+        .round(2)
+    )
 
-        for _, sector_row in sector_signal_df.iterrows():
+    leader_show["SMDT mã ngày vượt"] = (
+        leader_show["smdt_today"]
+        .round(2)
+    )
 
-            signal_date = sector_row["date"]
-            nganh = sector_row["nganh"]
-            smdt_nganh = sector_row["smdt"]
+    leader_show["GTGD TB20"] = (
+        leader_show["avg_value_20"]
+        / 1_000_000_000
+    ).round(2).astype(str) + " tỷ"
 
-            sector_tickers = (
-                ticker_branch_df[
-                    ticker_branch_df["nganh"] == nganh
-                ]["ticker"]
-                .drop_duplicates()
-                .tolist()
-            )
+    leader_show = leader_show.rename(columns={
+        "nganh": "Ngành",
+        "ticker": "Mã",
+        "cashflow": "Dòng tiền mã",
+        "flow_num": "Flow mã num"
+    })
 
-            if len(sector_tickers) == 0:
-                continue
-
-            stock_candidates = stock_signal_df[
-                (stock_signal_df["date"] == signal_date)
-                & (stock_signal_df["ticker"].isin(sector_tickers))
-                & (stock_signal_df["ma_vuot_70_len_95"] == True)
-            ].copy()
-
-            if stock_candidates.empty:
-                continue
-
-            for _, stock_row in stock_candidates.iterrows():
-
-                liq_df = price_detail[
-                    (price_detail["ticker"] == stock_row["ticker"])
-                    & (price_detail["date"] <= signal_date)
-                ].copy()
-
-                if liq_df.empty:
-                    continue
-
-                avg_value_20 = (
-                    liq_df
-                    .sort_values("date")
-                    .tail(20)["value"]
-                    .mean()
-                )
-
-                if avg_value_20 < min_avg_value:
-                    continue
-
-                result_records.append({
-                    "Ngày ngành vượt SMDT": signal_date,
-                    "Ngành": nganh,
-                    "SMDT ngành": smdt_nganh,
-                    "Mã": stock_row["ticker"],
-                    "SMDT mã T-2": stock_row["smdt_ma_prev_2"],
-                    "SMDT mã T-1": stock_row["smdt_ma_prev_1"],                    
-                    "SMDT mã ngày vượt": stock_row["smdt_ma"],
-                    "GTGD TB20": avg_value_20,
-                    "Dòng tiền mã": stock_row.get("cashflow_ma", ""),
-                    "Flow mã num": stock_row.get("flow_ma_num", None)
-                })
-
-        rule_df = pd.DataFrame(result_records)
-
-        if not rule_df.empty:
-
-            # cùng ngày + cùng ngành chỉ lấy mã có SMDT mã ngày vượt cao nhất
-            rule_df = (
-                rule_df
-                .sort_values(
-                    [
-                        "Ngày ngành vượt SMDT",
-                        "Ngành",
-                        "SMDT mã ngày vượt"
-                    ],
-                    ascending=[
-                        True,
-                        True,
-                        False
-                    ]
-                )
-                .groupby(
-                    [
-                        "Ngày ngành vượt SMDT",
-                        "Ngành"
-                    ],
-                    as_index=False
-                )
-                .head(1)
-                .reset_index(drop=True)
-            )
-
-        if rule_df.empty:
-
-            st.info(
-                "Không có mã nào thỏa rule: ngành vừa vượt SMDT, mã vượt từ <70 lên >100 và thanh khoản > 5 tỷ."
-            )
-
-        else:
-
-            rule_show = rule_df.copy()
-
-            rule_show["Ngày ngành vượt SMDT"] = (
-                rule_show["Ngày ngành vượt SMDT"]
-                .dt.strftime("%d/%m/%Y")
-            )
-
-            rule_show["SMDT ngành"] = (
-                rule_show["SMDT ngành"]
-                .round(2)
-            )
-
-            rule_show["SMDT mã hôm trước"] = (
-                rule_show["SMDT mã hôm trước"]
-                .round(2)
-            )
-
-            rule_show["SMDT mã ngày vượt"] = (
-                rule_show["SMDT mã ngày vượt"]
-                .round(2)
-            )
-
-            rule_show["GTGD TB20"] = (
-                rule_show["GTGD TB20"]
-                / 1_000_000_000
-            ).round(2).astype(str) + " tỷ"
-
-            st.dataframe(
-                rule_show[
-                    [
-                        "Ngày ngành vượt SMDT",
-                        "Ngành",
-                        "SMDT ngành",
-                        "Mã",
-                        "SMDT mã T-2",
-                        "SMDT mã T-1",
-                        "GTGD TB20",
-                        "Dòng tiền mã",
-                        "Flow mã num"
-                    ]
-                ],
-                hide_index=True,
-                use_container_width=True,
-                height=400
-            )
+    st.dataframe(
+        leader_show[
+            [
+                "Ngày ngành vượt SMDT",
+                "Ngành",
+                "SMDT ngành",
+                "Mã",
+                "SMDT mã T-2",
+                "SMDT mã T-1",
+                "SMDT mã ngày vượt",
+                "GTGD TB20",
+                "Dòng tiền mã",
+                "Flow mã num"
+            ]
+        ],
+        hide_index=True,
+        use_container_width=True,
+        height=400
+    )
