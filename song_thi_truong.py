@@ -1177,10 +1177,10 @@ else:
     )
 
 # =========================
-# TỔNG HỢP TOÀN BỘ TOP 1 CỦA CÁC ĐÁY
+# TOP 1 CỦA CÁC ĐÁY
 # =========================
 
-st.subheader("Tổng hợp Top 1 của tất cả các đáy")
+st.subheader("Top 1 của tất cả các đáy")
 
 if os.path.exists("top1_signal_sequence.parquet"):
 
@@ -1201,97 +1201,146 @@ else:
 
 if top1_all_df.empty:
 
-    st.info("Chưa có dữ liệu tổng hợp Top 1.")
+    st.info("Chưa có dữ liệu Top 1.")
 
 else:
 
-    top1_show = top1_all_df.copy()
+    analysis_df = top1_all_df.copy()
 
-    date_cols = [
-        "Ngày đáy thị trường",
-        "Đáy cổ phiếu",
-        "Đỉnh cổ phiếu",
-        "Flow ngành",
-        "SMDT ngành",
-        "Flow mã",
-        "SMDT mã",
-        "Ngày tín hiệu đầu tiên"
-    ]
+    # =========================
+    # TÍNH LỆCH ĐÁY
+    # =========================
 
-    for col in date_cols:
+    analysis_df["Lệch đáy"] = (
+        analysis_df["Đáy cổ phiếu"]
+        - analysis_df["Ngày đáy thị trường"]
+    ).dt.days
 
-        top1_show[col] = pd.to_datetime(
-            top1_show[col],
-            errors="coerce"
-        ).dt.strftime("%d/%m/%Y")
+    analysis_df["Thuộc ngành chủ lực"] = analysis_df[
+        "Ngành"
+    ].isin(
+        [
+            "Ngân hàng",
+            "Chứng khoán",
+            "BĐS Dân cư",
+            "Xây dựng",
+            "Thép",
+            "Sóng ngành Vin"
+        ]
+    )
 
-    top1_show["Hiệu suất"] = (
-        "+"
-        + top1_show["Hiệu suất"].round(1).astype(str)
+    # =========================
+    # BẢNG CHI TIẾT
+    # =========================
+
+    detail_df = analysis_df.copy()
+
+    detail_df["Ngày đáy thị trường"] = (
+        pd.to_datetime(
+            detail_df["Ngày đáy thị trường"]
+        )
+        .dt.strftime("%d/%m/%Y")
+    )
+
+    detail_df["Đáy cổ phiếu"] = (
+        pd.to_datetime(
+            detail_df["Đáy cổ phiếu"]
+        )
+        .dt.strftime("%d/%m/%Y")
+    )
+
+    detail_df["Đỉnh cổ phiếu"] = (
+        pd.to_datetime(
+            detail_df["Đỉnh cổ phiếu"]
+        )
+        .dt.strftime("%d/%m/%Y")
+    )
+
+    detail_df["Hiệu suất"] = (
+        detail_df["Hiệu suất"]
+        .round(1)
+        .astype(str)
         + "%"
     )
 
-    top1_show = top1_show[
-        [
-            "Ngày đáy thị trường",
-            "Top 1",
-            "Ngành",
-            "Đáy cổ phiếu",
-            "Đỉnh cổ phiếu",
-            "Hiệu suất",
-            "Flow ngành",
-            "SMDT ngành",
-            "Flow mã",
-            "SMDT mã",
-            "Tín hiệu đầu tiên",
-            "Ngày tín hiệu đầu tiên",
-            "Chuỗi tín hiệu"
-        ]
-    ]
-
-    st.dataframe(
-        top1_show,
-        hide_index=True,
-        use_container_width=True,
-        height=360
+    detail_df["Thuộc ngành chủ lực"] = (
+        detail_df["Thuộc ngành chủ lực"]
+        .map({
+            True: "Có",
+            False: "Không"
+        })
     )
 
+    st.dataframe(
+        detail_df[
+            [
+                "Ngày đáy thị trường",
+                "Top 1",
+                "Ngành",
+                "Thuộc ngành chủ lực",
+                "Đáy cổ phiếu",
+                "Lệch đáy",
+                "Đỉnh cổ phiếu",
+                "Hiệu suất"
+            ]
+        ],
+        hide_index=True,
+        use_container_width=True,
+        height=350
+    )
 
     # =========================
-    # THỐNG KÊ TÍN HIỆU ĐẦU TIÊN
+    # THỐNG KÊ NHÓM LỆCH ĐÁY
     # =========================
 
-    st.subheader("Thống kê tín hiệu xuất hiện đầu tiên của Top 1")
+    st.subheader(
+        "Hiệu suất theo thời điểm tạo đáy của cổ phiếu"
+    )
 
-    first_signal_stats = (
-        top1_all_df
-        .groupby("Tín hiệu đầu tiên")
+    analysis_df["Nhóm lệch đáy"] = pd.cut(
+        analysis_df["Lệch đáy"],
+        bins=[
+            -999,
+            -5,
+            -1,
+            0,
+            999
+        ],
+        labels=[
+            "Tạo đáy sớm >5 phiên",
+            "Tạo đáy sớm 1-5 phiên",
+            "Đúng ngày thị trường",
+            "Tạo đáy sau thị trường"
+        ]
+    )
+
+    summary_df = (
+        analysis_df
+        .groupby("Nhóm lệch đáy")
         .agg(
-            Số_lần=("Top 1", "count"),
-            Hiệu_suất_TB=("Hiệu suất", "mean"),
-            Hiệu_suất_cao_nhất=("Hiệu suất", "max")
+            So_ma=("Top 1", "count"),
+            Hieu_suat_TB=("Hiệu suất", "mean"),
+            Hieu_suat_Max=("Hiệu suất", "max")
         )
         .reset_index()
-        .sort_values("Số_lần", ascending=False)
     )
 
-    first_signal_stats["Hiệu_suất_TB"] = (
-        first_signal_stats["Hiệu_suất_TB"]
+    summary_df["Hieu_suat_TB"] = (
+        summary_df["Hieu_suat_TB"]
         .round(1)
         .astype(str)
         + "%"
     )
 
-    first_signal_stats["Hiệu_suất_cao_nhất"] = (
-        first_signal_stats["Hiệu_suất_cao_nhất"]
+    summary_df["Hieu_suat_Max"] = (
+        summary_df["Hieu_suat_Max"]
         .round(1)
         .astype(str)
         + "%"
     )
 
     st.dataframe(
-        first_signal_stats,
+        summary_df,
         hide_index=True,
-        use_container_width=True,
-        height=220
+        use_container_width=True
     )
