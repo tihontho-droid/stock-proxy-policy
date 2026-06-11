@@ -1175,6 +1175,273 @@ else:
         use_container_width=True,
         height=350
     )
+# =========================
+# DIỄN BIẾN CÁC MÃ TRONG NGÀNH CỦA TOP 1
+# =========================
+
+st.subheader("Diễn biến các mã trong ngành của Top 1 theo từng đáy")
+
+# đọc dữ liệu Top cổ phiếu nếu chưa có
+if "top_stock_all_bottoms" not in globals():
+
+    if os.path.exists("top_stock_all_bottoms.parquet"):
+
+        top_stock_all_bottoms = pd.read_parquet(
+            "top_stock_all_bottoms.parquet"
+        )
+
+    elif os.path.exists("flow/top_stock_all_bottoms.parquet"):
+
+        top_stock_all_bottoms = pd.read_parquet(
+            "flow/top_stock_all_bottoms.parquet"
+        )
+
+    else:
+
+        top_stock_all_bottoms = pd.DataFrame()
+
+
+if top_stock_all_bottoms.empty:
+
+    st.info("Chưa có dữ liệu top cổ phiếu theo từng đáy.")
+
+else:
+
+    top_stock_all_bottoms["market_bottom_date"] = pd.to_datetime(
+        top_stock_all_bottoms["market_bottom_date"]
+    )
+
+    top_stock_all_bottoms["stock_bottom_date"] = pd.to_datetime(
+        top_stock_all_bottoms["stock_bottom_date"]
+    )
+
+    top_stock_all_bottoms["peak_date"] = pd.to_datetime(
+        top_stock_all_bottoms["peak_date"]
+    )
+
+    # =========================
+    # LẤY TOP 1 CỦA MỖI ĐÁY
+    # =========================
+
+    top1_by_bottom = (
+        top_stock_all_bottoms
+        .sort_values(
+            ["market_bottom_date", "return_pct"],
+            ascending=[True, False]
+        )
+        .groupby("market_bottom_date")
+        .head(1)
+        .reset_index(drop=True)
+    )
+
+    # =========================
+    # TẠO BẢNG DIỄN BIẾN CÁC MÃ CÙNG NGÀNH TOP 1
+    # =========================
+
+    sector_compare_records = []
+
+    for _, top1_row in top1_by_bottom.iterrows():
+
+        market_bottom_date = top1_row["market_bottom_date"]
+        top1_ticker = top1_row["ticker"]
+        top1_nganh = top1_row["nganh"]
+
+        same_bottom_df = top_stock_all_bottoms[
+            top_stock_all_bottoms["market_bottom_date"]
+            == market_bottom_date
+        ].copy()
+
+        same_sector_df = same_bottom_df[
+            same_bottom_df["nganh"] == top1_nganh
+        ].copy()
+
+        if same_sector_df.empty:
+            continue
+
+        same_sector_df = same_sector_df.sort_values(
+            "return_pct",
+            ascending=False
+        ).reset_index(drop=True)
+
+        same_sector_df["Xếp hạng trong ngành"] = (
+            same_sector_df.index + 1
+        )
+
+        for _, row in same_sector_df.iterrows():
+
+            lech_day = (
+                row["stock_bottom_date"]
+                - row["market_bottom_date"]
+            ).days
+
+            sector_compare_records.append({
+                "Ngày đáy thị trường": market_bottom_date,
+                "Ngành Top 1": top1_nganh,
+                "Top 1": top1_ticker,
+                "Mã": row["ticker"],
+                "Là Top 1": (
+                    "Có" if row["ticker"] == top1_ticker else "Không"
+                ),
+                "Xếp hạng trong ngành": row["Xếp hạng trong ngành"],
+                "Đáy cổ phiếu": row["stock_bottom_date"],
+                "Lệch đáy": lech_day,
+                "Đỉnh cổ phiếu": row["peak_date"],
+                "Hiệu suất": row["return_pct"],
+                "GTGD TB 20 phiên": row["avg_value_20"]
+            })
+
+    sector_compare_df = pd.DataFrame(sector_compare_records)
+
+    if sector_compare_df.empty:
+
+        st.info("Không có dữ liệu so sánh các mã cùng ngành Top 1.")
+
+    else:
+
+        # =========================
+        # BẢNG CHI TIẾT
+        # =========================
+
+        sector_compare_show = sector_compare_df.copy()
+
+        for col in [
+            "Ngày đáy thị trường",
+            "Đáy cổ phiếu",
+            "Đỉnh cổ phiếu"
+        ]:
+
+            sector_compare_show[col] = pd.to_datetime(
+                sector_compare_show[col]
+            ).dt.strftime("%d/%m/%Y")
+
+        sector_compare_show["Hiệu suất"] = (
+            sector_compare_show["Hiệu suất"]
+            .round(1)
+            .astype(str)
+            + "%"
+        )
+
+        sector_compare_show["GTGD TB 20 phiên"] = (
+            sector_compare_show["GTGD TB 20 phiên"]
+            / 1_000_000_000
+        ).round(2).astype(str) + " tỷ"
+
+        st.dataframe(
+            sector_compare_show[
+                [
+                    "Ngày đáy thị trường",
+                    "Ngành Top 1",
+                    "Top 1",
+                    "Mã",
+                    "Là Top 1",
+                    "Xếp hạng trong ngành",
+                    "Đáy cổ phiếu",
+                    "Lệch đáy",
+                    "Đỉnh cổ phiếu",
+                    "Hiệu suất",
+                    "GTGD TB 20 phiên"
+                ]
+            ],
+            hide_index=True,
+            use_container_width=True,
+            height=420
+        )
+
+        # =========================
+        # THỐNG KÊ: TOP 1 CÓ ĐÁY SỚM HƠN CÁC MÃ CÙNG NGÀNH KHÔNG?
+        # =========================
+
+        st.subheader("Thống kê vị trí của Top 1 trong ngành")
+
+        top1_only = sector_compare_df[
+            sector_compare_df["Là Top 1"] == "Có"
+        ].copy()
+
+        stats_top1_position = (
+            top1_only
+            .groupby("Xếp hạng trong ngành")
+            .agg(
+                Số_lần=("Top 1", "count"),
+                Hiệu_suất_TB=("Hiệu suất", "mean"),
+                Lệch_đáy_TB=("Lệch đáy", "mean")
+            )
+            .reset_index()
+            .sort_values("Xếp hạng trong ngành")
+        )
+
+        stats_top1_position["Hiệu_suất_TB"] = (
+            stats_top1_position["Hiệu_suất_TB"]
+            .round(1)
+            .astype(str)
+            + "%"
+        )
+
+        stats_top1_position["Lệch_đáy_TB"] = (
+            stats_top1_position["Lệch_đáy_TB"]
+            .round(1)
+        )
+
+        st.dataframe(
+            stats_top1_position,
+            hide_index=True,
+            use_container_width=True,
+            height=220
+        )
+
+        # =========================
+        # THỐNG KÊ NHÓM LỆCH ĐÁY TRONG NGÀNH TOP 1
+        # =========================
+
+        st.subheader("Hiệu suất các mã cùng ngành Top 1 theo nhóm lệch đáy")
+
+        sector_compare_df["Nhóm lệch đáy"] = pd.cut(
+            sector_compare_df["Lệch đáy"],
+            bins=[
+                -999,
+                -5,
+                -1,
+                0,
+                999
+            ],
+            labels=[
+                "Tạo đáy sớm >5 phiên",
+                "Tạo đáy sớm 1-5 phiên",
+                "Đúng ngày thị trường",
+                "Tạo đáy sau thị trường"
+            ]
+        )
+
+        sector_delay_stats = (
+            sector_compare_df
+            .groupby("Nhóm lệch đáy")
+            .agg(
+                Số_mã=("Mã", "count"),
+                Hiệu_suất_TB=("Hiệu suất", "mean"),
+                Hiệu_suất_Max=("Hiệu suất", "max")
+            )
+            .reset_index()
+        )
+
+        sector_delay_stats["Hiệu_suất_TB"] = (
+            sector_delay_stats["Hiệu_suất_TB"]
+            .round(1)
+            .astype(str)
+            + "%"
+        )
+
+        sector_delay_stats["Hiệu_suất_Max"] = (
+            sector_delay_stats["Hiệu_suất_Max"]
+            .round(1)
+            .astype(str)
+            + "%"
+        )
+
+        st.dataframe(
+            sector_delay_stats,
+            hide_index=True,
+            use_container_width=True,
+            height=220
+        )
 
 # =========================
 # TOP 1 CỦA CÁC ĐÁY
