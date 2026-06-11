@@ -1738,7 +1738,27 @@ else:
                 continue
 
             for _, stock_row in stock_candidates.iterrows():
-
+            # =========================
+            # KIỂM TRA THANH KHOẢN
+            # =========================
+            
+            liq_df = price_detail[
+                (price_detail["ticker"] == stock_row["ticker"])
+                & (price_detail["date"] <= signal_date)
+            ].copy()
+            
+            if liq_df.empty:
+                continue
+            
+            avg_value_20 = (
+                liq_df
+                .tail(20)["value"]
+                .mean()
+            )
+            
+            # chỉ giữ mã > 5 tỷ/ngày
+            if avg_value_20 < 5_000_000_000:
+                continue
                 result_records.append({
                     "Ngày ngành vượt SMDT": signal_date,
                     "Ngành": nganh,
