@@ -1608,12 +1608,15 @@ else:
         hide_index=True,
         use_container_width=True
     )
-
 # =========================
 # RULE CHỌN MÃ LEADER TỪ FILE ĐÃ CHUẨN BỊ
 # =========================
 
 st.subheader("Rule chọn mã: Ngành vừa vượt SMDT, mã vượt từ <70 lên >95")
+
+# =========================
+# ĐỌC sector_leader_rule
+# =========================
 
 if os.path.exists("sector_leader_rule.parquet"):
 
@@ -1630,6 +1633,29 @@ elif os.path.exists("flow/sector_leader_rule.parquet"):
 else:
 
     sector_leader_df = pd.DataFrame()
+
+
+# =========================
+# ĐỌC price_detail
+# =========================
+
+if "price_detail" not in globals():
+
+    if os.path.exists("price_detail.parquet"):
+
+        price_detail = pd.read_parquet(
+            "price_detail.parquet"
+        )
+
+    elif os.path.exists("flow/price_detail.parquet"):
+
+        price_detail = pd.read_parquet(
+            "flow/price_detail.parquet"
+        )
+
+    else:
+
+        price_detail = pd.DataFrame()
 
 
 if sector_leader_df.empty:
@@ -1705,217 +1731,214 @@ else:
         height=400
     )
 
-# =========================
-# KIỂM TRA SAU NGÀY CHỌN MÃ CÓ GIẢM TRƯỚC ĐÁY THỊ TRƯỜNG KHÔNG
-# =========================
+    # =========================
+    # KIỂM TRA SAU NGÀY CHỌN MÃ CÓ GIẢM TRƯỚC ĐÁY THỊ TRƯỜNG KHÔNG
+    # =========================
 
-st.subheader("Kiểm tra mã leader có giảm trước đáy thị trường không")
+    st.subheader("Kiểm tra mã leader có giảm trước đáy thị trường không")
 
-if sector_leader_df.empty:
+    if price_detail.empty:
 
-    st.info("Chưa có dữ liệu mã leader.")
-
-elif price_detail.empty:
-
-    st.info("Chưa có dữ liệu giá price_detail.")
-
-else:
-
-    # chuẩn hóa ngày
-    sector_leader_check = sector_leader_df.copy()
-
-    sector_leader_check["date"] = pd.to_datetime(
-        sector_leader_check["date"]
-    )
-
-    price_detail["date"] = pd.to_datetime(
-        price_detail["date"]
-    )
-
-    price_detail["ticker"] = (
-        price_detail["ticker"]
-        .astype(str)
-    )
-
-    sector_leader_check["ticker"] = (
-        sector_leader_check["ticker"]
-        .astype(str)
-    )
-
-    bottom_dates = (
-        bottom_signal_df[
-            bottom_signal_df["xac_nhan_tao_day"] == True
-        ]["date"]
-        .drop_duplicates()
-        .sort_values()
-        .tolist()
-    )
-
-    check_records = []
-
-    for _, row in sector_leader_check.iterrows():
-
-        ticker = row["ticker"]
-        signal_date = row["date"]
-
-        # tìm ngày đáy thị trường gần nhất sau ngày chọn mã
-        next_bottom_dates = [
-            d for d in bottom_dates
-            if d >= signal_date
-        ]
-
-        if len(next_bottom_dates) == 0:
-            continue
-
-        next_bottom_date = next_bottom_dates[0]
-
-        ticker_price = price_detail[
-            (price_detail["ticker"] == ticker)
-            & (price_detail["date"] >= signal_date)
-            & (price_detail["date"] <= next_bottom_date)
-        ].copy()
-
-        if ticker_price.empty:
-            continue
-
-        ticker_price = ticker_price.sort_values("date")
-
-        buy_row = ticker_price.iloc[0]
-
-        buy_price = buy_row["close"]
-
-        lowest_price = ticker_price["low"].min()
-
-        bottom_price_row = ticker_price[
-            ticker_price["date"] == next_bottom_date
-        ]
-
-        if bottom_price_row.empty:
-
-            bottom_close = None
-
-        else:
-
-            bottom_close = bottom_price_row.iloc[0]["close"]
-
-        drawdown_pct = (
-            lowest_price / buy_price - 1
-        ) * 100
-
-        giam_truoc_day = drawdown_pct < 0
-
-        check_records.append({
-            "Ngày chọn mã": signal_date,
-            "Ngày đáy thị trường kế tiếp": next_bottom_date,
-            "Ngành": row["nganh"],
-            "Mã": ticker,
-            "Giá chọn": buy_price,
-            "Giá thấp nhất trước đáy": lowest_price,
-            "Giá đóng cửa ngày đáy": bottom_close,
-            "Drawdown trước đáy (%)": drawdown_pct,
-            "Có giảm trước đáy": giam_truoc_day,
-            "SMDT mã ngày chọn": row["smdt_today"],
-            "GTGD TB20": row["avg_value_20"]
-        })
-
-    leader_drawdown_df = pd.DataFrame(check_records)
-
-    if leader_drawdown_df.empty:
-
-        st.info("Không có dữ liệu để kiểm tra giảm trước đáy.")
+        st.info("Chưa có dữ liệu giá price_detail.")
 
     else:
 
-        show_df = leader_drawdown_df.copy()
+        sector_leader_check = sector_leader_df.copy()
 
-        show_df["Ngày chọn mã"] = (
-            show_df["Ngày chọn mã"]
-            .dt.strftime("%d/%m/%Y")
+        sector_leader_check["date"] = pd.to_datetime(
+            sector_leader_check["date"]
         )
 
-        show_df["Ngày đáy thị trường kế tiếp"] = (
-            show_df["Ngày đáy thị trường kế tiếp"]
-            .dt.strftime("%d/%m/%Y")
+        sector_leader_check["ticker"] = (
+            sector_leader_check["ticker"]
+            .astype(str)
         )
 
-        for col in [
-            "Giá chọn",
-            "Giá thấp nhất trước đáy",
-            "Giá đóng cửa ngày đáy",
-            "SMDT mã ngày chọn"
-        ]:
+        price_detail["date"] = pd.to_datetime(
+            price_detail["date"]
+        )
 
-            show_df[col] = (
-                show_df[col]
+        price_detail["ticker"] = (
+            price_detail["ticker"]
+            .astype(str)
+        )
+
+        bottom_signal_df["date"] = pd.to_datetime(
+            bottom_signal_df["date"]
+        )
+
+        bottom_dates = (
+            bottom_signal_df[
+                bottom_signal_df["xac_nhan_tao_day"] == True
+            ]["date"]
+            .drop_duplicates()
+            .sort_values()
+            .tolist()
+        )
+
+        check_records = []
+
+        for _, row in sector_leader_check.iterrows():
+
+            ticker = row["ticker"]
+            signal_date = row["date"]
+
+            next_bottom_dates = [
+                d for d in bottom_dates
+                if d >= signal_date
+            ]
+
+            if len(next_bottom_dates) == 0:
+                continue
+
+            next_bottom_date = next_bottom_dates[0]
+
+            ticker_price = price_detail[
+                (price_detail["ticker"] == ticker)
+                & (price_detail["date"] >= signal_date)
+                & (price_detail["date"] <= next_bottom_date)
+            ].copy()
+
+            if ticker_price.empty:
+                continue
+
+            ticker_price = ticker_price.sort_values("date")
+
+            buy_row = ticker_price.iloc[0]
+            buy_price = buy_row["close"]
+
+            lowest_price = ticker_price["low"].min()
+
+            bottom_price_row = ticker_price[
+                ticker_price["date"] == next_bottom_date
+            ].copy()
+
+            if bottom_price_row.empty:
+
+                bottom_close = None
+
+            else:
+
+                bottom_close = bottom_price_row.iloc[0]["close"]
+
+            drawdown_pct = (
+                lowest_price / buy_price - 1
+            ) * 100
+
+            giam_truoc_day = drawdown_pct < 0
+
+            check_records.append({
+                "Ngày chọn mã": signal_date,
+                "Ngày đáy thị trường kế tiếp": next_bottom_date,
+                "Ngành": row["nganh"],
+                "Mã": ticker,
+                "Giá chọn": buy_price,
+                "Giá thấp nhất trước đáy": lowest_price,
+                "Giá đóng cửa ngày đáy": bottom_close,
+                "Drawdown trước đáy (%)": drawdown_pct,
+                "Có giảm trước đáy": giam_truoc_day,
+                "SMDT mã ngày chọn": row["smdt_today"],
+                "GTGD TB20": row["avg_value_20"]
+            })
+
+        leader_drawdown_df = pd.DataFrame(check_records)
+
+        if leader_drawdown_df.empty:
+
+            st.info("Không có dữ liệu để kiểm tra giảm trước đáy.")
+
+        else:
+
+            show_df = leader_drawdown_df.copy()
+
+            show_df["Ngày chọn mã"] = (
+                show_df["Ngày chọn mã"]
+                .dt.strftime("%d/%m/%Y")
+            )
+
+            show_df["Ngày đáy thị trường kế tiếp"] = (
+                show_df["Ngày đáy thị trường kế tiếp"]
+                .dt.strftime("%d/%m/%Y")
+            )
+
+            for col in [
+                "Giá chọn",
+                "Giá thấp nhất trước đáy",
+                "Giá đóng cửa ngày đáy",
+                "SMDT mã ngày chọn"
+            ]:
+
+                show_df[col] = (
+                    show_df[col]
+                    .round(2)
+                )
+
+            show_df["Drawdown trước đáy (%)"] = (
+                show_df["Drawdown trước đáy (%)"]
                 .round(2)
             )
 
-        show_df["Drawdown trước đáy (%)"] = (
-            show_df["Drawdown trước đáy (%)"]
-            .round(2)
-        )
-
-        show_df["Có giảm trước đáy"] = (
-            show_df["Có giảm trước đáy"]
-            .map({
-                True: "True",
-                False: "False"
-            })
-        )
-
-        show_df["GTGD TB20"] = (
-            show_df["GTGD TB20"] / 1_000_000_000
-        ).round(2).astype(str) + " tỷ"
-
-        st.dataframe(
-            show_df[
-                [
-                    "Ngày chọn mã",
-                    "Ngày đáy thị trường kế tiếp",
-                    "Ngành",
-                    "Mã",
-                    "Giá chọn",
-                    "Giá thấp nhất trước đáy",
-                    "Giá đóng cửa ngày đáy",
-                    "Drawdown trước đáy (%)",
-                    "Có giảm trước đáy",
-                    "SMDT mã ngày chọn",
-                    "GTGD TB20"
-                ]
-            ],
-            hide_index=True,
-            use_container_width=True,
-            height=400
-        )
-
-        st.markdown("##### Tổng kết")
-
-        summary_check = (
-            leader_drawdown_df
-            .groupby("Có giảm trước đáy")
-            .agg(
-                Số_lần=("Mã", "count"),
-                Drawdown_TB=("Drawdown trước đáy (%)", "mean")
+            show_df["Có giảm trước đáy"] = (
+                show_df["Có giảm trước đáy"]
+                .map({
+                    True: "True",
+                    False: "False"
+                })
             )
-            .reset_index()
-        )
 
-        summary_check["Có giảm trước đáy"] = (
-            summary_check["Có giảm trước đáy"]
-            .map({
-                True: "True",
-                False: "False"
-            })
-        )
+            show_df["GTGD TB20"] = (
+                show_df["GTGD TB20"] / 1_000_000_000
+            ).round(2).astype(str) + " tỷ"
 
-        summary_check["Drawdown_TB"] = (
-            summary_check["Drawdown_TB"]
-            .round(2)
-        )
+            st.dataframe(
+                show_df[
+                    [
+                        "Ngày chọn mã",
+                        "Ngày đáy thị trường kế tiếp",
+                        "Ngành",
+                        "Mã",
+                        "Giá chọn",
+                        "Giá thấp nhất trước đáy",
+                        "Giá đóng cửa ngày đáy",
+                        "Drawdown trước đáy (%)",
+                        "Có giảm trước đáy",
+                        "SMDT mã ngày chọn",
+                        "GTGD TB20"
+                    ]
+                ],
+                hide_index=True,
+                use_container_width=True,
+                height=400
+            )
 
-        st.dataframe(
-            summary_check,
-            hide_index=True,
-            use_container_width=True,
-            height=160
-        )
+            st.markdown("##### Tổng kết")
+
+            summary_check = (
+                leader_drawdown_df
+                .groupby("Có giảm trước đáy")
+                .agg(
+                    Số_lần=("Mã", "count"),
+                    Drawdown_TB=("Drawdown trước đáy (%)", "mean")
+                )
+                .reset_index()
+            )
+
+            summary_check["Có giảm trước đáy"] = (
+                summary_check["Có giảm trước đáy"]
+                .map({
+                    True: "True",
+                    False: "False"
+                })
+            )
+
+            summary_check["Drawdown_TB"] = (
+                summary_check["Drawdown_TB"]
+                .round(2)
+            )
+
+            st.dataframe(
+                summary_check,
+                hide_index=True,
+                use_container_width=True,
+                height=160
+            )
