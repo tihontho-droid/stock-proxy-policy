@@ -1175,3 +1175,107 @@ else:
         use_container_width=True,
         height=350
     )
+
+# =========================
+# THỐNG KÊ THỨ TỰ TÍN HIỆU CỦA TOP 1
+# =========================
+
+st.subheader("Thứ tự tín hiệu của cổ phiếu Top 1")
+
+if os.path.exists("top1_signal_sequence.parquet"):
+
+    top1_signal_sequence = pd.read_parquet(
+        "top1_signal_sequence.parquet"
+    )
+
+elif os.path.exists("flow/top1_signal_sequence.parquet"):
+
+    top1_signal_sequence = pd.read_parquet(
+        "flow/top1_signal_sequence.parquet"
+    )
+
+else:
+
+    top1_signal_sequence = pd.DataFrame()
+
+
+if top1_signal_sequence.empty:
+
+    st.info("Chưa có dữ liệu thống kê thứ tự tín hiệu Top 1.")
+
+else:
+
+    for col in [
+        "Ngày đáy thị trường",
+        "Đáy cổ phiếu",
+        "Đỉnh cổ phiếu",
+        "Flow ngành",
+        "SMDT ngành",
+        "Flow mã",
+        "SMDT mã",
+        "Ngày tín hiệu đầu tiên"
+    ]:
+
+        top1_signal_sequence[col] = pd.to_datetime(
+            top1_signal_sequence[col],
+            errors="coerce"
+        )
+
+    selected_top1_signal = top1_signal_sequence[
+        top1_signal_sequence["Ngày đáy thị trường"]
+        == selected_confirm_date
+    ].copy()
+
+    if selected_top1_signal.empty:
+
+        st.info("Không có dữ liệu Top 1 cho đáy này.")
+
+    else:
+
+        show_df = selected_top1_signal.copy()
+
+        date_cols = [
+            "Ngày đáy thị trường",
+            "Đáy cổ phiếu",
+            "Đỉnh cổ phiếu",
+            "Flow ngành",
+            "SMDT ngành",
+            "Flow mã",
+            "SMDT mã",
+            "Ngày tín hiệu đầu tiên"
+        ]
+
+        for col in date_cols:
+
+            show_df[col] = show_df[col].dt.strftime("%d/%m/%Y")
+
+        show_df["Hiệu suất"] = (
+            "+"
+            + show_df["Hiệu suất"].round(1).astype(str)
+            + "%"
+        )
+
+        show_df = show_df[
+            [
+                "Ngày đáy thị trường",
+                "Top 1",
+                "Ngành",
+                "Đáy cổ phiếu",
+                "Đỉnh cổ phiếu",
+                "Hiệu suất",
+                "Flow ngành",
+                "SMDT ngành",
+                "Flow mã",
+                "SMDT mã",
+                "Tín hiệu đầu tiên",
+                "Ngày tín hiệu đầu tiên",
+                "Chuỗi tín hiệu"
+            ]
+        ]
+
+        st.dataframe(
+            show_df,
+            hide_index=True,
+            use_container_width=True,
+            height=180
+        )
