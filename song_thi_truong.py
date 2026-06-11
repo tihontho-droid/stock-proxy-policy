@@ -1741,14 +1741,20 @@ else:
         .reset_index(drop=True)
     )
 
-    stock_signal_df["smdt_ma_prev"] = (
+    stock_signal_df["smdt_ma_prev_1"] = (
         stock_signal_df
         .groupby("ticker")["smdt_ma"]
         .shift(1)
     )
-
+    
+    stock_signal_df["smdt_ma_prev_2"] = (
+        stock_signal_df
+        .groupby("ticker")["smdt_ma"]
+        .shift(2)
+    )
+    
     stock_signal_df["ma_vuot_70_len_95"] = (
-        (stock_signal_df["smdt_ma_prev"] < 70)
+        (stock_signal_df["smdt_ma_prev_2"] < 70)
         & (stock_signal_df["smdt_ma"] > 95)
     )
 
@@ -1819,7 +1825,8 @@ else:
                     "Ngành": nganh,
                     "SMDT ngành": smdt_nganh,
                     "Mã": stock_row["ticker"],
-                    "SMDT mã hôm trước": stock_row["smdt_ma_prev"],
+                    "SMDT mã T-2": stock_row["smdt_ma_prev_2"],
+                    "SMDT mã T-1": stock_row["smdt_ma_prev_1"],                    
                     "SMDT mã ngày vượt": stock_row["smdt_ma"],
                     "GTGD TB20": avg_value_20,
                     "Dòng tiền mã": stock_row.get("cashflow_ma", ""),
@@ -1898,8 +1905,8 @@ else:
                         "Ngành",
                         "SMDT ngành",
                         "Mã",
-                        "SMDT mã hôm trước",
-                        "SMDT mã ngày vượt",
+                        "SMDT mã T-2",
+                        "SMDT mã T-1",
                         "GTGD TB20",
                         "Dòng tiền mã",
                         "Flow mã num"
