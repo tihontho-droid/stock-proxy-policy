@@ -1698,25 +1698,25 @@ else:
     # =========================
     # LẤY NGÀY NGÀNH VỪA VƯỢT SMDT 70
     # =========================
-
+    
     sector_signal_df = sector_all_df[
         sector_all_df["smdt_vua_vuot_70"] == True
     ].copy()
-
+    
     if sector_signal_df.empty:
-
+    
         st.info("Không có ngày ngành vừa vượt SMDT 70.")
-
+    
     else:
-
+    
         result_records = []
-
+    
         for _, sector_row in sector_signal_df.iterrows():
-
+    
             signal_date = sector_row["date"]
             nganh = sector_row["nganh"]
             smdt_nganh = sector_row["smdt"]
-
+    
             sector_tickers = (
                 ticker_branch_df[
                     ticker_branch_df["nganh"] == nganh
@@ -1724,41 +1724,43 @@ else:
                 .drop_duplicates()
                 .tolist()
             )
-
+    
             if len(sector_tickers) == 0:
                 continue
-
+    
             stock_candidates = stock_signal_df[
                 (stock_signal_df["date"] == signal_date)
                 & (stock_signal_df["ticker"].isin(sector_tickers))
                 & (stock_signal_df["ma_vuot_70_len_100"] == True)
             ].copy()
-
+    
             if stock_candidates.empty:
                 continue
-
+    
             for _, stock_row in stock_candidates.iterrows():
-            # =========================
-            # KIỂM TRA THANH KHOẢN
-            # =========================
-            
-            liq_df = price_detail[
-                (price_detail["ticker"] == stock_row["ticker"])
-                & (price_detail["date"] <= signal_date)
-            ].copy()
-            
-            if liq_df.empty:
-                continue
-            
-            avg_value_20 = (
-                liq_df
-                .tail(20)["value"]
-                .mean()
-            )
-            
-            # chỉ giữ mã > 5 tỷ/ngày
-            if avg_value_20 < 5_000_000_000:
-                continue
+    
+                # =========================
+                # KIỂM TRA THANH KHOẢN
+                # =========================
+    
+                liq_df = price_detail[
+                    (price_detail["ticker"] == stock_row["ticker"])
+                    & (price_detail["date"] <= signal_date)
+                ].copy()
+    
+                if liq_df.empty:
+                    continue
+    
+                avg_value_20 = (
+                    liq_df
+                    .tail(20)["value"]
+                    .mean()
+                )
+    
+                # chỉ giữ mã > 5 tỷ/ngày
+                if avg_value_20 < 5_000_000_000:
+                    continue
+    
                 result_records.append({
                     "Ngày ngành vượt SMDT": signal_date,
                     "Ngành": nganh,
@@ -1766,14 +1768,15 @@ else:
                     "Mã": stock_row["ticker"],
                     "SMDT mã hôm trước": stock_row["smdt_ma_prev"],
                     "SMDT mã ngày vượt": stock_row["smdt_ma"],
+                    "GTGD TB20": avg_value_20,
                     "Dòng tiền mã": stock_row.get("cashflow_ma", ""),
                     "Flow mã num": stock_row.get("flow_ma_num", None)
                 })
-
+    
         rule_df = pd.DataFrame(result_records)
-
+    
         if not rule_df.empty:
-        
+    
             rule_df = (
                 rule_df
                 .sort_values(
@@ -1798,34 +1801,39 @@ else:
                 .head(1)
                 .reset_index(drop=True)
             )
+    
         if rule_df.empty:
-
-            st.info("Không có mã nào thỏa rule: ngành vừa vượt SMDT và mã vượt từ <70 lên >100.")
-
+    
+            st.info("Không có mã nào thỏa rule: ngành vừa vượt SMDT và mã vượt từ <70 lên >100, thanh khoản > 5 tỷ.")
+    
         else:
-
+    
             rule_show = rule_df.copy()
-
+    
             rule_show["Ngày ngành vượt SMDT"] = (
                 rule_show["Ngày ngành vượt SMDT"]
                 .dt.strftime("%d/%m/%Y")
             )
-
+    
             rule_show["SMDT ngành"] = (
                 rule_show["SMDT ngành"]
                 .round(2)
             )
-
+    
             rule_show["SMDT mã hôm trước"] = (
                 rule_show["SMDT mã hôm trước"]
                 .round(2)
             )
-
+    
             rule_show["SMDT mã ngày vượt"] = (
                 rule_show["SMDT mã ngày vượt"]
                 .round(2)
             )
-
+    
+            rule_show["GTGD TB20"] = (
+                rule_show["GTGD TB20"] / 1_000_000_000
+            ).round(2).astype(str) + " tỷ"
+    
             st.dataframe(
                 rule_show[
                     [
@@ -1835,6 +1843,7 @@ else:
                         "Mã",
                         "SMDT mã hôm trước",
                         "SMDT mã ngày vượt",
+                        "GTGD TB20",
                         "Dòng tiền mã",
                         "Flow mã num"
                     ]
