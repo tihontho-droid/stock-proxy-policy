@@ -1176,282 +1176,270 @@ else:
         height=350
     )
 # =========================
-# DIỄN BIẾN CÁC MÃ TRONG NGÀNH CỦA TOP 1 - THEO ĐÁY ĐANG CHỌN
+# MÃ CÓ FLOW + SMDT ĐẸP TRONG GIAI ĐOẠN CHUẨN BỊ TẠO ĐÁY
 # =========================
 
-st.subheader("Diễn biến các mã trong ngành của Top 1 tại đáy đang chọn")
+st.subheader("Mã có Flow + SMDT đẹp trong giai đoạn chuẩn bị tạo đáy")
 
-# đọc dữ liệu top cổ phiếu nếu chưa có
-if "top_stock_all_bottoms" not in globals():
+nganh_chu_luc = [
+    "Ngân hàng",
+    "Chứng khoán",
+    "BĐS Dân cư",
+    "Xây dựng",
+    "Thép",
+    "Sóng ngành Vin"
+]
 
-    if os.path.exists("top_stock_all_bottoms.parquet"):
+# đọc stock_signal_df
+if "stock_signal_df" not in globals():
 
-        top_stock_all_bottoms = pd.read_parquet(
-            "top_stock_all_bottoms.parquet"
-        )
+    if os.path.exists("stock_signal_df.parquet"):
 
-    elif os.path.exists("flow/top_stock_all_bottoms.parquet"):
+        stock_signal_df = pd.read_parquet("stock_signal_df.parquet")
 
-        top_stock_all_bottoms = pd.read_parquet(
-            "flow/top_stock_all_bottoms.parquet"
-        )
+    elif os.path.exists("flow/stock_signal_df.parquet"):
+
+        stock_signal_df = pd.read_parquet("flow/stock_signal_df.parquet")
 
     else:
 
-        top_stock_all_bottoms = pd.DataFrame()
+        stock_signal_df = pd.DataFrame()
 
+# đọc ticker_branch_df
+if "ticker_branch_df" not in globals():
 
-if top_stock_all_bottoms.empty:
+    if os.path.exists("ticker_branch_df.parquet"):
 
-    st.info("Chưa có dữ liệu top cổ phiếu theo từng đáy.")
+        ticker_branch_df = pd.read_parquet("ticker_branch_df.parquet")
+
+    elif os.path.exists("flow/ticker_branch_df.parquet"):
+
+        ticker_branch_df = pd.read_parquet("flow/ticker_branch_df.parquet")
+
+    else:
+
+        ticker_branch_df = pd.DataFrame()
+
+if stock_signal_df.empty or ticker_branch_df.empty:
+
+    st.info("Chưa có đủ dữ liệu stock_signal_df hoặc ticker_branch_df.")
 
 else:
 
-    top_stock_all_bottoms["market_bottom_date"] = pd.to_datetime(
-        top_stock_all_bottoms["market_bottom_date"]
-    )
+    stock_signal_df["date"] = pd.to_datetime(stock_signal_df["date"])
+    stock_signal_df["ticker"] = stock_signal_df["ticker"].astype(str)
 
-    top_stock_all_bottoms["stock_bottom_date"] = pd.to_datetime(
-        top_stock_all_bottoms["stock_bottom_date"]
-    )
-
-    top_stock_all_bottoms["peak_date"] = pd.to_datetime(
-        top_stock_all_bottoms["peak_date"]
-    )
+    ticker_branch_df["ticker"] = ticker_branch_df["ticker"].astype(str)
 
     # =========================
-    # LỌC RIÊNG ĐÁY ĐANG CHỌN
+    # TÌM NGÀY CHUẨN BỊ TẠO ĐÁY TRƯỚC NGÀY XÁC NHẬN ĐANG CHỌN
     # =========================
 
-    selected_bottom_df = top_stock_all_bottoms[
-        top_stock_all_bottoms["market_bottom_date"]
-        == selected_confirm_date
+    prepare_df = bottom_signal_df[
+        (bottom_signal_df["chuan_bi_tao_day"] == True)
+        & (bottom_signal_df["date"] < selected_confirm_date)
     ].copy()
 
-    if selected_bottom_df.empty:
+    if prepare_df.empty:
 
-        st.info("Không có dữ liệu cổ phiếu cho đáy đang chọn.")
+        st.info("Không có ngày chuẩn bị tạo đáy trước đáy đang chọn.")
 
     else:
 
-        # =========================
-        # XÁC ĐỊNH TOP 1 CỦA ĐÁY ĐANG CHỌN
-        # =========================
+        prepare_row = (
+            prepare_df
+            .sort_values("date")
+            .tail(1)
+            .iloc[0]
+        )
 
-        selected_bottom_df = selected_bottom_df.sort_values(
-            "return_pct",
-            ascending=False
-        ).reset_index(drop=True)
-
-        top1_row = selected_bottom_df.iloc[0]
-
-        top1_ticker = top1_row["ticker"]
-        top1_nganh = top1_row["nganh"]
-        top1_return = top1_row["return_pct"]
+        prepare_date = prepare_row["date"]
 
         st.markdown(
             f"""
-            **Top 1 của đáy này:** `{top1_ticker}`  
-            **Ngành:** `{top1_nganh}`  
-            **Hiệu suất:** `+{top1_return:.1f}%`
+            **Ngày chuẩn bị tạo đáy:** `{prepare_date.strftime('%d/%m/%Y')}`  
+            **Ngày xác nhận đáy:** `{selected_confirm_date.strftime('%d/%m/%Y')}`
             """
         )
 
         # =========================
-        # LỌC CÁC MÃ CÙNG NGÀNH VỚI TOP 1
-        # VÀ CÓ FLOW + SMDT MÃ CÙNG VƯỢT TRONG GIAI ĐOẠN ĐÓ
+        # LẤY CÁC MÃ CÓ FLOW VỪA ĐẸP HOẶC SMDT VỪA ĐẸP
+        # TRONG VÙNG TỪ CHUẨN BỊ ĐÁY ĐẾN XÁC NHẬN ĐÁY
         # =========================
-        
-        same_sector_df = selected_bottom_df[
-            selected_bottom_df["nganh"] == top1_nganh
+
+        signal_window_df = stock_signal_df[
+            (stock_signal_df["date"] >= prepare_date)
+            & (stock_signal_df["date"] <= selected_confirm_date)
+            & (
+                (stock_signal_df["flow_ma_vua_tich_cuc"] == True)
+                | (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+            )
         ].copy()
-        
-        if same_sector_df.empty:
-        
-            st.info("Không có mã cùng ngành với Top 1 trong dữ liệu.")
-        
+
+        if signal_window_df.empty:
+
+            st.info("Không có mã nào có Flow hoặc SMDT vừa đẹp trong giai đoạn này.")
+
         else:
-        
-            # đọc stock_signal_df nếu chưa có
-            if "stock_signal_df" not in globals():
-        
-                if os.path.exists("stock_signal_df.parquet"):
-        
-                    stock_signal_df = pd.read_parquet(
-                        "stock_signal_df.parquet"
+
+            signal_window_df = signal_window_df.merge(
+                ticker_branch_df,
+                on="ticker",
+                how="left"
+            )
+
+            signal_window_df["nhom_nganh"] = signal_window_df["nganh"].apply(
+                lambda x: "Ngành chủ lực" if x in nganh_chu_luc else "Ngành phụ"
+            )
+
+            # =========================
+            # GOM LẠI THEO MÃ
+            # =========================
+
+            records = []
+
+            for ticker in signal_window_df["ticker"].drop_duplicates():
+
+                ticker_tmp = signal_window_df[
+                    signal_window_df["ticker"] == ticker
+                ].sort_values("date").copy()
+
+                nganh = ticker_tmp["nganh"].iloc[0]
+                nhom_nganh = ticker_tmp["nhom_nganh"].iloc[0]
+
+                flow_rows = ticker_tmp[
+                    ticker_tmp["flow_ma_vua_tich_cuc"] == True
+                ]
+
+                smdt_rows = ticker_tmp[
+                    ticker_tmp["smdt_ma_vua_vuot_70"] == True
+                ]
+
+                flow_date = (
+                    flow_rows["date"].min()
+                    if not flow_rows.empty else pd.NaT
+                )
+
+                smdt_date = (
+                    smdt_rows["date"].min()
+                    if not smdt_rows.empty else pd.NaT
+                )
+
+                last_row = ticker_tmp.sort_values("date").iloc[-1]
+
+                records.append({
+                    "Mã": ticker,
+                    "Ngành": nganh,
+                    "Nhóm ngành": nhom_nganh,
+                    "Flow vừa đẹp": flow_date,
+                    "SMDT vừa đẹp": smdt_date,
+                    "SMDT hiện tại": last_row["smdt_ma"],
+                    "Dòng tiền hiện tại": last_row["cashflow_ma"],
+                    "Có cả Flow + SMDT": (
+                        pd.notna(flow_date)
+                        and pd.notna(smdt_date)
                     )
-        
-                elif os.path.exists("flow/stock_signal_df.parquet"):
-        
-                    stock_signal_df = pd.read_parquet(
-                        "flow/stock_signal_df.parquet"
-                    )
-        
-                else:
-        
-                    stock_signal_df = pd.DataFrame()
-        
-            if stock_signal_df.empty:
-        
-                st.info("Chưa có dữ liệu Flow/SMDT mã để lọc.")
-        
-            else:
-        
-                stock_signal_df["date"] = pd.to_datetime(
-                    stock_signal_df["date"]
+                })
+
+            signal_summary_df = pd.DataFrame(records)
+
+            signal_summary_df = signal_summary_df.sort_values(
+                [
+                    "Có cả Flow + SMDT",
+                    "SMDT hiện tại"
+                ],
+                ascending=[False, False]
+            ).reset_index(drop=True)
+
+            # =========================
+            # CHIA 2 BẢNG: CHỦ LỰC / PHỤ
+            # =========================
+
+            chu_luc_df = signal_summary_df[
+                signal_summary_df["Nhóm ngành"] == "Ngành chủ lực"
+            ].copy()
+
+            phu_df = signal_summary_df[
+                signal_summary_df["Nhóm ngành"] == "Ngành phụ"
+            ].copy()
+
+            def format_signal_table(df):
+
+                if df.empty:
+                    return df
+
+                show_df = df.copy()
+
+                show_df["Flow vừa đẹp"] = pd.to_datetime(
+                    show_df["Flow vừa đẹp"],
+                    errors="coerce"
+                ).dt.strftime("%d/%m/%Y")
+
+                show_df["SMDT vừa đẹp"] = pd.to_datetime(
+                    show_df["SMDT vừa đẹp"],
+                    errors="coerce"
+                ).dt.strftime("%d/%m/%Y")
+
+                show_df["SMDT hiện tại"] = (
+                    show_df["SMDT hiện tại"]
+                    .round(2)
                 )
-        
-                stock_signal_df["ticker"] = (
-                    stock_signal_df["ticker"]
-                    .astype(str)
-                )
-        
-                same_sector_df["ticker"] = (
-                    same_sector_df["ticker"]
-                    .astype(str)
-                )
-        
-                # giai đoạn kiểm tra:
-                # từ 5 phiên trước đáy thị trường đến ngày cổ phiếu tạo đỉnh
-                signal_records = []
-        
-                for _, stock_row in same_sector_df.iterrows():
-        
-                    ticker = stock_row["ticker"]
-        
-                    signal_start_date = selected_confirm_date - pd.Timedelta(days=10)
-                    signal_end_date = stock_row["peak_date"]
-        
-                    signal_tmp = stock_signal_df[
-                        (stock_signal_df["ticker"] == ticker)
-                        & (stock_signal_df["date"] >= signal_start_date)
-                        & (stock_signal_df["date"] <= signal_end_date)
-                    ].copy()
-        
-                    if signal_tmp.empty:
-                        continue
-        
-                    flow_good_rows = signal_tmp[
-                        signal_tmp["flow_ma_vua_tich_cuc"] == True
-                    ].copy()
-        
-                    smdt_good_rows = signal_tmp[
-                        signal_tmp["smdt_ma_vua_vuot_70"] == True
-                    ].copy()
-        
-                    if flow_good_rows.empty or smdt_good_rows.empty:
-                        continue
-        
-                    flow_good_date = flow_good_rows["date"].min()
-                    smdt_good_date = smdt_good_rows["date"].min()
-        
-                    signal_records.append({
-                        "ticker": ticker,
-                        "Flow mã vượt": flow_good_date,
-                        "SMDT mã vượt": smdt_good_date,
-                        "Có Flow + SMDT": True
+
+                show_df["Có cả Flow + SMDT"] = (
+                    show_df["Có cả Flow + SMDT"]
+                    .map({
+                        True: "Có",
+                        False: "Không"
                     })
-        
-                signal_filter_df = pd.DataFrame(signal_records)
-        
-                if signal_filter_df.empty:
-        
-                    st.info(
-                        "Không có mã cùng ngành nào có cả Flow mã tích cực và SMDT mã vượt 70 trong giai đoạn này."
-                    )
-        
+                )
+
+                return show_df[
+                    [
+                        "Mã",
+                        "Ngành",
+                        "Flow vừa đẹp",
+                        "SMDT vừa đẹp",
+                        "SMDT hiện tại",
+                        "Dòng tiền hiện tại",
+                        "Có cả Flow + SMDT"
+                    ]
+                ]
+
+            col_left, col_right = st.columns(2)
+
+            with col_left:
+
+                st.markdown("##### Ngành chủ lực")
+
+                if chu_luc_df.empty:
+
+                    st.info("Không có mã ngành chủ lực có Flow/SMDT đẹp trong giai đoạn này.")
+
                 else:
-        
-                    same_sector_df = same_sector_df.merge(
-                        signal_filter_df,
-                        on="ticker",
-                        how="inner"
-                    )
-        
-                    same_sector_df = same_sector_df.sort_values(
-                        "return_pct",
-                        ascending=False
-                    ).reset_index(drop=True)
-        
-                    same_sector_df["Xếp hạng trong ngành"] = (
-                        same_sector_df.index + 1
-                    )
-        
-                    same_sector_df["Là Top 1"] = same_sector_df["ticker"].apply(
-                        lambda x: "Có" if x == top1_ticker else "Không"
-                    )
-        
-                    same_sector_df["Lệch đáy"] = (
-                        same_sector_df["stock_bottom_date"]
-                        - same_sector_df["market_bottom_date"]
-                    ).dt.days
-        
-                    show_sector_df = same_sector_df.copy()
-        
-                    show_sector_df["Ngày đáy thị trường"] = (
-                        show_sector_df["market_bottom_date"]
-                        .dt.strftime("%d/%m/%Y")
-                    )
-        
-                    show_sector_df["Đáy cổ phiếu"] = (
-                        show_sector_df["stock_bottom_date"]
-                        .dt.strftime("%d/%m/%Y")
-                    )
-        
-                    show_sector_df["Đỉnh cổ phiếu"] = (
-                        show_sector_df["peak_date"]
-                        .dt.strftime("%d/%m/%Y")
-                    )
-        
-                    show_sector_df["Flow mã vượt"] = (
-                        show_sector_df["Flow mã vượt"]
-                        .dt.strftime("%d/%m/%Y")
-                    )
-        
-                    show_sector_df["SMDT mã vượt"] = (
-                        show_sector_df["SMDT mã vượt"]
-                        .dt.strftime("%d/%m/%Y")
-                    )
-        
-                    show_sector_df["Hiệu suất"] = (
-                        "+"
-                        + show_sector_df["return_pct"]
-                        .round(1)
-                        .astype(str)
-                        + "%"
-                    )
-        
-                    show_sector_df["GTGD TB 20 phiên"] = (
-                        show_sector_df["avg_value_20"] / 1_000_000_000
-                    ).round(2).astype(str) + " tỷ"
-        
-                    show_sector_df = show_sector_df.rename(columns={
-                        "ticker": "Mã",
-                        "nganh": "Ngành"
-                    })
-        
+
                     st.dataframe(
-                        show_sector_df[
-                            [
-                                "Ngày đáy thị trường",
-                                "Ngành",
-                                "Mã",
-                                "Là Top 1",
-                                "Xếp hạng trong ngành",
-                                "Đáy cổ phiếu",
-                                "Lệch đáy",
-                                "Flow mã vượt",
-                                "SMDT mã vượt",
-                                "Đỉnh cổ phiếu",
-                                "Hiệu suất",
-                                "GTGD TB 20 phiên"
-                            ]
-                        ],
+                        format_signal_table(chu_luc_df),
                         hide_index=True,
                         use_container_width=True,
-                        height=320
+                        height=360
                     )
 
+            with col_right:
+
+                st.markdown("##### Ngành phụ")
+
+                if phu_df.empty:
+
+                    st.info("Không có mã ngành phụ có Flow/SMDT đẹp trong giai đoạn này.")
+
+                else:
+
+                    st.dataframe(
+                        format_signal_table(phu_df),
+                        hide_index=True,
+                        use_container_width=True,
+                        height=360
+                    )
 # =========================
 # TOP 1 CỦA CÁC ĐÁY
 # =========================
