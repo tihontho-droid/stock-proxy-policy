@@ -1732,10 +1732,10 @@ else:
     )
 
     # =========================
-    # KIỂM TRA SAU NGÀY CHỌN MÃ CÓ LỖ TRƯỚC ĐÁY THỊ TRƯỜNG KHÔNG
+    # KIỂM TRA MÃ LEADER QUANH ĐÁY GẦN NHẤT
     # =========================
     
-    st.subheader("Kiểm tra mã leader có lỗ trước đáy thị trường không")
+    st.subheader("Kiểm tra mã leader quanh đáy gần nhất")
     
     if price_detail.empty:
     
@@ -1783,58 +1783,86 @@ else:
             ticker = row["ticker"]
             signal_date = row["date"]
     
-            next_bottom_dates = [
+            # chỉ lấy đáy gần nhất trong phạm vi ±5 ngày
+            candidate_bottoms = [
                 d for d in bottom_dates
-                if d >= signal_date
+                if abs((d - signal_date).days) <= 5
             ]
     
-            if len(next_bottom_dates) == 0:
+            if len(candidate_bottoms) == 0:
                 continue
     
-            next_bottom_date = next_bottom_dates[0]
+            closest_bottom_date = min(
+                candidate_bottoms,
+                key=lambda d: abs((d - signal_date).days)
+            )
+    
+            lech_so_voi_day = (
+                signal_date - closest_bottom_date
+            ).days
     
             ticker_price = price_detail[
                 (price_detail["ticker"] == ticker)
-                & (price_detail["date"] >= signal_date)
-                & (price_detail["date"] <= next_bottom_date)
+                & (
+                    (price_detail["date"] == signal_date)
+                    | (price_detail["date"] == closest_bottom_date)
+                )
             ].copy()
     
             if ticker_price.empty:
                 continue
     
-            ticker_price = ticker_price.sort_values("date")
-    
-            # giá chọn = close của phiên đầu tiên >= ngày chọn mã
-            buy_row = ticker_price.iloc[0]
-            buy_price = buy_row["close"]
-    
-            bottom_price_row = ticker_price[
-                ticker_price["date"] == next_bottom_date
+            signal_price_row = ticker_price[
+                ticker_price["date"] == signal_date
             ].copy()
     
-            if bottom_price_row.empty:
+            bottom_price_row = ticker_price[
+                ticker_price["date"] == closest_bottom_date
+            ].copy()
+    
+            if signal_price_row.empty or bottom_price_row.empty:
                 continue
     
-            # giá đáy = close đúng ngày thị trường xác nhận đáy
-            bottom_close = bottom_price_row.iloc[0]["close"]
+            gia_chon = signal_price_row.iloc[0]["close"]
+            gia_day = bottom_price_row.iloc[0]["close"]
     
-            drawdown_pct = (
-                bottom_close / buy_price - 1
+            chenhlech_pct = (
+                gia_day / gia_chon - 1
             ) * 100
     
-            co_lo_truoc_day = (
-                bottom_close < buy_price
-            )
+            if signal_date < closest_bottom_date:
+    
+                vi_tri = "Trước đáy"
+    
+                ket_qua_true = (
+                    gia_day < gia_chon
+                )
+    
+            elif signal_date > closest_bottom_date:
+    
+                vi_tri = "Sau đáy"
+    
+                ket_qua_true = (
+                    gia_day > gia_chon
+                )
+    
+            else:
+    
+                vi_tri = "Đúng ngày đáy"
+    
+                ket_qua_true = False
     
             check_records.append({
                 "Ngày chọn mã": signal_date,
-                "Ngày đáy thị trường kế tiếp": next_bottom_date,
+                "Ngày đáy gần nhất": closest_bottom_date,
+                "Lệch so với đáy": lech_so_voi_day,
+                "Vị trí": vi_tri,
                 "Ngành": row["nganh"],
                 "Mã": ticker,
-                "Giá chọn": buy_price,
-                "Giá đóng cửa ngày đáy": bottom_close,
-                "Drawdown trước đáy (%)": drawdown_pct,
-                "Có lỗ trước đáy": co_lo_truoc_day,
+                "Giá chọn": gia_chon,
+                "Giá đóng cửa ngày đáy": gia_day,
+                "Chênh lệch tới đáy (%)": chenhlech_pct,
+                "Kết quả True": ket_qua_true,
                 "SMDT mã ngày chọn": row["smdt_today"],
                 "GTGD TB20": row["avg_value_20"]
             })
@@ -1843,7 +1871,7 @@ else:
     
         if leader_drawdown_df.empty:
     
-            st.info("Không có dữ liệu để kiểm tra lỗ trước đáy.")
+            st.info("Không có mã leader nào nằm trong vùng ±5 ngày quanh đáy.")
     
         else:
     
@@ -1854,8 +1882,8 @@ else:
                 .dt.strftime("%d/%m/%Y")
             )
     
-            show_df["Ngày đáy thị trường kế tiếp"] = (
-                show_df["Ngày đáy thị trường kế tiếp"]
+            show_df["Ngày đáy gần nhất"] = (
+                show_df["Ngày đáy gần nhất"]
                 .dt.strftime("%d/%m/%Y")
             )
     
@@ -1870,13 +1898,13 @@ else:
                     .round(2)
                 )
     
-            show_df["Drawdown trước đáy (%)"] = (
-                show_df["Drawdown trước đáy (%)"]
+            show_df["Chênh lệch tới đáy (%)"] = (
+                show_df["Chênh lệch tới đáy (%)"]
                 .round(2)
             )
     
-            show_df["Có lỗ trước đáy"] = (
-                show_df["Có lỗ trước đáy"]
+            show_df["Kết quả True"] = (
+                show_df["Kết quả True"]
                 .map({
                     True: "True",
                     False: "False"
@@ -1891,13 +1919,15 @@ else:
                 show_df[
                     [
                         "Ngày chọn mã",
-                        "Ngày đáy thị trường kế tiếp",
+                        "Ngày đáy gần nhất",
+                        "Lệch so với đáy",
+                        "Vị trí",
                         "Ngành",
                         "Mã",
                         "Giá chọn",
                         "Giá đóng cửa ngày đáy",
-                        "Drawdown trước đáy (%)",
-                        "Có lỗ trước đáy",
+                        "Chênh lệch tới đáy (%)",
+                        "Kết quả True",
                         "SMDT mã ngày chọn",
                         "GTGD TB20"
                     ]
@@ -1911,24 +1941,24 @@ else:
     
             summary_check = (
                 leader_drawdown_df
-                .groupby("Có lỗ trước đáy")
+                .groupby(["Vị trí", "Kết quả True"])
                 .agg(
                     Số_lần=("Mã", "count"),
-                    Drawdown_TB=("Drawdown trước đáy (%)", "mean")
+                    Chênh_lệch_TB=("Chênh lệch tới đáy (%)", "mean")
                 )
                 .reset_index()
             )
     
-            summary_check["Có lỗ trước đáy"] = (
-                summary_check["Có lỗ trước đáy"]
+            summary_check["Kết quả True"] = (
+                summary_check["Kết quả True"]
                 .map({
                     True: "True",
                     False: "False"
                 })
             )
     
-            summary_check["Drawdown_TB"] = (
-                summary_check["Drawdown_TB"]
+            summary_check["Chênh_lệch_TB"] = (
+                summary_check["Chênh_lệch_TB"]
                 .round(2)
             )
     
@@ -1936,5 +1966,5 @@ else:
                 summary_check,
                 hide_index=True,
                 use_container_width=True,
-                height=160
+                height=180
             )
