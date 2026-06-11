@@ -1752,6 +1752,32 @@ else:
 
         rule_df = pd.DataFrame(result_records)
 
+        if not rule_df.empty:
+        
+            rule_df = (
+                rule_df
+                .sort_values(
+                    [
+                        "Ngày ngành vượt SMDT",
+                        "Ngành",
+                        "SMDT mã ngày vượt"
+                    ],
+                    ascending=[
+                        True,
+                        True,
+                        False
+                    ]
+                )
+                .groupby(
+                    [
+                        "Ngày ngành vượt SMDT",
+                        "Ngành"
+                    ],
+                    as_index=False
+                )
+                .head(1)
+                .reset_index(drop=True)
+            )
         if rule_df.empty:
 
             st.info("Không có mã nào thỏa rule: ngành vừa vượt SMDT và mã vượt từ <70 lên >100.")
