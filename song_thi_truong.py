@@ -1177,35 +1177,37 @@ else:
     )
 
 # =========================
-# THỐNG KÊ THỨ TỰ TÍN HIỆU CỦA TOP 1
+# TỔNG HỢP TOÀN BỘ TOP 1 CỦA CÁC ĐÁY
 # =========================
 
-st.subheader("Thứ tự tín hiệu của cổ phiếu Top 1")
+st.subheader("Tổng hợp Top 1 của tất cả các đáy")
 
 if os.path.exists("top1_signal_sequence.parquet"):
 
-    top1_signal_sequence = pd.read_parquet(
+    top1_all_df = pd.read_parquet(
         "top1_signal_sequence.parquet"
     )
 
 elif os.path.exists("flow/top1_signal_sequence.parquet"):
 
-    top1_signal_sequence = pd.read_parquet(
+    top1_all_df = pd.read_parquet(
         "flow/top1_signal_sequence.parquet"
     )
 
 else:
 
-    top1_signal_sequence = pd.DataFrame()
+    top1_all_df = pd.DataFrame()
 
 
-if top1_signal_sequence.empty:
+if top1_all_df.empty:
 
-    st.info("Chưa có dữ liệu thống kê thứ tự tín hiệu Top 1.")
+    st.info("Chưa có dữ liệu tổng hợp Top 1.")
 
 else:
 
-    for col in [
+    top1_show = top1_all_df.copy()
+
+    date_cols = [
         "Ngày đáy thị trường",
         "Đáy cổ phiếu",
         "Đỉnh cổ phiếu",
@@ -1214,68 +1216,82 @@ else:
         "Flow mã",
         "SMDT mã",
         "Ngày tín hiệu đầu tiên"
-    ]:
+    ]
 
-        top1_signal_sequence[col] = pd.to_datetime(
-            top1_signal_sequence[col],
+    for col in date_cols:
+
+        top1_show[col] = pd.to_datetime(
+            top1_show[col],
             errors="coerce"
-        )
+        ).dt.strftime("%d/%m/%Y")
 
-    selected_top1_signal = top1_signal_sequence[
-        top1_signal_sequence["Ngày đáy thị trường"]
-        == selected_confirm_date
-    ].copy()
+    top1_show["Hiệu suất"] = (
+        "+"
+        + top1_show["Hiệu suất"].round(1).astype(str)
+        + "%"
+    )
 
-    if selected_top1_signal.empty:
-
-        st.info("Không có dữ liệu Top 1 cho đáy này.")
-
-    else:
-
-        show_df = selected_top1_signal.copy()
-
-        date_cols = [
+    top1_show = top1_show[
+        [
             "Ngày đáy thị trường",
+            "Top 1",
+            "Ngành",
             "Đáy cổ phiếu",
             "Đỉnh cổ phiếu",
+            "Hiệu suất",
             "Flow ngành",
             "SMDT ngành",
             "Flow mã",
             "SMDT mã",
-            "Ngày tín hiệu đầu tiên"
+            "Tín hiệu đầu tiên",
+            "Ngày tín hiệu đầu tiên",
+            "Chuỗi tín hiệu"
         ]
+    ]
 
-        for col in date_cols:
+    st.dataframe(
+        top1_show,
+        hide_index=True,
+        use_container_width=True,
+        height=360
+    )
 
-            show_df[col] = show_df[col].dt.strftime("%d/%m/%Y")
 
-        show_df["Hiệu suất"] = (
-            "+"
-            + show_df["Hiệu suất"].round(1).astype(str)
-            + "%"
+    # =========================
+    # THỐNG KÊ TÍN HIỆU ĐẦU TIÊN
+    # =========================
+
+    st.subheader("Thống kê tín hiệu xuất hiện đầu tiên của Top 1")
+
+    first_signal_stats = (
+        top1_all_df
+        .groupby("Tín hiệu đầu tiên")
+        .agg(
+            Số_lần=("Top 1", "count"),
+            Hiệu_suất_TB=("Hiệu suất", "mean"),
+            Hiệu_suất_cao_nhất=("Hiệu suất", "max")
         )
+        .reset_index()
+        .sort_values("Số_lần", ascending=False)
+    )
 
-        show_df = show_df[
-            [
-                "Ngày đáy thị trường",
-                "Top 1",
-                "Ngành",
-                "Đáy cổ phiếu",
-                "Đỉnh cổ phiếu",
-                "Hiệu suất",
-                "Flow ngành",
-                "SMDT ngành",
-                "Flow mã",
-                "SMDT mã",
-                "Tín hiệu đầu tiên",
-                "Ngày tín hiệu đầu tiên",
-                "Chuỗi tín hiệu"
-            ]
-        ]
+    first_signal_stats["Hiệu_suất_TB"] = (
+        first_signal_stats["Hiệu_suất_TB"]
+        .round(1)
+        .astype(str)
+        + "%"
+    )
 
-        st.dataframe(
-            show_df,
-            hide_index=True,
-            use_container_width=True,
-            height=180
-        )
+    first_signal_stats["Hiệu_suất_cao_nhất"] = (
+        first_signal_stats["Hiệu_suất_cao_nhất"]
+        .round(1)
+        .astype(str)
+        + "%"
+    )
+
+    st.dataframe(
+        first_signal_stats,
+        hide_index=True,
+        use_container_width=True,
+        height=220
+    )
