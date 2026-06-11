@@ -1807,25 +1807,23 @@ else:
             buy_row = ticker_price.iloc[0]
             buy_price = buy_row["close"]
 
-            lowest_price = ticker_price["low"].min()
-
             bottom_price_row = ticker_price[
                 ticker_price["date"] == next_bottom_date
             ].copy()
-
+            
             if bottom_price_row.empty:
-
-                bottom_close = None
-
-            else:
-
-                bottom_close = bottom_price_row.iloc[0]["close"]
-
+            
+                continue
+            
+            bottom_close = bottom_price_row.iloc[0]["close"]
+            
             drawdown_pct = (
-                lowest_price / buy_price - 1
+                bottom_close / buy_price - 1
             ) * 100
-
-            giam_truoc_day = drawdown_pct < 0
+            
+            giam_truoc_day = (
+                bottom_close < buy_price
+            )
 
             check_records.append({
                 "Ngày chọn mã": signal_date,
@@ -1833,7 +1831,6 @@ else:
                 "Ngành": row["nganh"],
                 "Mã": ticker,
                 "Giá chọn": buy_price,
-                "Giá thấp nhất trước đáy": lowest_price,
                 "Giá đóng cửa ngày đáy": bottom_close,
                 "Drawdown trước đáy (%)": drawdown_pct,
                 "Có giảm trước đáy": giam_truoc_day,
@@ -1898,7 +1895,6 @@ else:
                         "Ngành",
                         "Mã",
                         "Giá chọn",
-                        "Giá thấp nhất trước đáy",
                         "Giá đóng cửa ngày đáy",
                         "Drawdown trước đáy (%)",
                         "Có giảm trước đáy",
