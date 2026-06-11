@@ -1747,9 +1747,9 @@ else:
         .shift(1)
     )
 
-    stock_signal_df["ma_vuot_70_len_100"] = (
+    stock_signal_df["ma_vuot_70_len_95"] = (
         (stock_signal_df["smdt_ma_prev"] < 70)
-        & (stock_signal_df["smdt_ma"] > 100)
+        & (stock_signal_df["smdt_ma"] > 95)
     )
 
     # =========================
@@ -1788,7 +1788,7 @@ else:
             stock_candidates = stock_signal_df[
                 (stock_signal_df["date"] == signal_date)
                 & (stock_signal_df["ticker"].isin(sector_tickers))
-                & (stock_signal_df["ma_vuot_70_len_100"] == True)
+                & (stock_signal_df["ma_vuot_70_len_95"] == True)
             ].copy()
 
             if stock_candidates.empty:
