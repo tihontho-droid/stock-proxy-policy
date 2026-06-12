@@ -5,7 +5,7 @@ from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("Biểu đồ nến + ZigZag tự động theo ATR")
+st.title("Biểu đồ nến + ZigZag tự tính theo ATR")
 
 # =========================
 # INPUT
@@ -17,7 +17,7 @@ ticker_input = st.text_input(
 ).upper()
 
 # =========================
-# API GIÁ
+# LẤY TOÀN BỘ GIÁ
 # =========================
 
 @st.cache_data
@@ -39,7 +39,7 @@ def get_total_trade():
 
 
 # =========================
-# LẤY GIÁ 1 MÃ
+# LẤY GIÁ THEO MÃ
 # =========================
 
 def get_price_by_ticker(df_all, ticker):
@@ -89,7 +89,7 @@ def calculate_atr_percent(df_price, period=20):
 
 
 # =========================
-# GỢI Ý PERCENT
+# GỢI Ý PERCENT TỪ ATR
 # =========================
 
 def suggest_percent_from_atr(atr_pct):
@@ -98,39 +98,120 @@ def suggest_percent_from_atr(atr_pct):
     percent = round(raw_percent / 5) * 5
 
     percent = max(5, percent)
-
     percent = min(50, percent)
 
     return int(percent), raw_percent
 
 
 # =========================
-# API ZIGZAG
+# TỰ TÍNH ZIGZAG CUSTOM
 # =========================
 
-@st.cache_data
-def get_zigzag(ticker, percent):
-    url = "https://stocktradersai.vn/service/data/ZigZagPoint"
-
-    payload = {
-        "ticker": ticker,
-        "percent": percent
-    }
-
-    r = requests.post(url, json=payload)
-    data = r.json()
-
-    points = data["points"]
-
-    df = pd.DataFrame(points)
-
-    if df.empty:
-        return df
-
-    df["date"] = pd.to_datetime(df["date"])
+def zigzag_custom(df_price, deviation):
+    df = df_price.copy()
     df = df.sort_values("date").reset_index(drop=True)
 
-    return df
+    dev = deviation / 100
+
+    points = []
+
+    trend = None
+
+    low_idx = 0
+    low_price = df.loc[0, "low"]
+
+    high_idx = 0
+    high_price = df.loc[0, "high"]
+
+    for i in range(1, len(df)):
+        high = df.loc[i, "high"]
+        low = df.loc[i, "low"]
+
+        if trend is None:
+
+            if high >= low_price * (1 + dev):
+                trend = "up"
+
+                points.append({
+                    "type": 2,
+                    "price": low_price,
+                    "date": df.loc[low_idx, "date"]
+                })
+
+                high_idx = i
+                high_price = high
+
+            elif low <= high_price * (1 - dev):
+                trend = "down"
+
+                points.append({
+                    "type": 1,
+                    "price": high_price,
+                    "date": df.loc[high_idx, "date"]
+                })
+
+                low_idx = i
+                low_price = low
+
+        elif trend == "up":
+
+            if high >= high_price:
+                high_price = high
+                high_idx = i
+
+            elif low <= high_price * (1 - dev):
+                points.append({
+                    "type": 1,
+                    "price": high_price,
+                    "date": df.loc[high_idx, "date"]
+                })
+
+                trend = "down"
+
+                low_idx = i
+                low_price = low
+
+        elif trend == "down":
+
+            if low <= low_price:
+                low_price = low
+                low_idx = i
+
+            elif high >= low_price * (1 + dev):
+                points.append({
+                    "type": 2,
+                    "price": low_price,
+                    "date": df.loc[low_idx, "date"]
+                })
+
+                trend = "up"
+
+                high_idx = i
+                high_price = high
+
+    # thêm pivot cuối đang hình thành
+    if trend == "up":
+        points.append({
+            "type": 1,
+            "price": high_price,
+            "date": df.loc[high_idx, "date"]
+        })
+
+    elif trend == "down":
+        points.append({
+            "type": 2,
+            "price": low_price,
+            "date": df.loc[low_idx, "date"]
+        })
+
+    df_zigzag = pd.DataFrame(points)
+
+    if df_zigzag.empty:
+        return df_zigzag
+
+    df_zigzag["date"] = pd.to_datetime(df_zigzag["date"])
+
+    return df_zigzag
 
 
 # =========================
@@ -148,7 +229,10 @@ else:
 
     percent_auto, percent_raw = suggest_percent_from_atr(atr_pct)
 
-    df_zigzag = get_zigzag(ticker_input, percent_auto)
+    df_zigzag = zigzag_custom(
+        df_price,
+        deviation=percent_auto
+    )
 
     st.info(
         f"Mã {ticker_input} | ATR% = {atr_pct:.2f}% | "
@@ -156,7 +240,7 @@ else:
     )
 
     # =========================
-    # CHUẨN BỊ DỮ LIỆU CHART
+    # CHUẨN BỊ NẾN
     # =========================
 
     candles = []
@@ -169,6 +253,10 @@ else:
             "low": float(row["low"]),
             "close": float(row["close"])
         })
+
+    # =========================
+    # CHUẨN BỊ ZIGZAG
+    # =========================
 
     zigzag_line = []
     markers = []
@@ -254,7 +342,11 @@ else:
         key=f"chart_{ticker_input}_{percent_auto}"
     )
 
-    st.subheader("Bảng điểm ZigZag")
+    # =========================
+    # BẢNG ZIGZAG
+    # =========================
+
+    st.subheader("Bảng điểm ZigZag tự tính")
 
     if df_zigzag.empty:
         st.warning("Không có dữ liệu ZigZag.")
