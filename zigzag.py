@@ -5,7 +5,7 @@ from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("Biểu đồ nến + ZigZag API")
+st.title("Biểu đồ nến + ZigZag tự động theo ATR")
 
 # =========================
 # INPUT
@@ -15,14 +15,6 @@ ticker_input = st.text_input(
     "Nhập mã cổ phiếu",
     value="GAS"
 ).upper()
-
-percent_input = st.number_input(
-    "Percent ZigZag",
-    min_value=1,
-    max_value=100,
-    value=20,
-    step=1
-)
 
 # =========================
 # API GIÁ
@@ -44,6 +36,72 @@ def get_total_trade():
     stock_totals = data["TotalTradeReply"]["stockTotals"]
 
     return pd.DataFrame(stock_totals)
+
+
+# =========================
+# LẤY GIÁ 1 MÃ
+# =========================
+
+def get_price_by_ticker(df_all, ticker):
+    row = df_all[df_all["ticker"] == ticker]
+
+    if row.empty:
+        return pd.DataFrame()
+
+    df_price = pd.DataFrame(row.iloc[0]["totalDatas"])
+
+    df_price["date"] = pd.to_datetime(df_price["date"])
+
+    df_price = df_price.sort_values("date").reset_index(drop=True)
+
+    for col in ["open", "high", "low", "close"]:
+        df_price[col] = pd.to_numeric(df_price[col])
+
+    return df_price
+
+
+# =========================
+# TÍNH ATR%
+# =========================
+
+def calculate_atr_percent(df_price, period=20):
+    df = df_price.copy()
+
+    df["prev_close"] = df["close"].shift(1)
+
+    df["tr1"] = df["high"] - df["low"]
+
+    df["tr2"] = (
+        df["high"] - df["prev_close"]
+    ).abs()
+
+    df["tr3"] = (
+        df["low"] - df["prev_close"]
+    ).abs()
+
+    df["tr"] = df[["tr1", "tr2", "tr3"]].max(axis=1)
+
+    df["atr"] = df["tr"].rolling(period).mean()
+
+    df["atr_pct"] = df["atr"] / df["close"] * 100
+
+    return df["atr_pct"].mean()
+
+
+# =========================
+# GỢI Ý PERCENT
+# =========================
+
+def suggest_percent_from_atr(atr_pct):
+    raw_percent = atr_pct * 7.35
+
+    percent = round(raw_percent / 5) * 5
+
+    percent = max(5, percent)
+
+    percent = min(50, percent)
+
+    return int(percent), raw_percent
 
 
 # =========================
@@ -84,17 +142,21 @@ df_all = get_total_trade()
 if ticker_input not in df_all["ticker"].values:
     st.error("Không tìm thấy mã cổ phiếu này.")
 else:
-    row = df_all[df_all["ticker"] == ticker_input].iloc[0]
+    df_price = get_price_by_ticker(df_all, ticker_input)
 
-    df_price = pd.DataFrame(row["totalDatas"])
+    atr_pct = calculate_atr_percent(df_price)
 
-    df_price["date"] = pd.to_datetime(df_price["date"])
-    df_price = df_price.sort_values("date").reset_index(drop=True)
+    percent_auto, percent_raw = suggest_percent_from_atr(atr_pct)
 
-    df_zigzag = get_zigzag(ticker_input, percent_input)
+    df_zigzag = get_zigzag(ticker_input, percent_auto)
+
+    st.info(
+        f"Mã {ticker_input} | ATR% = {atr_pct:.2f}% | "
+        f"Percent gợi ý = {percent_raw:.2f}% → làm tròn thành {percent_auto}%"
+    )
 
     # =========================
-    # CHUẨN BỊ NẾN
+    # CHUẨN BỊ DỮ LIỆU CHART
     # =========================
 
     candles = []
@@ -107,10 +169,6 @@ else:
             "low": float(row["low"]),
             "close": float(row["close"])
         })
-
-    # =========================
-    # CHUẨN BỊ ZIGZAG LINE
-    # =========================
 
     zigzag_line = []
     markers = []
@@ -193,12 +251,8 @@ else:
 
     renderLightweightCharts(
         [chart],
-        key=f"chart_{ticker_input}_{percent_input}"
+        key=f"chart_{ticker_input}_{percent_auto}"
     )
-
-    # =========================
-    # BẢNG ZIGZAG
-    # =========================
 
     st.subheader("Bảng điểm ZigZag")
 
