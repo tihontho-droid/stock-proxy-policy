@@ -5,16 +5,21 @@ from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("Biểu đồ nến + ZigZag tự tính theo ATR")
+st.title("Biểu đồ VNINDEX + ZigZag")
 
 # =========================
 # INPUT
 # =========================
 
-ticker_input = st.text_input(
-    "Nhập mã cổ phiếu",
-    value="GAS"
-).upper()
+vnindex_ticker = "VNINDEX"
+
+percent_input = st.number_input(
+    "Percent ZigZag VNINDEX",
+    min_value=5,
+    max_value=50,
+    value=10,
+    step=5
+)
 
 # =========================
 # LẤY TOÀN BỘ GIÁ
@@ -58,49 +63,6 @@ def get_price_by_ticker(df_all, ticker):
         df_price[col] = pd.to_numeric(df_price[col])
 
     return df_price
-
-
-# =========================
-# TÍNH ATR%
-# =========================
-
-def calculate_atr_percent(df_price, period=20):
-    df = df_price.copy()
-
-    df["prev_close"] = df["close"].shift(1)
-
-    df["tr1"] = df["high"] - df["low"]
-
-    df["tr2"] = (
-        df["high"] - df["prev_close"]
-    ).abs()
-
-    df["tr3"] = (
-        df["low"] - df["prev_close"]
-    ).abs()
-
-    df["tr"] = df[["tr1", "tr2", "tr3"]].max(axis=1)
-
-    df["atr"] = df["tr"].rolling(period).mean()
-
-    df["atr_pct"] = df["atr"] / df["close"] * 100
-
-    return df["atr_pct"].mean()
-
-
-# =========================
-# GỢI Ý PERCENT TỪ ATR
-# =========================
-
-def suggest_percent_from_atr(atr_pct):
-    raw_percent = atr_pct * 7.35
-
-    percent = round(raw_percent / 5) * 5
-
-    percent = max(5, percent)
-    percent = min(50, percent)
-
-    return int(percent), raw_percent
 
 
 # =========================
@@ -189,7 +151,6 @@ def zigzag_custom(df_price, deviation):
                 high_idx = i
                 high_price = high
 
-    # thêm pivot cuối đang hình thành
     if trend == "up":
         points.append({
             "type": 1,
@@ -220,24 +181,17 @@ def zigzag_custom(df_price, deviation):
 
 df_all = get_total_trade()
 
-if ticker_input not in df_all["ticker"].values:
-    st.error("Không tìm thấy mã cổ phiếu này.")
+if vnindex_ticker not in df_all["ticker"].values:
+    st.error("Không tìm thấy VNINDEX trong dữ liệu.")
 else:
-    df_price = get_price_by_ticker(df_all, ticker_input)
-
-    atr_pct = calculate_atr_percent(df_price)
-
-    percent_auto, percent_raw = suggest_percent_from_atr(atr_pct)
+    df_price = get_price_by_ticker(df_all, vnindex_ticker)
 
     df_zigzag = zigzag_custom(
         df_price,
-        deviation=percent_auto
+        deviation=percent_input
     )
 
-    st.info(
-        f"Mã {ticker_input} | ATR% = {atr_pct:.2f}% | "
-        f"Percent gợi ý = {percent_raw:.2f}% → làm tròn thành {percent_auto}%"
-    )
+    st.info(f"VNINDEX đang dùng ZigZag {percent_input}%")
 
     # =========================
     # CHUẨN BỊ NẾN
@@ -339,135 +293,26 @@ else:
 
     renderLightweightCharts(
         [chart],
-        key=f"chart_{ticker_input}_{percent_auto}"
+        key=f"chart_{vnindex_ticker}_{percent_input}"
     )
 
     # =========================
-    # SO SÁNH ĐÁY CỔ PHIẾU VỚI ĐÁY VNINDEX
-    # HIỆU SUẤT = ĐÁY CP -> ĐỈNH ZIGZAG TIẾP THEO
+    # BẢNG ĐÁY VNINDEX
     # =========================
 
-    st.subheader("Đáy cổ phiếu trùng với đáy VNINDEX")
+    st.subheader("Các đáy ZigZag của VNINDEX")
 
-    window_days = 2
-
-    st.caption(
-        f"Điều kiện: đáy cổ phiếu lệch tối đa ±{window_days} ngày so với đáy VNINDEX"
-    )
-
-    vnindex_ticker = "VNINDEX"
-
-    if vnindex_ticker not in df_all["ticker"].values:
-        st.warning("Không tìm thấy VNINDEX trong dữ liệu.")
+    if df_zigzag.empty:
+        st.warning("Không có điểm ZigZag.")
     else:
-        df_vnindex = get_price_by_ticker(df_all, vnindex_ticker)
+        df_show = df_zigzag.copy()
 
-        # Với VNINDEX nên dùng percent cố định nhẹ hơn, tránh quá ít đáy
-        vnindex_percent = 10
+        df_show["type_name"] = df_show["type"].map({
+            1: "Đỉnh",
+            2: "Đáy"
+        })
 
-        df_vnindex_zigzag = zigzag_custom(
-            df_vnindex,
-            deviation=vnindex_percent
+        st.dataframe(
+            df_show[["date", "type_name", "price"]],
+            use_container_width=True
         )
-
-        stock_bottoms = df_zigzag[
-            df_zigzag["type"] == 2
-        ].copy()
-
-        market_bottoms = df_vnindex_zigzag[
-            df_vnindex_zigzag["type"] == 2
-        ].copy()
-
-        result_rows = []
-
-        df_zigzag_sorted = df_zigzag.sort_values("date").reset_index(drop=True)
-
-        for _, market_row in market_bottoms.iterrows():
-
-            market_bottom_date = pd.to_datetime(market_row["date"])
-
-            matched_stock_bottoms = stock_bottoms[
-                (
-                    stock_bottoms["date"] - market_bottom_date
-                ).abs().dt.days <= window_days
-            ]
-
-            for _, stock_row in matched_stock_bottoms.iterrows():
-
-                stock_bottom_date = pd.to_datetime(stock_row["date"])
-                stock_bottom_price = stock_row["price"]
-
-                # tìm vị trí đáy cổ phiếu trong bảng ZigZag
-                matched_zigzag_idx = df_zigzag_sorted[
-                    (df_zigzag_sorted["date"] == stock_bottom_date) &
-                    (df_zigzag_sorted["type"] == 2) &
-                    (df_zigzag_sorted["price"] == stock_bottom_price)
-                ].index
-
-                if len(matched_zigzag_idx) == 0:
-                    continue
-
-                zz_idx = matched_zigzag_idx[0]
-
-                # lấy đỉnh ZigZag tiếp theo
-                next_idx = zz_idx + 1
-
-                if next_idx >= len(df_zigzag_sorted):
-                    continue
-
-                next_peak = df_zigzag_sorted.iloc[next_idx]
-
-                if next_peak["type"] != 1:
-                    continue
-
-                peak_date = pd.to_datetime(next_peak["date"])
-                peak_price = next_peak["price"]
-
-                return_to_peak = (
-                    (peak_price - stock_bottom_price)
-                    / stock_bottom_price
-                    * 100
-                )
-
-                days_to_peak = (
-                    peak_date - stock_bottom_date
-                ).days
-
-                row_result = {
-                    "Đáy VNINDEX": market_bottom_date.date(),
-                    "Giá đáy VNINDEX": round(market_row["price"], 2),
-                    "Đáy cổ phiếu": stock_bottom_date.date(),
-                    "Giá đáy cổ phiếu": round(stock_bottom_price, 2),
-                    "Lệch ngày": abs(
-                        (stock_bottom_date - market_bottom_date).days
-                    ),
-                    "Đỉnh tiếp theo": peak_date.date(),
-                    "Giá đỉnh tiếp theo": round(peak_price, 2),
-                    "Số ngày đáy → đỉnh": days_to_peak,
-                    "Hiệu suất đáy → đỉnh (%)": round(return_to_peak, 2)
-                }
-
-                result_rows.append(row_result)
-
-        result_df = pd.DataFrame(result_rows)
-
-        st.info(
-            f"VNINDEX dùng ZigZag {vnindex_percent}% | "
-            f"Cổ phiếu {ticker_input} dùng ZigZag {percent_auto}%"
-        )
-
-        if result_df.empty:
-            st.warning(
-                f"{ticker_input} chưa có đáy ZigZag trùng hoặc lệch ±{window_days} ngày với đáy VNINDEX, "
-                f"hoặc chưa có đỉnh ZigZag tiếp theo."
-            )
-        else:
-            result_df = result_df.sort_values(
-                "Hiệu suất đáy → đỉnh (%)",
-                ascending=False
-            )
-
-            st.dataframe(
-                result_df,
-                use_container_width=True
-            )
