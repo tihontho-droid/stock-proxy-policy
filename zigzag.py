@@ -187,27 +187,57 @@ st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
 start_date = pd.to_datetime("2023-06-01")
 window_days = 2
 
-# chỉ lấy các ngày xác nhận tạo đáy
-confirmed_bottom_dates = (
+# các ngày xác nhận đáy
+confirmed_dates = (
     bottom_signal_df[
         bottom_signal_df["xac_nhan_tao_day"] == True
     ]["date"]
-    .dt.normalize()
-    .unique()
+    .dropna()
+    .sort_values()
+    .reset_index(drop=True)
 )
 
-# chỉ giữ các đáy ZigZag VNINDEX trùng ngày xác nhận đáy
+# các đáy ZigZag VNINDEX
 vnindex_bottoms = df_vnindex_zigzag[
     (df_vnindex_zigzag["type"] == 2)
     &
     (df_vnindex_zigzag["date"] >= start_date)
-    &
-    (
-        df_vnindex_zigzag["date"]
-        .dt.normalize()
-        .isin(confirmed_bottom_dates)
-    )
 ].copy()
+
+matched_bottoms = []
+
+for _, row in vnindex_bottoms.iterrows():
+
+    bottom_date = pd.to_datetime(row["date"])
+
+    # xác nhận đáy phải đến sau 1-2 ngày
+    future_confirm = confirmed_dates[
+        (confirmed_dates >= bottom_date + pd.Timedelta(days=1))
+        &
+        (confirmed_dates <= bottom_date + pd.Timedelta(days=2))
+    ]
+
+    if future_confirm.empty:
+        continue
+
+    temp = row.copy()
+
+    temp["confirm_date"] = future_confirm.iloc[0]
+
+    temp["delay_days"] = (
+        future_confirm.iloc[0]
+        - bottom_date
+    ).days
+
+    matched_bottoms.append(temp)
+
+vnindex_bottoms = pd.DataFrame(matched_bottoms)
+
+if vnindex_bottoms.empty:
+    st.warning(
+        "Không có đáy ZigZag VNINDEX nào được xác nhận sau 1-2 ngày."
+    )
+    st.stop()
 
 vnindex_bottoms = (
     vnindex_bottoms
@@ -215,17 +245,40 @@ vnindex_bottoms = (
     .reset_index(drop=True)
 )
 
-vnindex_bottoms["date_only"] = (
+vnindex_bottoms["dropdown_text"] = (
     vnindex_bottoms["date"]
-    .dt.date
+    .dt.strftime("%Y-%m-%d")
+    +
+    " | Xác nhận: "
+    +
+    vnindex_bottoms["confirm_date"]
+    .dt.strftime("%Y-%m-%d")
 )
 
-selected_bottom_date = st.selectbox(
+selected_text = st.selectbox(
     "Chọn đáy VNINDEX",
-    options=vnindex_bottoms["date_only"].tolist()
+    vnindex_bottoms["dropdown_text"]
 )
 
-selected_date = pd.to_datetime(selected_bottom_date)
+selected_row = vnindex_bottoms[
+    vnindex_bottoms["dropdown_text"]
+    == selected_text
+].iloc[0]
+
+# ngày đáy ZigZag VNINDEX
+selected_date = pd.to_datetime(
+    selected_row["date"]
+)
+
+selected_bottom_date = (
+    selected_row["date"]
+    .date()
+)
+
+# ngày xác nhận đáy
+selected_confirm_date = pd.to_datetime(
+    selected_row["confirm_date"]
+)
 
 # =========================
 # HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
