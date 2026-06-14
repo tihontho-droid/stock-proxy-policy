@@ -47,6 +47,16 @@ def load_bottom_signal():
 
 
 bottom_signal_df = load_bottom_signal()
+
+@st.cache_data
+def load_sector():
+    df = pd.read_parquet("sector_all_df.parquet")
+
+    df["date"] = pd.to_datetime(df["date"])
+
+    return df
+
+sector_all_df = load_sector()
 # =========================
 # LẤY DATA VNINDEX
 # =========================
@@ -690,37 +700,209 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
-import streamlit as st
-import pandas as pd
+# =========================
+# THỐNG KÊ NGÀNH VƯỢT FLOW / SMDT TRƯỚC SAU ĐÁY
+# =========================
 
-st.title("Kiểm tra sector_all_df")
+st.subheader("Thống kê ngành vượt Flow/SMDT quanh đáy thị trường")
 
-@st.cache_data
-def load_sector():
-    df = pd.read_parquet("sector_all_df.parquet")
+# đảm bảo đúng kiểu ngày
+sector_all_df["date"] = pd.to_datetime(sector_all_df["date"])
+bottom_signal_df["date"] = pd.to_datetime(bottom_signal_df["date"])
 
-    df["date"] = pd.to_datetime(df["date"])
+# lấy các ngày xác nhận đáy
+market_bottom_dates = (
+    bottom_signal_df[
+        bottom_signal_df["xac_nhan_tao_day"] == True
+    ]["date"]
+    .dropna()
+    .sort_values()
+    .tolist()
+)
 
-    return df
+# dropdown chọn ngành
+sector_list = sorted(sector_all_df["nganh"].dropna().unique().tolist())
 
-sector_all_df = load_sector()
+selected_sector = st.selectbox(
+    "Chọn ngành",
+    options=sector_list
+)
 
-st.write("Số dòng:", len(sector_all_df))
+lookback_days = 10
+lookforward_days = 10
 
-st.write("Danh sách cột:")
-st.write(sector_all_df.columns.tolist())
+sector_df = (
+    sector_all_df[
+        sector_all_df["nganh"] == selected_sector
+    ]
+    .sort_values("date")
+    .reset_index(drop=True)
+)
 
-st.write("5 dòng đầu:")
+result_rows = []
+
+for bottom_date in market_bottom_dates:
+
+    start_window = bottom_date - pd.Timedelta(days=lookback_days)
+    end_window = bottom_date + pd.Timedelta(days=lookforward_days)
+
+    temp = sector_df[
+        (sector_df["date"] >= start_window)
+        &
+        (sector_df["date"] <= end_window)
+    ].copy()
+
+    # =========================
+    # FLOW VỪA TÍCH CỰC
+    # =========================
+
+    flow_signal = temp[
+        temp["flow_vua_tich_cuc"] == True
+    ].copy()
+
+    if not flow_signal.empty:
+        flow_signal["abs_diff"] = (
+            flow_signal["date"] - bottom_date
+        ).abs()
+
+        flow_row = flow_signal.sort_values("abs_diff").iloc[0]
+
+        flow_date = flow_row["date"]
+        flow_lech = (flow_date - bottom_date).days
+
+        if flow_lech < 0:
+            flow_nhom = "Trước đáy"
+        elif flow_lech == 0:
+            flow_nhom = "Cùng ngày"
+        else:
+            flow_nhom = "Sau đáy"
+
+    else:
+        flow_date = pd.NaT
+        flow_lech = None
+        flow_nhom = "Không có tín hiệu"
+
+    # =========================
+    # SMDT VỪA VƯỢT 70
+    # =========================
+
+    smdt_signal = temp[
+        temp["smdt_vua_vuot_70"] == True
+    ].copy()
+
+    if not smdt_signal.empty:
+        smdt_signal["abs_diff"] = (
+            smdt_signal["date"] - bottom_date
+        ).abs()
+
+        smdt_row = smdt_signal.sort_values("abs_diff").iloc[0]
+
+        smdt_date = smdt_row["date"]
+        smdt_lech = (smdt_date - bottom_date).days
+
+        if smdt_lech < 0:
+            smdt_nhom = "Trước đáy"
+        elif smdt_lech == 0:
+            smdt_nhom = "Cùng ngày"
+        else:
+            smdt_nhom = "Sau đáy"
+
+    else:
+        smdt_date = pd.NaT
+        smdt_lech = None
+        smdt_nhom = "Không có tín hiệu"
+
+    result_rows.append({
+        "Đáy thị trường": bottom_date.date(),
+        "Ngành": selected_sector,
+
+        "Ngày Flow tích cực": None if pd.isna(flow_date) else flow_date.date(),
+        "Flow lệch ngày": flow_lech,
+        "Flow trước/sau": flow_nhom,
+
+        "Ngày SMDT vượt 70": None if pd.isna(smdt_date) else smdt_date.date(),
+        "SMDT lệch ngày": smdt_lech,
+        "SMDT trước/sau": smdt_nhom
+    })
+
+result_df = pd.DataFrame(result_rows)
+
+# =========================
+# BẢNG CHI TIẾT
+# =========================
+
+st.markdown(f"### Chi tiết ngành: {selected_sector}")
+
 st.dataframe(
-    sector_all_df.head(),
+    result_df,
     use_container_width=True
 )
 
-st.write("Thông tin DataFrame:")
+# =========================
+# BẢNG THỐNG KÊ SỐ LẦN
+# =========================
+
+st.markdown("### Tổng hợp số lần trước / cùng ngày / sau đáy")
+
+flow_summary = (
+    result_df["Flow trước/sau"]
+    .value_counts()
+    .reset_index()
+)
+
+flow_summary.columns = ["Nhóm", "Số lần"]
+flow_summary.insert(0, "Tín hiệu", "Flow")
+
+smdt_summary = (
+    result_df["SMDT trước/sau"]
+    .value_counts()
+    .reset_index()
+)
+
+smdt_summary.columns = ["Nhóm", "Số lần"]
+smdt_summary.insert(0, "Tín hiệu", "SMDT")
+
+summary_df = pd.concat(
+    [flow_summary, smdt_summary],
+    ignore_index=True
+)
+
 st.dataframe(
-    pd.DataFrame({
-        "Column": sector_all_df.columns,
-        "Dtype": sector_all_df.dtypes.astype(str)
-    }),
+    summary_df,
+    use_container_width=True
+)
+
+# =========================
+# TRUNG BÌNH LỆCH NGÀY
+# =========================
+
+avg_rows = []
+
+flow_valid = result_df[
+    result_df["Flow lệch ngày"].notna()
+]
+
+smdt_valid = result_df[
+    result_df["SMDT lệch ngày"].notna()
+]
+
+avg_rows.append({
+    "Tín hiệu": "Flow",
+    "Lệch TB": round(flow_valid["Flow lệch ngày"].mean(), 2)
+    if not flow_valid.empty else None
+})
+
+avg_rows.append({
+    "Tín hiệu": "SMDT",
+    "Lệch TB": round(smdt_valid["SMDT lệch ngày"].mean(), 2)
+    if not smdt_valid.empty else None
+})
+
+avg_df = pd.DataFrame(avg_rows)
+
+st.markdown("### Trung bình lệch ngày")
+
+st.dataframe(
+    avg_df,
     use_container_width=True
 )
