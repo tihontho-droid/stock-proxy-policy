@@ -1134,7 +1134,45 @@ else:
 
 st.markdown("### Đặc điểm tín hiệu của từng mã")
 
-signal_profile_df = feature_df.copy()
+feature_rows = []
+
+for ticker in stock_result_df["Mã"].drop_duplicates():
+
+    ticker_df = stock_result_df[
+        stock_result_df["Mã"] == ticker
+    ]
+
+    so_lan = len(ticker_df)
+
+    feature_rows.append({
+        "Mã": ticker,
+
+        "Số lần trùng đáy với thị trường": so_lan,
+
+        "Flow trước đáy":
+            (ticker_df["Flow mã nhóm"] == "Trước đáy").sum(),
+
+        "Flow cùng ngày":
+            (ticker_df["Flow mã nhóm"] == "Cùng ngày").sum(),
+
+        "Flow sau đáy":
+            (ticker_df["Flow mã nhóm"] == "Sau đáy").sum(),
+
+        "SMDT trước đáy":
+            (ticker_df["SMDT mã nhóm"] == "Trước đáy").sum(),
+
+        "SMDT cùng ngày":
+            (ticker_df["SMDT mã nhóm"] == "Cùng ngày").sum(),
+
+        "SMDT sau đáy":
+            (ticker_df["SMDT mã nhóm"] == "Sau đáy").sum(),
+    })
+
+signal_profile_df = pd.DataFrame(feature_rows)
+
+# =========================
+# TÍNH %
+# =========================
 
 signal_profile_df["% Flow trước thị trường"] = round(
     signal_profile_df["Flow trước đáy"]
@@ -1179,28 +1217,7 @@ signal_profile_df["% SMDT sau thị trường"] = round(
 )
 
 st.dataframe(
-    signal_profile_df[
-        [
-            "Mã",
-            "Số lần trùng đáy với thị trường",
-
-            "Flow trước đáy",
-            "Flow cùng ngày",
-            "Flow sau đáy",
-
-            "% Flow trước thị trường",
-            "% Flow cùng ngày",
-            "% Flow sau thị trường",
-
-            "SMDT trước đáy",
-            "SMDT cùng ngày",
-            "SMDT sau đáy",
-
-            "% SMDT trước thị trường",
-            "% SMDT cùng ngày",
-            "% SMDT sau thị trường",
-        ]
-    ].sort_values(
+    signal_profile_df.sort_values(
         [
             "% SMDT trước thị trường",
             "% Flow trước thị trường",
