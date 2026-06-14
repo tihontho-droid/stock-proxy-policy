@@ -690,14 +690,37 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
-check_cols = [
-    "date",
-    "nganh",
-    "flow_vua_tich_cuc",
-    "smdt_vua_vuot_70",
-    "smdt",
-    "flow_num"
-]
+import streamlit as st
+import pandas as pd
 
-for col in check_cols:
-    st.write(col, "=>", col in sector_all_df.columns)
+st.title("Kiểm tra sector_all_df")
+
+@st.cache_data
+def load_sector():
+    df = pd.read_parquet("sector_all_df.parquet")
+
+    df["date"] = pd.to_datetime(df["date"])
+
+    return df
+
+sector_all_df = load_sector()
+
+st.write("Số dòng:", len(sector_all_df))
+
+st.write("Danh sách cột:")
+st.write(sector_all_df.columns.tolist())
+
+st.write("5 dòng đầu:")
+st.dataframe(
+    sector_all_df.head(),
+    use_container_width=True
+)
+
+st.write("Thông tin DataFrame:")
+st.dataframe(
+    pd.DataFrame({
+        "Column": sector_all_df.columns,
+        "Dtype": sector_all_df.dtypes.astype(str)
+    }),
+    use_container_width=True
+)
