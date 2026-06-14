@@ -344,12 +344,12 @@ else:
 
     # =========================
     # SO SÁNH ĐÁY CỔ PHIẾU VỚI ĐÁY VNINDEX
+    # HIỆU SUẤT = ĐÁY CP -> ĐỈNH ZIGZAG TIẾP THEO
     # =========================
 
     st.subheader("Đáy cổ phiếu trùng với đáy VNINDEX")
 
     window_days = 2
-    holding_days_list = [20, 40, 60]
 
     st.caption(
         f"Điều kiện: đáy cổ phiếu lệch tối đa ±{window_days} ngày so với đáy VNINDEX"
@@ -380,6 +380,8 @@ else:
 
         result_rows = []
 
+        df_zigzag_sorted = df_zigzag.sort_values("date").reset_index(drop=True)
+
         for _, market_row in market_bottoms.iterrows():
 
             market_bottom_date = pd.to_datetime(market_row["date"])
@@ -395,6 +397,42 @@ else:
                 stock_bottom_date = pd.to_datetime(stock_row["date"])
                 stock_bottom_price = stock_row["price"]
 
+                # tìm vị trí đáy cổ phiếu trong bảng ZigZag
+                matched_zigzag_idx = df_zigzag_sorted[
+                    (df_zigzag_sorted["date"] == stock_bottom_date) &
+                    (df_zigzag_sorted["type"] == 2) &
+                    (df_zigzag_sorted["price"] == stock_bottom_price)
+                ].index
+
+                if len(matched_zigzag_idx) == 0:
+                    continue
+
+                zz_idx = matched_zigzag_idx[0]
+
+                # lấy đỉnh ZigZag tiếp theo
+                next_idx = zz_idx + 1
+
+                if next_idx >= len(df_zigzag_sorted):
+                    continue
+
+                next_peak = df_zigzag_sorted.iloc[next_idx]
+
+                if next_peak["type"] != 1:
+                    continue
+
+                peak_date = pd.to_datetime(next_peak["date"])
+                peak_price = next_peak["price"]
+
+                return_to_peak = (
+                    (peak_price - stock_bottom_price)
+                    / stock_bottom_price
+                    * 100
+                )
+
+                days_to_peak = (
+                    peak_date - stock_bottom_date
+                ).days
+
                 row_result = {
                     "Đáy VNINDEX": market_bottom_date.date(),
                     "Giá đáy VNINDEX": round(market_row["price"], 2),
@@ -402,37 +440,12 @@ else:
                     "Giá đáy cổ phiếu": round(stock_bottom_price, 2),
                     "Lệch ngày": abs(
                         (stock_bottom_date - market_bottom_date).days
-                    )
+                    ),
+                    "Đỉnh tiếp theo": peak_date.date(),
+                    "Giá đỉnh tiếp theo": round(peak_price, 2),
+                    "Số ngày đáy → đỉnh": days_to_peak,
+                    "Hiệu suất đáy → đỉnh (%)": round(return_to_peak, 2)
                 }
-
-                matched_price_row = df_price[
-                    df_price["date"] == stock_bottom_date
-                ]
-
-                if matched_price_row.empty:
-                    continue
-
-                bottom_idx = matched_price_row.index[0]
-
-                for holding_days in holding_days_list:
-
-                    future_idx = bottom_idx + holding_days
-
-                    if future_idx >= len(df_price):
-                        row_result[f"Return {holding_days} phiên (%)"] = None
-                    else:
-                        future_close = df_price.loc[future_idx, "close"]
-
-                        return_pct = (
-                            (future_close - stock_bottom_price)
-                            / stock_bottom_price
-                            * 100
-                        )
-
-                        row_result[f"Return {holding_days} phiên (%)"] = round(
-                            return_pct,
-                            2
-                        )
 
                 result_rows.append(row_result)
 
@@ -445,9 +458,15 @@ else:
 
         if result_df.empty:
             st.warning(
-                f"{ticker_input} chưa có đáy ZigZag trùng hoặc lệch ±{window_days} ngày với đáy VNINDEX."
+                f"{ticker_input} chưa có đáy ZigZag trùng hoặc lệch ±{window_days} ngày với đáy VNINDEX, "
+                f"hoặc chưa có đỉnh ZigZag tiếp theo."
             )
         else:
+            result_df = result_df.sort_values(
+                "Hiệu suất đáy → đỉnh (%)",
+                ascending=False
+            )
+
             st.dataframe(
                 result_df,
                 use_container_width=True
