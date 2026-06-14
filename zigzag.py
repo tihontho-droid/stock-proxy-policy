@@ -334,7 +334,7 @@ else:
     )
 
     # =========================
-    # CHỌN ĐÁY VNINDEX
+    # DROPDOWN CHỌN ĐÁY VNINDEX
     # =========================
 
     st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
@@ -347,177 +347,205 @@ else:
         vnindex_bottoms["date"]
     ).dt.date
 
-    selected_bottom_date = st.selectbox(
-        "Chọn đáy VNINDEX",
-        options=vnindex_bottoms["date_only"].tolist()
-    )
+    # =========================
+    # TÍNH 1 LẦN DUY NHẤT
+    # =========================
 
-    if st.button("Tìm cổ phiếu"):
+    if "all_bottom_result_df" not in st.session_state:
+        st.session_state["all_bottom_result_df"] = pd.DataFrame()
+
+    if st.button("Tính dữ liệu tất cả đáy VNINDEX"):
 
         result_rows = []
 
-        selected_date = pd.to_datetime(
-            selected_bottom_date
-        )
-
         window_days = 2
 
-        for _, stock_row in df_all.iterrows():
+        for vn_bottom in vnindex_bottoms["date_only"]:
 
-            ticker = stock_row["ticker"]
-
-            if ticker == "VNINDEX":
-                continue
-
-            df_stock_price = get_price_by_ticker(
-                df_all,
-                ticker
+            selected_date = pd.to_datetime(
+                vn_bottom
             )
 
-            if df_stock_price.empty:
-                continue
+            for _, stock_row in df_all.iterrows():
 
-            # percent tự động theo ATR
-            atr_pct_stock = calculate_atr_percent(
-                df_stock_price
-            )
+                ticker = stock_row["ticker"]
 
-            stock_percent = suggest_percent_from_atr(
-                atr_pct_stock
-            )
+                if ticker == "VNINDEX":
+                    continue
 
-            df_stock_zigzag = zigzag_custom(
-                df_stock_price,
-                deviation=stock_percent
-            )
-
-            if df_stock_zigzag.empty:
-                continue
-
-            df_stock_zigzag = (
-                df_stock_zigzag
-                .sort_values("date")
-                .reset_index(drop=True)
-            )
-
-            stock_bottoms = df_stock_zigzag[
-                df_stock_zigzag["type"] == 2
-            ].copy()
-
-            stock_bottoms["date"] = pd.to_datetime(
-                stock_bottoms["date"]
-            )
-
-            # đáy lệch tối đa ±2 ngày
-            matched_bottoms = stock_bottoms[
-                (
-                    stock_bottoms["date"]
-                    - selected_date
-                ).abs().dt.days <= window_days
-            ]
-
-            for _, bottom_row in matched_bottoms.iterrows():
-
-                bottom_date = pd.to_datetime(
-                    bottom_row["date"]
+                df_stock_price = get_price_by_ticker(
+                    df_all,
+                    ticker
                 )
 
-                bottom_price = bottom_row["price"]
-
-                # tìm vị trí đáy trong zigzag
-                zz_idx_list = df_stock_zigzag[
-                    (
-                        df_stock_zigzag["date"]
-                        == bottom_date
-                    )
-                    &
-                    (
-                        df_stock_zigzag["type"]
-                        == 2
-                    )
-                ].index
-
-                if len(zz_idx_list) == 0:
+                if df_stock_price.empty:
                     continue
 
-                zz_idx = zz_idx_list[0]
+                atr_pct_stock = calculate_atr_percent(
+                    df_stock_price
+                )
 
-                next_idx = zz_idx + 1
-
-                if next_idx >= len(df_stock_zigzag):
+                if pd.isna(atr_pct_stock):
                     continue
 
-                next_peak = df_stock_zigzag.iloc[
-                    next_idx
+                stock_percent = suggest_percent_from_atr(
+                    atr_pct_stock
+                )
+
+                df_stock_zigzag = zigzag_custom(
+                    df_stock_price,
+                    deviation=stock_percent
+                )
+
+                if df_stock_zigzag.empty:
+                    continue
+
+                df_stock_zigzag = (
+                    df_stock_zigzag
+                    .sort_values("date")
+                    .reset_index(drop=True)
+                )
+
+                stock_bottoms = df_stock_zigzag[
+                    df_stock_zigzag["type"] == 2
+                ].copy()
+
+                stock_bottoms["date"] = pd.to_datetime(
+                    stock_bottoms["date"]
+                )
+
+                matched_bottoms = stock_bottoms[
+                    (
+                        stock_bottoms["date"]
+                        - selected_date
+                    ).abs().dt.days <= window_days
                 ]
 
-                if next_peak["type"] != 1:
-                    continue
+                for _, bottom_row in matched_bottoms.iterrows():
 
-                peak_date = pd.to_datetime(
-                    next_peak["date"]
-                )
-
-                peak_price = next_peak["price"]
-
-                return_pct = (
-                    (
-                        peak_price
-                        - bottom_price
+                    bottom_date = pd.to_datetime(
+                        bottom_row["date"]
                     )
-                    / bottom_price
-                    * 100
-                )
 
-                days_to_peak = (
-                    peak_date
-                    - bottom_date
-                ).days
+                    bottom_price = bottom_row["price"]
 
-                result_rows.append({
-                    "Ticker": ticker,
-                    "Đáy VNINDEX": selected_bottom_date,
-                    "Ngày đáy CP": bottom_date.date(),
-                    "Giá đáy CP": round(
-                        bottom_price,
-                        2
-                    ),
-                    "Lệch ngày": abs(
+                    zz_idx_list = df_stock_zigzag[
                         (
-                            bottom_date
-                            - selected_date
-                        ).days
-                    ),
-                    "Ngày đỉnh tiếp theo": peak_date.date(),
-                    "Giá đỉnh tiếp theo": round(
-                        peak_price,
-                        2
-                    ),
-                    "Số ngày đáy → đỉnh": days_to_peak,
-                    "Hiệu suất (%)": round(
-                        return_pct,
-                        2
-                    )
-                })
+                            df_stock_zigzag["date"]
+                            == bottom_date
+                        )
+                        &
+                        (
+                            df_stock_zigzag["type"]
+                            == 2
+                        )
+                    ].index
 
-        result_df = pd.DataFrame(
+                    if len(zz_idx_list) == 0:
+                        continue
+
+                    zz_idx = zz_idx_list[0]
+
+                    next_idx = zz_idx + 1
+
+                    if next_idx >= len(df_stock_zigzag):
+                        continue
+
+                    next_peak = df_stock_zigzag.iloc[
+                        next_idx
+                    ]
+
+                    if next_peak["type"] != 1:
+                        continue
+
+                    peak_date = pd.to_datetime(
+                        next_peak["date"]
+                    )
+
+                    peak_price = next_peak["price"]
+
+                    return_pct = (
+                        (
+                            peak_price
+                            - bottom_price
+                        )
+                        / bottom_price
+                        * 100
+                    )
+
+                    days_to_peak = (
+                        peak_date
+                        - bottom_date
+                    ).days
+
+                    result_rows.append({
+                        "Đáy VNINDEX": vn_bottom,
+                        "Ticker": ticker,
+                        "Ngày đáy CP": bottom_date.date(),
+                        "Giá đáy CP": round(
+                            bottom_price,
+                            2
+                        ),
+                        "Lệch ngày": abs(
+                            (
+                                bottom_date
+                                - selected_date
+                            ).days
+                        ),
+                        "Ngày đỉnh tiếp theo": peak_date.date(),
+                        "Giá đỉnh tiếp theo": round(
+                            peak_price,
+                            2
+                        ),
+                        "Số ngày đáy → đỉnh": days_to_peak,
+                        "Hiệu suất (%)": round(
+                            return_pct,
+                            2
+                        )
+                    })
+
+        st.session_state[
+            "all_bottom_result_df"
+        ] = pd.DataFrame(
             result_rows
         )
 
-        if result_df.empty:
+    # =========================
+    # DROPDOWN CHỌN ĐÁY
+    # =========================
 
-            st.warning(
-                "Không có cổ phiếu nào tạo đáy quanh ngày này."
+    all_result_df = st.session_state[
+        "all_bottom_result_df"
+    ]
+
+    if not all_result_df.empty:
+
+        selected_bottom_date = st.selectbox(
+            "Chọn đáy VNINDEX",
+            options=sorted(
+                all_result_df[
+                    "Đáy VNINDEX"
+                ].unique()
             )
+        )
 
-        else:
+        show_df = all_result_df[
+            all_result_df["Đáy VNINDEX"]
+            == selected_bottom_date
+        ].copy()
 
-            result_df = result_df.sort_values(
-                "Hiệu suất (%)",
-                ascending=False
-            )
+        show_df = show_df.sort_values(
+            "Hiệu suất (%)",
+            ascending=False
+        )
 
-            st.dataframe(
-                result_df,
-                use_container_width=True
-            )
+        st.dataframe(
+            show_df,
+            use_container_width=True
+        )
+
+    else:
+
+        st.info(
+            "Bấm 'Tính dữ liệu tất cả đáy VNINDEX' để bắt đầu."
+        )
