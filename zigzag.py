@@ -334,12 +334,14 @@ else:
     )
 
     # =========================
-    # DROPDOWN CHỌN ĐÁY VNINDEX
+    # CHỌN ĐÁY VNINDEX
     # =========================
 
     st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
 
-    vnindex_bottoms = df_zigzag[df_zigzag["type"] == 2].copy()
+    vnindex_bottoms = df_zigzag[
+        df_zigzag["type"] == 2
+    ].copy()
 
     vnindex_bottoms["date_only"] = pd.to_datetime(
         vnindex_bottoms["date"]
@@ -350,17 +352,15 @@ else:
         options=vnindex_bottoms["date_only"].tolist()
     )
 
-    window_days = st.selectbox(
-        "Cho phép lệch đáy",
-        options=[0, 1, 2],
-        index=2
-    )
-
-    if st.button("Tìm cổ phiếu tạo đáy quanh ngày này"):
+    if st.button("Tìm cổ phiếu"):
 
         result_rows = []
 
-        selected_date = pd.to_datetime(selected_bottom_date)
+        selected_date = pd.to_datetime(
+            selected_bottom_date
+        )
+
+        window_days = 2
 
         for _, stock_row in df_all.iterrows():
 
@@ -369,14 +369,22 @@ else:
             if ticker == "VNINDEX":
                 continue
 
-            df_stock_price = get_price_by_ticker(df_all, ticker)
+            df_stock_price = get_price_by_ticker(
+                df_all,
+                ticker
+            )
 
             if df_stock_price.empty:
                 continue
 
-            atr_pct_stock = calculate_atr_percent(df_stock_price)
+            # percent tự động theo ATR
+            atr_pct_stock = calculate_atr_percent(
+                df_stock_price
+            )
 
-            stock_percent = suggest_percent_from_atr(atr_pct_stock)
+            stock_percent = suggest_percent_from_atr(
+                atr_pct_stock
+            )
 
             df_stock_zigzag = zigzag_custom(
                 df_stock_price,
@@ -386,76 +394,126 @@ else:
             if df_stock_zigzag.empty:
                 continue
 
-            df_stock_zigzag = df_stock_zigzag.sort_values(
-                "date"
-            ).reset_index(drop=True)
+            df_stock_zigzag = (
+                df_stock_zigzag
+                .sort_values("date")
+                .reset_index(drop=True)
+            )
 
             stock_bottoms = df_stock_zigzag[
                 df_stock_zigzag["type"] == 2
             ].copy()
 
-            stock_bottoms["date"] = pd.to_datetime(stock_bottoms["date"])
+            stock_bottoms["date"] = pd.to_datetime(
+                stock_bottoms["date"]
+            )
 
+            # đáy lệch tối đa ±2 ngày
             matched_bottoms = stock_bottoms[
                 (
-                    stock_bottoms["date"] - selected_date
+                    stock_bottoms["date"]
+                    - selected_date
                 ).abs().dt.days <= window_days
             ]
 
             for _, bottom_row in matched_bottoms.iterrows():
 
-                bottom_date = pd.to_datetime(bottom_row["date"])
+                bottom_date = pd.to_datetime(
+                    bottom_row["date"]
+                )
+
                 bottom_price = bottom_row["price"]
 
-                zz_idx = bottom_row.name
+                # tìm vị trí đáy trong zigzag
+                zz_idx_list = df_stock_zigzag[
+                    (
+                        df_stock_zigzag["date"]
+                        == bottom_date
+                    )
+                    &
+                    (
+                        df_stock_zigzag["type"]
+                        == 2
+                    )
+                ].index
+
+                if len(zz_idx_list) == 0:
+                    continue
+
+                zz_idx = zz_idx_list[0]
 
                 next_idx = zz_idx + 1
 
                 if next_idx >= len(df_stock_zigzag):
                     continue
 
-                next_peak = df_stock_zigzag.iloc[next_idx]
+                next_peak = df_stock_zigzag.iloc[
+                    next_idx
+                ]
 
                 if next_peak["type"] != 1:
                     continue
 
-                peak_date = pd.to_datetime(next_peak["date"])
+                peak_date = pd.to_datetime(
+                    next_peak["date"]
+                )
+
                 peak_price = next_peak["price"]
 
                 return_pct = (
-                    (peak_price - bottom_price)
+                    (
+                        peak_price
+                        - bottom_price
+                    )
                     / bottom_price
                     * 100
                 )
 
                 days_to_peak = (
-                    peak_date - bottom_date
+                    peak_date
+                    - bottom_date
                 ).days
 
                 result_rows.append({
                     "Ticker": ticker,
-                    "Percent ZigZag": stock_percent,
                     "Đáy VNINDEX": selected_bottom_date,
                     "Ngày đáy CP": bottom_date.date(),
-                    "Giá đáy CP": round(bottom_price, 2),
+                    "Giá đáy CP": round(
+                        bottom_price,
+                        2
+                    ),
                     "Lệch ngày": abs(
-                        (bottom_date - selected_date).days
+                        (
+                            bottom_date
+                            - selected_date
+                        ).days
                     ),
                     "Ngày đỉnh tiếp theo": peak_date.date(),
-                    "Giá đỉnh tiếp theo": round(peak_price, 2),
+                    "Giá đỉnh tiếp theo": round(
+                        peak_price,
+                        2
+                    ),
                     "Số ngày đáy → đỉnh": days_to_peak,
-                    "Hiệu suất đáy → đỉnh (%)": round(return_pct, 2)
+                    "Hiệu suất (%)": round(
+                        return_pct,
+                        2
+                    )
                 })
 
-        result_df = pd.DataFrame(result_rows)
+        result_df = pd.DataFrame(
+            result_rows
+        )
 
         if result_df.empty:
+
             st.warning(
-                f"Không có cổ phiếu nào tạo đáy trong khoảng ±{window_days} ngày quanh đáy VNINDEX."
+                "Không có cổ phiếu nào tạo đáy quanh ngày này."
             )
+
         else:
+
             result_df = result_df.sort_values(
-                "Hiệu suất đáy → đỉnh (%)",
+                "Hiệu suất (%)",
                 ascending=False
             )
 
