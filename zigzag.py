@@ -706,11 +706,10 @@ if ticker_input:
 
 st.subheader("Thống kê ngành vượt Flow/SMDT quanh đáy thị trường")
 
-# đảm bảo đúng kiểu ngày
 sector_all_df["date"] = pd.to_datetime(sector_all_df["date"])
 bottom_signal_df["date"] = pd.to_datetime(bottom_signal_df["date"])
 
-# lấy các ngày xác nhận đáy
+# chỉ lấy những đáy đang hiển thị trên dropdown VNINDEX
 market_bottom_dates = (
     vnindex_bottoms["date"]
     .dropna()
@@ -718,8 +717,12 @@ market_bottom_dates = (
     .tolist()
 )
 
-# dropdown chọn ngành
-sector_list = sorted(sector_all_df["nganh"].dropna().unique().tolist())
+sector_list = sorted(
+    sector_all_df["nganh"]
+    .dropna()
+    .unique()
+    .tolist()
+)
 
 selected_sector = st.selectbox(
     "Chọn ngành",
@@ -759,6 +762,7 @@ for bottom_date in market_bottom_dates:
     ].copy()
 
     if not flow_signal.empty:
+
         flow_signal["abs_diff"] = (
             flow_signal["date"] - bottom_date
         ).abs()
@@ -776,6 +780,7 @@ for bottom_date in market_bottom_dates:
             flow_nhom = "Sau đáy"
 
     else:
+
         flow_date = pd.NaT
         flow_lech = None
         flow_nhom = "Không có tín hiệu"
@@ -789,6 +794,7 @@ for bottom_date in market_bottom_dates:
     ].copy()
 
     if not smdt_signal.empty:
+
         smdt_signal["abs_diff"] = (
             smdt_signal["date"] - bottom_date
         ).abs()
@@ -806,44 +812,72 @@ for bottom_date in market_bottom_dates:
             smdt_nhom = "Sau đáy"
 
     else:
+
         smdt_date = pd.NaT
         smdt_lech = None
         smdt_nhom = "Không có tín hiệu"
 
+    # nếu ngành không có cả Flow lẫn SMDT quanh đáy này thì bỏ qua
     if (
         flow_nhom == "Không có tín hiệu"
         and
         smdt_nhom == "Không có tín hiệu"
     ):
         continue
-    # xác định loại tín hiệu
-    
+
+    # =========================
+    # XÁC ĐỊNH LOẠI TÍN HIỆU
+    # =========================
+
     if (
         flow_nhom != "Không có tín hiệu"
         and
         smdt_nhom != "Không có tín hiệu"
     ):
         signal_type = "Flow + SMDT"
-    
+
+        # nhóm lấy theo tín hiệu xuất hiện sớm hơn
+        valid_lech = [
+            x for x in [flow_lech, smdt_lech]
+            if x is not None
+        ]
+
+        earliest_lech = min(
+            valid_lech,
+            key=lambda x: abs(x)
+        )
+
+        if earliest_lech < 0:
+            nhom = "Trước đáy"
+        elif earliest_lech == 0:
+            nhom = "Cùng ngày"
+        else:
+            nhom = "Sau đáy"
+
     elif flow_nhom != "Không có tín hiệu":
         signal_type = "Flow"
-    
+        nhom = flow_nhom
+
     elif smdt_nhom != "Không có tín hiệu":
         signal_type = "SMDT"
-    
+        nhom = smdt_nhom
+
     else:
         continue
-        
+
     result_rows.append({
         "Đáy thị trường": bottom_date.date(),
         "Ngành": selected_sector,
         "Tín hiệu": signal_type,
+        "Nhóm": nhom,
 
         "Ngày Flow tích cực": None if pd.isna(flow_date) else flow_date.date(),
         "Flow lệch ngày": flow_lech,
+        "Flow nhóm": flow_nhom,
 
         "Ngày SMDT vượt 70": None if pd.isna(smdt_date) else smdt_date.date(),
         "SMDT lệch ngày": smdt_lech,
+        "SMDT nhóm": smdt_nhom,
     })
 
 result_df = pd.DataFrame(result_rows)
@@ -854,35 +888,41 @@ result_df = pd.DataFrame(result_rows)
 
 st.markdown(f"### Chi tiết ngành: {selected_sector}")
 
-st.dataframe(
-    result_df,
-    use_container_width=True
-)
+if result_df.empty:
 
-# =========================
-# BẢNG THỐNG KÊ TÍN HIỆU + TRƯỚC/SAU
-# =========================
+    st.warning("Ngành này không có tín hiệu Flow/SMDT quanh các đáy đang xét.")
 
-st.markdown("### Tổng hợp tín hiệu theo thời điểm trước / sau đáy")
+else:
 
-summary_df = (
-    result_df
-    .groupby(["Tín hiệu", "Nhóm"])
-    .size()
-    .reset_index(name="Số lần")
-)
+    st.dataframe(
+        result_df,
+        use_container_width=True
+    )
 
-summary_df["Tỷ lệ (%)"] = (
-    summary_df["Số lần"]
-    / summary_df["Số lần"].sum()
-    * 100
-).round(2)
+    # =========================
+    # BẢNG THỐNG KÊ TÍN HIỆU + TRƯỚC/SAU
+    # =========================
 
-summary_df = summary_df.sort_values(
-    ["Tín hiệu", "Nhóm"]
-).reset_index(drop=True)
+    st.markdown("### Tổng hợp tín hiệu theo thời điểm trước / sau đáy")
 
-st.dataframe(
-    summary_df,
-    use_container_width=True
-)
+    summary_df = (
+        result_df
+        .groupby(["Tín hiệu", "Nhóm"])
+        .size()
+        .reset_index(name="Số lần")
+    )
+
+    summary_df["Tỷ lệ (%)"] = (
+        summary_df["Số lần"]
+        / summary_df["Số lần"].sum()
+        * 100
+    ).round(2)
+
+    summary_df = summary_df.sort_values(
+        ["Tín hiệu", "Nhóm"]
+    ).reset_index(drop=True)
+
+    st.dataframe(
+        summary_df,
+        use_container_width=True
+    )
