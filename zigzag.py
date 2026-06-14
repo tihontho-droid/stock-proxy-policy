@@ -214,6 +214,7 @@ for _, bottom_row in matched_bottoms.iterrows():
     ticker = bottom_row["ticker"]
     bottom_date = bottom_row["date"]
     bottom_price = bottom_row["price"]
+    zigzag_percent = bottom_row["percent"]
 
     ticker_zigzag = (
         zigzag_all[zigzag_all["ticker"] == ticker]
@@ -254,6 +255,7 @@ for _, bottom_row in matched_bottoms.iterrows():
 
     result_rows.append({
         "Ticker": ticker,
+        "Percent ZigZag": int(zigzag_percent),
         "Đáy VNINDEX": selected_bottom_date,
         "Ngày đáy CP": bottom_date.date(),
         "Giá đáy CP": round(bottom_price, 2),
@@ -273,6 +275,21 @@ else:
         "Hiệu suất đáy → đỉnh (%)",
         ascending=False
     )
+
+    result_df = result_df[
+        [
+            "Ticker",
+            "Percent ZigZag",
+            "Đáy VNINDEX",
+            "Ngày đáy CP",
+            "Giá đáy CP",
+            "Lệch ngày",
+            "Ngày đỉnh tiếp theo",
+            "Giá đỉnh tiếp theo",
+            "Số ngày đáy → đỉnh",
+            "Hiệu suất đáy → đỉnh (%)"
+        ]
+    ]
 
     st.dataframe(
         result_df,
