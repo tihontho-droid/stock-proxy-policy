@@ -179,12 +179,38 @@ st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
 start_date = pd.to_datetime("2023-06-01")
 window_days = 2
 
+# chỉ lấy các ngày xác nhận tạo đáy
+confirmed_bottom_dates = (
+    bottom_signal_df[
+        bottom_signal_df["xac_nhan_tao_day"] == True
+    ]["date"]
+    .dt.normalize()
+    .unique()
+)
+
+# chỉ giữ các đáy ZigZag VNINDEX trùng ngày xác nhận đáy
 vnindex_bottoms = df_vnindex_zigzag[
-    (df_vnindex_zigzag["type"] == 2) &
+    (df_vnindex_zigzag["type"] == 2)
+    &
     (df_vnindex_zigzag["date"] >= start_date)
+    &
+    (
+        df_vnindex_zigzag["date"]
+        .dt.normalize()
+        .isin(confirmed_bottom_dates)
+    )
 ].copy()
 
-vnindex_bottoms["date_only"] = vnindex_bottoms["date"].dt.date
+vnindex_bottoms = (
+    vnindex_bottoms
+    .sort_values("date")
+    .reset_index(drop=True)
+)
+
+vnindex_bottoms["date_only"] = (
+    vnindex_bottoms["date"]
+    .dt.date
+)
 
 selected_bottom_date = st.selectbox(
     "Chọn đáy VNINDEX",
