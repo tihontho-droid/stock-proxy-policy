@@ -39,6 +39,14 @@ def load_zigzag_data():
 price_all = load_price_data()
 zigzag_all = load_zigzag_data()
 
+@st.cache_data
+def load_bottom_signal():
+    df = pd.read_parquet("bottom_signal_df.parquet")
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
+bottom_signal_df = load_bottom_signal()
 # =========================
 # LẤY DATA VNINDEX
 # =========================
@@ -223,14 +231,6 @@ selected_date = pd.to_datetime(selected_bottom_date)
 # HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
 # =========================
 
-@st.cache_data
-def load_bottom_signal():
-    df = pd.read_parquet("bottom_signal_df.parquet")
-    df["date"] = pd.to_datetime(df["date"])
-    return df
-
-
-bottom_signal_df = load_bottom_signal()
 
 selected_confirm_date = pd.to_datetime(selected_bottom_date)
 
