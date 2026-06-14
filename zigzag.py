@@ -342,21 +342,3 @@ else:
         key=f"chart_{ticker_input}_{percent_auto}"
     )
 
-    # =========================
-    # BẢNG ZIGZAG
-    # =========================
-
-    st.subheader("Bảng điểm ZigZag tự tính")
-
-    if df_zigzag.empty:
-        st.warning("Không có dữ liệu ZigZag.")
-    else:
-        df_zigzag["type_name"] = df_zigzag["type"].map({
-            1: "Đỉnh",
-            2: "Đáy"
-        })
-
-        st.dataframe(
-            df_zigzag[["date", "type_name", "price"]],
-            use_container_width=True
-        )
