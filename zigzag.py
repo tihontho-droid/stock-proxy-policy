@@ -860,31 +860,29 @@ st.dataframe(
 )
 
 # =========================
-# BẢNG THỐNG KÊ TÍN HIỆU
+# BẢNG THỐNG KÊ TÍN HIỆU + TRƯỚC/SAU
 # =========================
 
-st.markdown("### Tổng hợp tín hiệu")
+st.markdown("### Tổng hợp tín hiệu theo thời điểm trước / sau đáy")
 
 summary_df = (
-    result_df["Tín hiệu"]
-    .value_counts()
-    .reset_index()
+    result_df
+    .groupby(["Tín hiệu", "Nhóm"])
+    .size()
+    .reset_index(name="Số lần")
 )
 
-summary_df.columns = [
-    "Tín hiệu",
-    "Số lần"
-]
-
-summary_df["Tỷ lệ (%)"] = round(
+summary_df["Tỷ lệ (%)"] = (
     summary_df["Số lần"]
     / summary_df["Số lần"].sum()
-    * 100,
-    2
-)
+    * 100
+).round(2)
+
+summary_df = summary_df.sort_values(
+    ["Tín hiệu", "Nhóm"]
+).reset_index(drop=True)
 
 st.dataframe(
     summary_df,
     use_container_width=True
 )
-
