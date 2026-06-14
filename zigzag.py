@@ -194,6 +194,199 @@ selected_bottom_date = st.selectbox(
 selected_date = pd.to_datetime(selected_bottom_date)
 
 # =========================
+# HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
+# =========================
+
+@st.cache_data
+def load_bottom_signal():
+    df = pd.read_parquet("bottom_signal_df.parquet")
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
+bottom_signal_df = load_bottom_signal()
+
+selected_confirm_date = pd.to_datetime(selected_bottom_date)
+
+prepare_df = bottom_signal_df[
+    (bottom_signal_df["chuan_bi_tao_day"] == True)
+    &
+    (bottom_signal_df["date"] < selected_confirm_date)
+].copy()
+
+confirm_df = bottom_signal_df[
+    bottom_signal_df["date"] == selected_confirm_date
+].copy()
+
+if prepare_df.empty or confirm_df.empty:
+
+    st.info("Không tìm thấy đủ dữ liệu chuẩn bị / xác nhận đáy cho ngày này.")
+
+else:
+
+    prepare_row = (
+        prepare_df
+        .sort_values("date")
+        .tail(1)
+        .iloc[0]
+    )
+
+    confirm_row = confirm_df.iloc[0]
+
+    prepare_date_str = prepare_row["date"].strftime("%Y-%m-%d")
+    confirm_date_str = confirm_row["date"].strftime("%Y-%m-%d")
+
+    st.markdown(
+        f"""
+        <div style="
+            background:#F7F8FC;
+            padding:14px 18px;
+            border-radius:16px;
+            margin-bottom:12px;
+            border:1px solid #ECEEF5;
+        ">
+            <div style="font-size:18px; font-weight:700;">
+                Đáy được chọn: {confirm_date_str}
+            </div>
+            <div style="font-size:14px; color:#666; margin-top:4px;">
+                Ngày chuẩn bị tạo đáy: {prepare_date_str}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    labels = ["Chờ mua", "Mua", "Chờ bán", "Bán"]
+
+    colors = [
+        "#11D99A",
+        "#00A86B",
+        "#FFA114",
+        "#F23670"
+    ]
+
+    legend_html = """
+    <div style="
+        display:flex;
+        justify-content:center;
+        gap:14px;
+        margin-top:-18px;
+        margin-bottom:4px;
+        font-size:13px;
+        color:#444;
+        flex-wrap:wrap;
+    ">
+        <div><span style="color:#11D99A; font-size:18px;">●</span> Chờ mua</div>
+        <div><span style="color:#00A86B; font-size:18px;">●</span> Mua</div>
+        <div><span style="color:#FFA114; font-size:18px;">●</span> Chờ bán</div>
+        <div><span style="color:#F23670; font-size:18px;">●</span> Bán</div>
+    </div>
+    """
+
+    def make_pie(row, title):
+
+        values = [
+            row["waitbuy"],
+            row["buy"],
+            row["waitsell"],
+            row["sell"]
+        ]
+
+        total = sum(values)
+
+        fig = go.Figure(
+            data=[
+                go.Pie(
+                    labels=labels,
+                    values=values,
+                    hole=0.70,
+                    marker=dict(
+                        colors=colors,
+                        line=dict(
+                            color="white",
+                            width=1
+                        )
+                    ),
+                    textinfo="value",
+                    textfont=dict(
+                        size=12,
+                        color="white"
+                    ),
+                    sort=False,
+                    direction="clockwise",
+                    showlegend=False
+                )
+            ]
+        )
+
+        fig.update_layout(
+            title=dict(
+                text=title,
+                x=0.5,
+                xanchor="center",
+                font=dict(
+                    size=14,
+                    color="#333"
+                )
+            ),
+            height=250,
+            margin=dict(
+                t=35,
+                b=5,
+                l=5,
+                r=5
+            ),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            annotations=[
+                dict(
+                    text=f"<b>{total}</b>",
+                    x=0.5,
+                    y=0.5,
+                    font=dict(
+                        size=22,
+                        color="#111111"
+                    ),
+                    showarrow=False
+                )
+            ]
+        )
+
+        return fig
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        fig_prepare = make_pie(
+            prepare_row,
+            f"Chuẩn bị tạo đáy - {prepare_date_str}"
+        )
+
+        st.plotly_chart(
+            fig_prepare,
+            use_container_width=True,
+            config={"displayModeBar": False}
+        )
+
+        st.markdown(legend_html, unsafe_allow_html=True)
+
+    with col2:
+
+        fig_confirm = make_pie(
+            confirm_row,
+            f"Xác nhận đáy - {confirm_date_str}"
+        )
+
+        st.plotly_chart(
+            fig_confirm,
+            use_container_width=True,
+            config={"displayModeBar": False}
+        )
+
+        st.markdown(legend_html, unsafe_allow_html=True)
+
+# =========================
 # TÌM CỔ PHIẾU TẠO ĐÁY QUANH NGÀY ĐÓ
 # =========================
 
@@ -423,195 +616,3 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
-# =========================
-# HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
-# =========================
-
-@st.cache_data
-def load_bottom_signal():
-    df = pd.read_parquet("bottom_signal_df.parquet")
-    df["date"] = pd.to_datetime(df["date"])
-    return df
-
-
-bottom_signal_df = load_bottom_signal()
-
-selected_confirm_date = pd.to_datetime(selected_bottom_date)
-
-prepare_df = bottom_signal_df[
-    (bottom_signal_df["chuan_bi_tao_day"] == True)
-    &
-    (bottom_signal_df["date"] < selected_confirm_date)
-].copy()
-
-confirm_df = bottom_signal_df[
-    bottom_signal_df["date"] == selected_confirm_date
-].copy()
-
-if prepare_df.empty or confirm_df.empty:
-
-    st.info("Không tìm thấy đủ dữ liệu chuẩn bị / xác nhận đáy cho ngày này.")
-
-else:
-
-    prepare_row = (
-        prepare_df
-        .sort_values("date")
-        .tail(1)
-        .iloc[0]
-    )
-
-    confirm_row = confirm_df.iloc[0]
-
-    prepare_date_str = prepare_row["date"].strftime("%Y-%m-%d")
-    confirm_date_str = confirm_row["date"].strftime("%Y-%m-%d")
-
-    st.markdown(
-        f"""
-        <div style="
-            background:#F7F8FC;
-            padding:14px 18px;
-            border-radius:16px;
-            margin-bottom:12px;
-            border:1px solid #ECEEF5;
-        ">
-            <div style="font-size:18px; font-weight:700;">
-                Đáy được chọn: {confirm_date_str}
-            </div>
-            <div style="font-size:14px; color:#666; margin-top:4px;">
-                Ngày chuẩn bị tạo đáy: {prepare_date_str}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    labels = ["Chờ mua", "Mua", "Chờ bán", "Bán"]
-
-    colors = [
-        "#11D99A",
-        "#00A86B",
-        "#FFA114",
-        "#F23670"
-    ]
-
-    legend_html = """
-    <div style="
-        display:flex;
-        justify-content:center;
-        gap:14px;
-        margin-top:-18px;
-        margin-bottom:4px;
-        font-size:13px;
-        color:#444;
-        flex-wrap:wrap;
-    ">
-        <div><span style="color:#11D99A; font-size:18px;">●</span> Chờ mua</div>
-        <div><span style="color:#00A86B; font-size:18px;">●</span> Mua</div>
-        <div><span style="color:#FFA114; font-size:18px;">●</span> Chờ bán</div>
-        <div><span style="color:#F23670; font-size:18px;">●</span> Bán</div>
-    </div>
-    """
-
-    def make_pie(row, title):
-
-        values = [
-            row["waitbuy"],
-            row["buy"],
-            row["waitsell"],
-            row["sell"]
-        ]
-
-        total = sum(values)
-
-        fig = go.Figure(
-            data=[
-                go.Pie(
-                    labels=labels,
-                    values=values,
-                    hole=0.70,
-                    marker=dict(
-                        colors=colors,
-                        line=dict(
-                            color="white",
-                            width=1
-                        )
-                    ),
-                    textinfo="value",
-                    textfont=dict(
-                        size=12,
-                        color="white"
-                    ),
-                    sort=False,
-                    direction="clockwise",
-                    showlegend=False
-                )
-            ]
-        )
-
-        fig.update_layout(
-            title=dict(
-                text=title,
-                x=0.5,
-                xanchor="center",
-                font=dict(
-                    size=14,
-                    color="#333"
-                )
-            ),
-            height=250,
-            margin=dict(
-                t=35,
-                b=5,
-                l=5,
-                r=5
-            ),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            annotations=[
-                dict(
-                    text=f"<b>{total}</b>",
-                    x=0.5,
-                    y=0.5,
-                    font=dict(
-                        size=22,
-                        color="#111111"
-                    ),
-                    showarrow=False
-                )
-            ]
-        )
-
-        return fig
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        fig_prepare = make_pie(
-            prepare_row,
-            f"Chuẩn bị tạo đáy - {prepare_date_str}"
-        )
-
-        st.plotly_chart(
-            fig_prepare,
-            use_container_width=True,
-            config={"displayModeBar": False}
-        )
-
-        st.markdown(legend_html, unsafe_allow_html=True)
-
-    with col2:
-
-        fig_confirm = make_pie(
-            confirm_row,
-            f"Xác nhận đáy - {confirm_date_str}"
-        )
-
-        st.plotly_chart(
-            fig_confirm,
-            use_container_width=True,
-            config={"displayModeBar": False}
-        )
-
-        st.markdown(legend_html, unsafe_allow_html=True)
