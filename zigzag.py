@@ -284,9 +284,6 @@ selected_confirm_date = pd.to_datetime(
 # HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
 # =========================
 
-
-selected_confirm_date = pd.to_datetime(selected_bottom_date)
-
 prepare_df = bottom_signal_df[
     (bottom_signal_df["chuan_bi_tao_day"] == True)
     &
