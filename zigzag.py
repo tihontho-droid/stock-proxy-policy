@@ -57,6 +57,25 @@ def load_sector():
     return df
 
 sector_all_df = load_sector()
+
+@st.cache_data
+def load_stock_signal():
+    df = pd.read_parquet("stock_signal_df.parquet")
+    df["date"] = pd.to_datetime(df["date"])
+    df["ticker"] = df["ticker"].astype(str).str.upper()
+    return df
+
+
+@st.cache_data
+def load_ticker_branch():
+    df = pd.read_parquet("ticker_branch_df.parquet")
+    df["ticker"] = df["ticker"].astype(str).str.upper()
+    return df
+
+
+stock_signal_df = load_stock_signal()
+ticker_branch_df = load_ticker_branch()
+
 # =========================
 # LẤY DATA VNINDEX
 # =========================
