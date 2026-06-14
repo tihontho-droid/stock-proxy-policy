@@ -96,24 +96,25 @@ for _, row in df_vnindex_zigzag.iterrows():
         "value": float(row["price"])
     })
 
+    price_text = f"{row['price']:.2f}"
+    
     if row["type"] == 1:
         markers.append({
             "time": time_str,
             "position": "aboveBar",
             "shape": "arrowDown",
             "color": "red",
-            "text": "Đỉnh"
+            "text": f"Đỉnh {price_text}"
         })
-
+    
     elif row["type"] == 2:
         markers.append({
             "time": time_str,
             "position": "belowBar",
             "shape": "arrowUp",
             "color": "green",
-            "text": "Đáy"
+            "text": f"Đáy {price_text}"
         })
-
 # =========================
 # VẼ CHART NẾN + ZIGZAG
 # =========================
