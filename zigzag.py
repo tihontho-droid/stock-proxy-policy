@@ -1219,75 +1219,84 @@ else:
     )
 
 # =========================
-# TỶ LỆ TÍN HIỆU THEO MÃ
+# ĐẶC ĐIỂM TÍN HIỆU CỦA TỪNG MÃ
 # =========================
 
-st.markdown("### Tỷ lệ tín hiệu theo mã")
+st.markdown("### Đặc điểm tín hiệu của từng mã")
 
-ratio_df = feature_df.copy()
+signal_profile_df = feature_df.copy()
 
-ratio_df["% Flow trước đáy"] = round(
-    ratio_df["Flow trước đáy"]
-    / ratio_df["Số lần trùng đáy với thị trường"]
+signal_profile_df["% Flow trước thị trường"] = round(
+    signal_profile_df["Flow trước đáy"]
+    / signal_profile_df["Số lần trùng đáy với thị trường"]
     * 100,
     2
 )
 
-ratio_df["% Flow cùng ngày"] = round(
-    ratio_df["Flow cùng ngày"]
-    / ratio_df["Số lần trùng đáy với thị trường"]
+signal_profile_df["% Flow cùng ngày"] = round(
+    signal_profile_df["Flow cùng ngày"]
+    / signal_profile_df["Số lần trùng đáy với thị trường"]
     * 100,
     2
 )
 
-ratio_df["% Flow sau đáy"] = round(
-    ratio_df["Flow sau đáy"]
-    / ratio_df["Số lần trùng đáy với thị trường"]
+signal_profile_df["% Flow sau thị trường"] = round(
+    signal_profile_df["Flow sau đáy"]
+    / signal_profile_df["Số lần trùng đáy với thị trường"]
     * 100,
     2
 )
 
-ratio_df["% SMDT trước đáy"] = round(
-    ratio_df["SMDT trước đáy"]
-    / ratio_df["Số lần trùng đáy với thị trường"]
+signal_profile_df["% SMDT trước thị trường"] = round(
+    signal_profile_df["SMDT trước đáy"]
+    / signal_profile_df["Số lần trùng đáy với thị trường"]
     * 100,
     2
 )
 
-ratio_df["% SMDT cùng ngày"] = round(
-    ratio_df["SMDT cùng ngày"]
-    / ratio_df["Số lần trùng đáy với thị trường"]
+signal_profile_df["% SMDT cùng ngày"] = round(
+    signal_profile_df["SMDT cùng ngày"]
+    / signal_profile_df["Số lần trùng đáy với thị trường"]
     * 100,
     2
 )
 
-ratio_df["% SMDT sau đáy"] = round(
-    ratio_df["SMDT sau đáy"]
-    / ratio_df["Số lần trùng đáy với thị trường"]
-    * 100,
-    2
-)
-
-ratio_df["% Flow + SMDT"] = round(
-    ratio_df["Số lần có Flow + SMDT"]
-    / ratio_df["Số lần trùng đáy với thị trường"]
+signal_profile_df["% SMDT sau thị trường"] = round(
+    signal_profile_df["SMDT sau đáy"]
+    / signal_profile_df["Số lần trùng đáy với thị trường"]
     * 100,
     2
 )
 
 st.dataframe(
-    ratio_df[
+    signal_profile_df[
         [
             "Mã",
             "Số lần trùng đáy với thị trường",
-            "% Flow trước đáy",
+
+            "Flow trước đáy",
+            "Flow cùng ngày",
+            "Flow sau đáy",
+
+            "% Flow trước thị trường",
             "% Flow cùng ngày",
-            "% Flow sau đáy",
-            "% SMDT trước đáy",
+            "% Flow sau thị trường",
+
+            "SMDT trước đáy",
+            "SMDT cùng ngày",
+            "SMDT sau đáy",
+
+            "% SMDT trước thị trường",
             "% SMDT cùng ngày",
-            "% SMDT sau đáy",
-            "% Flow + SMDT"
+            "% SMDT sau thị trường",
         ]
-    ],
+    ].sort_values(
+        [
+            "% SMDT trước thị trường",
+            "% Flow trước thị trường",
+            "Số lần trùng đáy với thị trường"
+        ],
+        ascending=False
+    ),
     use_container_width=True
 )
