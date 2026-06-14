@@ -5,21 +5,13 @@ from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("Biểu đồ VNINDEX + ZigZag")
+st.title("VNINDEX ZigZag")
 
 # =========================
-# INPUT
+# CẤU HÌNH ẨN
 # =========================
 
 vnindex_ticker = "VNINDEX"
-
-percent_input = st.number_input(
-    "Percent ZigZag VNINDEX",
-    min_value=5,
-    max_value=50,
-    value=10,
-    step=5
-)
 
 # =========================
 # LẤY TOÀN BỘ GIÁ
@@ -66,7 +58,50 @@ def get_price_by_ticker(df_all, ticker):
 
 
 # =========================
-# TỰ TÍNH ZIGZAG CUSTOM
+# TÍNH ATR%
+# =========================
+
+def calculate_atr_percent(df_price, period=20):
+    df = df_price.copy()
+
+    df["prev_close"] = df["close"].shift(1)
+
+    df["tr1"] = df["high"] - df["low"]
+
+    df["tr2"] = (
+        df["high"] - df["prev_close"]
+    ).abs()
+
+    df["tr3"] = (
+        df["low"] - df["prev_close"]
+    ).abs()
+
+    df["tr"] = df[["tr1", "tr2", "tr3"]].max(axis=1)
+
+    df["atr"] = df["tr"].rolling(period).mean()
+
+    df["atr_pct"] = df["atr"] / df["close"] * 100
+
+    return df["atr_pct"].mean()
+
+
+# =========================
+# GỢI Ý PERCENT TỪ ATR
+# =========================
+
+def suggest_percent_from_atr(atr_pct):
+    raw_percent = atr_pct * 7.35
+
+    percent = round(raw_percent / 5) * 5
+
+    percent = max(5, percent)
+    percent = min(50, percent)
+
+    return int(percent)
+
+
+# =========================
+# TỰ TÍNH ZIGZAG
 # =========================
 
 def zigzag_custom(df_price, deviation):
@@ -186,15 +221,17 @@ if vnindex_ticker not in df_all["ticker"].values:
 else:
     df_price = get_price_by_ticker(df_all, vnindex_ticker)
 
+    atr_pct = calculate_atr_percent(df_price)
+
+    percent_input = suggest_percent_from_atr(atr_pct)
+
     df_zigzag = zigzag_custom(
         df_price,
         deviation=percent_input
     )
 
-    st.info(f"VNINDEX đang dùng ZigZag {percent_input}%")
-
     # =========================
-    # CHUẨN BỊ NẾN
+    # NẾN
     # =========================
 
     candles = []
@@ -209,7 +246,7 @@ else:
         })
 
     # =========================
-    # CHUẨN BỊ ZIGZAG
+    # ZIGZAG
     # =========================
 
     zigzag_line = []
@@ -230,7 +267,7 @@ else:
                     "position": "aboveBar",
                     "shape": "arrowDown",
                     "color": "red",
-                    "text": f"Đỉnh {row['price']}"
+                    "text": "Đỉnh"
                 })
 
             elif row["type"] == 2:
@@ -239,16 +276,16 @@ else:
                     "position": "belowBar",
                     "shape": "arrowUp",
                     "color": "green",
-                    "text": f"Đáy {row['price']}"
+                    "text": "Đáy"
                 })
 
     # =========================
-    # VẼ CHART
+    # CHART
     # =========================
 
     chart = {
         "chart": {
-            "height": 700,
+            "height": 750,
             "layout": {
                 "background": {
                     "type": "solid",
@@ -293,26 +330,5 @@ else:
 
     renderLightweightCharts(
         [chart],
-        key=f"chart_{vnindex_ticker}_{percent_input}"
+        key="vnindex_zigzag_chart"
     )
-
-    # =========================
-    # BẢNG ĐÁY VNINDEX
-    # =========================
-
-    st.subheader("Các đáy ZigZag của VNINDEX")
-
-    if df_zigzag.empty:
-        st.warning("Không có điểm ZigZag.")
-    else:
-        df_show = df_zigzag.copy()
-
-        df_show["type_name"] = df_show["type"].map({
-            1: "Đỉnh",
-            2: "Đáy"
-        })
-
-        st.dataframe(
-            df_show[["date", "type_name", "price"]],
-            use_container_width=True
-        )
