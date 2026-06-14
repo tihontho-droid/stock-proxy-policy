@@ -4,7 +4,7 @@ from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("VNINDEX ZigZag và cổ phiếu tạo đáy quanh đáy VNINDEX")
+st.title("Giao dịch theo sóng thị trường")
 
 # =========================
 # LOAD DATA ĐÃ TÍNH SẴN
