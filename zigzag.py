@@ -945,3 +945,9 @@ else:
         summary_df,
         use_container_width=True
     )
+
+st.write("stock_signal_df")
+st.write(stock_signal_df.columns.tolist())
+
+st.write("ticker_branch_df")
+st.write(ticker_branch_df.columns.tolist())
