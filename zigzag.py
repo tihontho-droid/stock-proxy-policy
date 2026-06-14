@@ -5,7 +5,7 @@ from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("Biểu đồ nến + ZigZag tự tính theo ATR")
+st.title("Biểu đồ nến + ZigZag và đáy trùng VNINDEX")
 
 # =========================
 # INPUT
@@ -15,6 +15,10 @@ ticker_input = st.text_input(
     "Nhập mã cổ phiếu",
     value="GAS"
 ).upper()
+
+window_days = 2
+
+holding_days_list = [20, 40, 60]
 
 # =========================
 # LẤY TOÀN BỘ GIÁ
@@ -30,7 +34,7 @@ def get_total_trade():
         }
     }
 
-    r = requests.post(url, json=payload)
+    r = requests.post(url, json=payload, timeout=60)
     data = r.json()
 
     stock_totals = data["TotalTradeReply"]["stockTotals"]
@@ -55,7 +59,7 @@ def get_price_by_ticker(df_all, ticker):
     df_price = df_price.sort_values("date").reset_index(drop=True)
 
     for col in ["open", "high", "low", "close"]:
-        df_price[col] = pd.to_numeric(df_price[col])
+        df_price[col] = pd.to_numeric(df_price[col], errors="coerce")
 
     return df_price
 
@@ -110,6 +114,9 @@ def suggest_percent_from_atr(atr_pct):
 def zigzag_custom(df_price, deviation):
     df = df_price.copy()
     df = df.sort_values("date").reset_index(drop=True)
+
+    if df.empty:
+        return pd.DataFrame()
 
     dev = deviation / 100
 
@@ -215,6 +222,44 @@ def zigzag_custom(df_price, deviation):
 
 
 # =========================
+# TÍNH HIỆU SUẤT SAU N PHIÊN
+# =========================
+
+def get_return_after_days(df_price, bottom_date, bottom_price, holding_days):
+    df = df_price.copy()
+    df = df.sort_values("date").reset_index(drop=True)
+
+    bottom_date = pd.to_datetime(bottom_date)
+
+    matched = df[df["date"] == bottom_date]
+
+    if matched.empty:
+        return None
+
+    idx = matched.index[0]
+
+    future_idx = idx + holding_days
+
+    if future_idx >= len(df):
+        return None
+
+    future_close = df.loc[future_idx, "close"]
+    future_date = df.loc[future_idx, "date"]
+
+    return_pct = (
+        (future_close - bottom_price)
+        / bottom_price
+        * 100
+    )
+
+    return {
+        "future_date": future_date,
+        "future_close": future_close,
+        "return_pct": return_pct
+    }
+
+
+# =========================
 # LOAD DATA
 # =========================
 
@@ -223,6 +268,10 @@ df_all = get_total_trade()
 if ticker_input not in df_all["ticker"].values:
     st.error("Không tìm thấy mã cổ phiếu này.")
 else:
+    # =========================
+    # DỮ LIỆU CỔ PHIẾU
+    # =========================
+
     df_price = get_price_by_ticker(df_all, ticker_input)
 
     atr_pct = calculate_atr_percent(df_price)
@@ -236,7 +285,7 @@ else:
 
     st.info(
         f"Mã {ticker_input} | ATR% = {atr_pct:.2f}% | "
-        f"Percent gợi ý = {percent_raw:.2f}% → làm tròn thành {percent_auto}%"
+        f"Percent ZigZag = {percent_raw:.2f}% → làm tròn thành {percent_auto}%"
     )
 
     # =========================
@@ -342,3 +391,97 @@ else:
         key=f"chart_{ticker_input}_{percent_auto}"
     )
 
+    # =========================
+    # TÍNH ĐÁY VNINDEX
+    # =========================
+
+    st.subheader("Đáy cổ phiếu trùng với đáy VNINDEX")
+
+    vnindex_ticker = "VNINDEX"
+
+    if vnindex_ticker not in df_all["ticker"].values:
+        st.warning("Không tìm thấy VNINDEX trong dữ liệu.")
+    else:
+        df_vnindex = get_price_by_ticker(df_all, vnindex_ticker)
+
+        vnindex_atr_pct = calculate_atr_percent(df_vnindex)
+
+        vnindex_percent_auto, vnindex_percent_raw = suggest_percent_from_atr(
+            vnindex_atr_pct
+        )
+
+        df_vnindex_zigzag = zigzag_custom(
+            df_vnindex,
+            deviation=vnindex_percent_auto
+        )
+
+        stock_bottoms = df_zigzag[
+            df_zigzag["type"] == 2
+        ].copy()
+
+        market_bottoms = df_vnindex_zigzag[
+            df_vnindex_zigzag["type"] == 2
+        ].copy()
+
+        result_rows = []
+
+        for _, market_row in market_bottoms.iterrows():
+            market_bottom_date = pd.to_datetime(market_row["date"])
+
+            matched_stock_bottoms = stock_bottoms[
+                (
+                    stock_bottoms["date"] - market_bottom_date
+                ).abs().dt.days <= window_days
+            ]
+
+            for _, stock_row in matched_stock_bottoms.iterrows():
+                stock_bottom_date = pd.to_datetime(stock_row["date"])
+                stock_bottom_price = stock_row["price"]
+
+                row_result = {
+                    "Đáy VNINDEX": market_bottom_date.date(),
+                    "Giá đáy VNINDEX": market_row["price"],
+                    "Đáy cổ phiếu": stock_bottom_date.date(),
+                    "Giá đáy cổ phiếu": stock_bottom_price,
+                    "Lệch ngày": abs(
+                        (stock_bottom_date - market_bottom_date).days
+                    )
+                }
+
+                for holding_days in holding_days_list:
+                    perf = get_return_after_days(
+                        df_price=df_price,
+                        bottom_date=stock_bottom_date,
+                        bottom_price=stock_bottom_price,
+                        holding_days=holding_days
+                    )
+
+                    if perf is None:
+                        row_result[f"Return {holding_days} phiên (%)"] = None
+                    else:
+                        row_result[f"Return {holding_days} phiên (%)"] = round(
+                            perf["return_pct"],
+                            2
+                        )
+
+                result_rows.append(row_result)
+
+        result_df = pd.DataFrame(result_rows)
+
+        st.info(
+            f"VNINDEX ATR% = {vnindex_atr_pct:.2f}% | "
+            f"Percent ZigZag VNINDEX = {vnindex_percent_raw:.2f}% "
+            f"→ làm tròn thành {vnindex_percent_auto}% | "
+            f"Điều kiện trùng đáy: lệch tối đa ±{window_days} ngày"
+        )
+
+        if result_df.empty:
+            st.warning(
+                f"{ticker_input} không có đáy ZigZag trùng với đáy VNINDEX "
+                f"trong khoảng ±{window_days} ngày."
+            )
+        else:
+            st.dataframe(
+                result_df,
+                use_container_width=True
+            )
