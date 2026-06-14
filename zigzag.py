@@ -1127,48 +1127,93 @@ else:
         ).reset_index(drop=True),
         use_container_width=True
     )
+    # =========================
+    # ĐẶC ĐIỂM CÁC MÃ TRONG NGÀNH
+    # =========================
 
-    st.markdown("### Tổng hợp loại tín hiệu mã")
+    st.markdown("### Đặc điểm các mã trong ngành")
 
-    stock_signal_summary = (
-        stock_result_df
-        .groupby("Tín hiệu")
-        .size()
-        .reset_index(name="Số lần")
-        .sort_values("Số lần", ascending=False)
-    )
+    stock_feature_df = stock_result_df.copy()
+
+    # gom theo từng mã
+    feature_rows = []
+
+    for ticker in stock_feature_df["Mã"].drop_duplicates():
+
+        ticker_df = stock_feature_df[
+            stock_feature_df["Mã"] == ticker
+        ].copy()
+
+        so_lan_trung_day = len(ticker_df)
+
+        flow_truoc = (
+            ticker_df["Flow mã nhóm"] == "Trước đáy"
+        ).sum()
+
+        flow_cung_ngay = (
+            ticker_df["Flow mã nhóm"] == "Cùng ngày"
+        ).sum()
+
+        flow_sau = (
+            ticker_df["Flow mã nhóm"] == "Sau đáy"
+        ).sum()
+
+        smdt_truoc = (
+            ticker_df["SMDT mã nhóm"] == "Trước đáy"
+        ).sum()
+
+        smdt_cung_ngay = (
+            ticker_df["SMDT mã nhóm"] == "Cùng ngày"
+        ).sum()
+
+        smdt_sau = (
+            ticker_df["SMDT mã nhóm"] == "Sau đáy"
+        ).sum()
+
+        so_lan_flow = (
+            ticker_df["Flow mã nhóm"]
+            != "Không có tín hiệu"
+        ).sum()
+
+        so_lan_smdt = (
+            ticker_df["SMDT mã nhóm"]
+            != "Không có tín hiệu"
+        ).sum()
+
+        so_lan_flow_smdt = (
+            ticker_df["Tín hiệu"] == "Flow + SMDT"
+        ).sum()
+
+        feature_rows.append({
+            "Mã": ticker,
+            "Số lần trùng đáy với thị trường": so_lan_trung_day,
+
+            "Flow trước đáy": flow_truoc,
+            "Flow cùng ngày": flow_cung_ngay,
+            "Flow sau đáy": flow_sau,
+
+            "SMDT trước đáy": smdt_truoc,
+            "SMDT cùng ngày": smdt_cung_ngay,
+            "SMDT sau đáy": smdt_sau,
+
+            "Số lần có Flow": so_lan_flow,
+            "Số lần có SMDT": so_lan_smdt,
+            "Số lần có Flow + SMDT": so_lan_flow_smdt,
+        })
+
+    feature_df = pd.DataFrame(feature_rows)
+
+    feature_df = feature_df.sort_values(
+        [
+            "Số lần trùng đáy với thị trường",
+            "Số lần có Flow + SMDT",
+            "SMDT trước đáy",
+            "Flow trước đáy"
+        ],
+        ascending=[False, False, False, False]
+    ).reset_index(drop=True)
 
     st.dataframe(
-        stock_signal_summary,
-        use_container_width=True
-    )
-
-    st.markdown("### Flow mã trước / cùng ngày / sau đáy")
-
-    stock_flow_summary = (
-        stock_result_df
-        .groupby("Flow mã nhóm")
-        .size()
-        .reset_index(name="Số lần")
-        .sort_values("Số lần", ascending=False)
-    )
-
-    st.dataframe(
-        stock_flow_summary,
-        use_container_width=True
-    )
-
-    st.markdown("### SMDT mã trước / cùng ngày / sau đáy")
-
-    stock_smdt_summary = (
-        stock_result_df
-        .groupby("SMDT mã nhóm")
-        .size()
-        .reset_index(name="Số lần")
-        .sort_values("Số lần", ascending=False)
-    )
-
-    st.dataframe(
-        stock_smdt_summary,
+        feature_df,
         use_container_width=True
     )
