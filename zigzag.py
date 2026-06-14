@@ -1217,3 +1217,77 @@ else:
         feature_df,
         use_container_width=True
     )
+
+# =========================
+# TỶ LỆ TÍN HIỆU THEO MÃ
+# =========================
+
+st.markdown("### Tỷ lệ tín hiệu theo mã")
+
+ratio_df = feature_df.copy()
+
+ratio_df["% Flow trước đáy"] = round(
+    ratio_df["Flow trước đáy"]
+    / ratio_df["Số lần trùng đáy với thị trường"]
+    * 100,
+    2
+)
+
+ratio_df["% Flow cùng ngày"] = round(
+    ratio_df["Flow cùng ngày"]
+    / ratio_df["Số lần trùng đáy với thị trường"]
+    * 100,
+    2
+)
+
+ratio_df["% Flow sau đáy"] = round(
+    ratio_df["Flow sau đáy"]
+    / ratio_df["Số lần trùng đáy với thị trường"]
+    * 100,
+    2
+)
+
+ratio_df["% SMDT trước đáy"] = round(
+    ratio_df["SMDT trước đáy"]
+    / ratio_df["Số lần trùng đáy với thị trường"]
+    * 100,
+    2
+)
+
+ratio_df["% SMDT cùng ngày"] = round(
+    ratio_df["SMDT cùng ngày"]
+    / ratio_df["Số lần trùng đáy với thị trường"]
+    * 100,
+    2
+)
+
+ratio_df["% SMDT sau đáy"] = round(
+    ratio_df["SMDT sau đáy"]
+    / ratio_df["Số lần trùng đáy với thị trường"]
+    * 100,
+    2
+)
+
+ratio_df["% Flow + SMDT"] = round(
+    ratio_df["Số lần có Flow + SMDT"]
+    / ratio_df["Số lần trùng đáy với thị trường"]
+    * 100,
+    2
+)
+
+st.dataframe(
+    ratio_df[
+        [
+            "Mã",
+            "Số lần trùng đáy với thị trường",
+            "% Flow trước đáy",
+            "% Flow cùng ngày",
+            "% Flow sau đáy",
+            "% SMDT trước đáy",
+            "% SMDT cùng ngày",
+            "% SMDT sau đáy",
+            "% Flow + SMDT"
+        ]
+    ],
+    use_container_width=True
+)
