@@ -4,16 +4,30 @@ from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("VNINDEX ZigZag và cổ phiếu tạo đáy cùng ngày")
+st.title("VNINDEX ZigZag và cổ phiếu tạo đáy quanh đáy VNINDEX")
 
 # =========================
-# LOAD ZIGZAG ĐÃ TÍNH SẴN
+# LOAD DATA ĐÃ TÍNH SẴN
 # =========================
+
+@st.cache_data
+def load_price_data():
+    df = pd.read_csv("all_price_data.csv")
+
+    df["ticker"] = df["ticker"].astype(str).str.upper()
+    df["date"] = pd.to_datetime(df["date"])
+
+    for col in ["open", "high", "low", "close"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    return df
+
 
 @st.cache_data
 def load_zigzag_data():
     df = pd.read_csv("all_zigzag_points.csv")
 
+    df["ticker"] = df["ticker"].astype(str).str.upper()
     df["date"] = pd.to_datetime(df["date"])
     df["type"] = pd.to_numeric(df["type"], errors="coerce")
     df["price"] = pd.to_numeric(df["price"], errors="coerce")
@@ -21,26 +35,52 @@ def load_zigzag_data():
     return df
 
 
+price_all = load_price_data()
 zigzag_all = load_zigzag_data()
 
 # =========================
-# LẤY ZIGZAG VNINDEX
+# LẤY DATA VNINDEX
 # =========================
 
-vnindex_zigzag = zigzag_all[
-    zigzag_all["ticker"] == "VNINDEX"
-].copy()
+df_vnindex_price = (
+    price_all[price_all["ticker"] == "VNINDEX"]
+    .sort_values("date")
+    .reset_index(drop=True)
+)
 
-vnindex_zigzag = vnindex_zigzag.sort_values("date").reset_index(drop=True)
+df_vnindex_zigzag = (
+    zigzag_all[zigzag_all["ticker"] == "VNINDEX"]
+    .sort_values("date")
+    .reset_index(drop=True)
+)
+
+if df_vnindex_price.empty or df_vnindex_zigzag.empty:
+    st.error("Không tìm thấy dữ liệu VNINDEX trong file CSV.")
+    st.stop()
 
 # =========================
-# VẼ BIỂU ĐỒ ZIGZAG VNINDEX
+# CHUẨN BỊ NẾN VNINDEX
+# =========================
+
+candles = []
+
+for _, row in df_vnindex_price.iterrows():
+    candles.append({
+        "time": row["date"].strftime("%Y-%m-%d"),
+        "open": float(row["open"]),
+        "high": float(row["high"]),
+        "low": float(row["low"]),
+        "close": float(row["close"])
+    })
+
+# =========================
+# CHUẨN BỊ ZIGZAG VNINDEX
 # =========================
 
 zigzag_line = []
 markers = []
 
-for _, row in vnindex_zigzag.iterrows():
+for _, row in df_vnindex_zigzag.iterrows():
     time_str = row["date"].strftime("%Y-%m-%d")
 
     zigzag_line.append({
@@ -66,10 +106,13 @@ for _, row in vnindex_zigzag.iterrows():
             "text": "Đáy"
         })
 
+# =========================
+# VẼ CHART NẾN + ZIGZAG
+# =========================
 
 chart = {
     "chart": {
-        "height": 700,
+        "height": 720,
         "layout": {
             "background": {
                 "type": "solid",
@@ -96,9 +139,13 @@ chart = {
     },
     "series": [
         {
+            "type": "Candlestick",
+            "data": candles,
+            "markers": markers
+        },
+        {
             "type": "Line",
             "data": zigzag_line,
-            "markers": markers,
             "options": {
                 "color": "#2962FF",
                 "lineWidth": 2,
@@ -110,7 +157,7 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_zigzag_chart"
+    key="vnindex_candle_zigzag_chart"
 )
 
 # =========================
@@ -122,9 +169,9 @@ st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
 start_date = pd.to_datetime("2023-06-01")
 window_days = 2
 
-vnindex_bottoms = vnindex_zigzag[
-    (vnindex_zigzag["type"] == 2) &
-    (vnindex_zigzag["date"] >= start_date)
+vnindex_bottoms = df_vnindex_zigzag[
+    (df_vnindex_zigzag["type"] == 2) &
+    (df_vnindex_zigzag["date"] >= start_date)
 ].copy()
 
 vnindex_bottoms["date_only"] = vnindex_bottoms["date"].dt.date
@@ -159,11 +206,11 @@ for _, bottom_row in matched_bottoms.iterrows():
     bottom_date = bottom_row["date"]
     bottom_price = bottom_row["price"]
 
-    ticker_zigzag = zigzag_all[
-        zigzag_all["ticker"] == ticker
-    ].copy()
-
-    ticker_zigzag = ticker_zigzag.sort_values("date").reset_index(drop=True)
+    ticker_zigzag = (
+        zigzag_all[zigzag_all["ticker"] == ticker]
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
 
     matched_idx = ticker_zigzag[
         (ticker_zigzag["date"] == bottom_date) &
@@ -194,9 +241,7 @@ for _, bottom_row in matched_bottoms.iterrows():
         * 100
     )
 
-    days_to_peak = (
-        peak_date - bottom_date
-    ).days
+    days_to_peak = (peak_date - bottom_date).days
 
     result_rows.append({
         "Ticker": ticker,
