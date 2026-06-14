@@ -946,8 +946,229 @@ else:
         use_container_width=True
     )
 
-st.write("stock_signal_df")
-st.write(stock_signal_df.columns.tolist())
+# =========================
+# MÃ TẠO ĐÁY CÙNG THỊ TRƯỜNG
+# =========================
 
-st.write("ticker_branch_df")
-st.write(ticker_branch_df.columns.tolist())
+st.subheader(
+    "Mã tạo đáy cùng thị trường và tín hiệu trước/sau đáy"
+)
+
+sector_list = sorted(
+    ticker_branch_df["nganh"]
+    .dropna()
+    .unique()
+    .tolist()
+)
+
+selected_sector = st.selectbox(
+    "Chọn ngành",
+    sector_list
+)
+
+sector_tickers = (
+    ticker_branch_df[
+        ticker_branch_df["nganh"] == selected_sector
+    ]["ticker"]
+    .unique()
+    .tolist()
+)
+
+market_bottom_dates = (
+    vnindex_bottoms["date"]
+    .dropna()
+    .sort_values()
+    .tolist()
+)
+
+window_days = 2
+
+result_rows = []
+
+for market_bottom_date in market_bottom_dates:
+
+    stock_bottoms = all_zigzag_data[
+        (all_zigzag_data["ticker"].isin(sector_tickers))
+        &
+        (all_zigzag_data["type"] == 2)
+        &
+        (
+            (
+                all_zigzag_data["date"]
+                - market_bottom_date
+            ).abs().dt.days
+            <= window_days
+        )
+    ].copy()
+
+    for _, stock_bottom in stock_bottoms.iterrows():
+
+        ticker = stock_bottom["ticker"]
+
+        stock_bottom_date = pd.to_datetime(
+            stock_bottom["date"]
+        )
+
+        # =========================
+        # FLOW
+        # =========================
+
+        flow_signal = stock_signal_df[
+            (stock_signal_df["ticker"] == ticker)
+            &
+            (
+                stock_signal_df["flow_ma_vua_tich_cuc"]
+                == True
+            )
+        ].copy()
+
+        if not flow_signal.empty:
+
+            flow_signal["abs_diff"] = (
+                flow_signal["date"]
+                - stock_bottom_date
+            ).abs()
+
+            flow_row = flow_signal.sort_values(
+                "abs_diff"
+            ).iloc[0]
+
+            flow_date = flow_row["date"]
+
+            flow_lech = (
+                flow_date
+                - stock_bottom_date
+            ).days
+
+            if flow_lech < 0:
+                flow_nhom = "Trước đáy"
+
+            elif flow_lech == 0:
+                flow_nhom = "Cùng ngày"
+
+            else:
+                flow_nhom = "Sau đáy"
+
+        else:
+
+            flow_lech = None
+            flow_nhom = "Không có tín hiệu"
+
+        # =========================
+        # SMDT
+        # =========================
+
+        smdt_signal = stock_signal_df[
+            (stock_signal_df["ticker"] == ticker)
+            &
+            (
+                stock_signal_df["smdt_ma_vua_vuot_70"]
+                == True
+            )
+        ].copy()
+
+        if not smdt_signal.empty:
+
+            smdt_signal["abs_diff"] = (
+                smdt_signal["date"]
+                - stock_bottom_date
+            ).abs()
+
+            smdt_row = smdt_signal.sort_values(
+                "abs_diff"
+            ).iloc[0]
+
+            smdt_date = smdt_row["date"]
+
+            smdt_lech = (
+                smdt_date
+                - stock_bottom_date
+            ).days
+
+            if smdt_lech < 0:
+                smdt_nhom = "Trước đáy"
+
+            elif smdt_lech == 0:
+                smdt_nhom = "Cùng ngày"
+
+            else:
+                smdt_nhom = "Sau đáy"
+
+        else:
+
+            smdt_lech = None
+            smdt_nhom = "Không có tín hiệu"
+
+        result_rows.append({
+            "Đáy thị trường":
+                market_bottom_date.date(),
+
+            "Ticker":
+                ticker,
+
+            "Ngày đáy mã":
+                stock_bottom_date.date(),
+
+            "Flow lệch":
+                flow_lech,
+
+            "Flow nhóm":
+                flow_nhom,
+
+            "SMDT lệch":
+                smdt_lech,
+
+            "SMDT nhóm":
+                smdt_nhom
+        })
+
+result_df = pd.DataFrame(result_rows)
+
+st.dataframe(
+    result_df,
+    use_container_width=True
+)
+
+# =========================
+# FLOW SUMMARY
+# =========================
+
+st.markdown("### Flow trước/sau đáy")
+
+flow_summary = (
+    result_df["Flow nhóm"]
+    .value_counts()
+    .reset_index()
+)
+
+flow_summary.columns = [
+    "Nhóm",
+    "Số lần"
+]
+
+st.dataframe(
+    flow_summary,
+    use_container_width=True
+)
+
+# =========================
+# SMDT SUMMARY
+# =========================
+
+st.markdown("### SMDT trước/sau đáy")
+
+smdt_summary = (
+    result_df["SMDT nhóm"]
+    .value_counts()
+    .reset_index()
+)
+
+smdt_summary.columns = [
+    "Nhóm",
+    "Số lần"
+]
+
+st.dataframe(
+    smdt_summary,
+    use_container_width=True
+)
