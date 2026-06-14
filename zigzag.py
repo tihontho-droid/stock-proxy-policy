@@ -712,9 +712,7 @@ bottom_signal_df["date"] = pd.to_datetime(bottom_signal_df["date"])
 
 # lấy các ngày xác nhận đáy
 market_bottom_dates = (
-    bottom_signal_df[
-        bottom_signal_df["xac_nhan_tao_day"] == True
-    ]["date"]
+    vnindex_bottoms["date"]
     .dropna()
     .sort_values()
     .tolist()
