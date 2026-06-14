@@ -121,7 +121,7 @@ for _, row in df_vnindex_zigzag.iterrows():
 
 chart = {
     "chart": {
-        "height": 720,
+        "height": 500,
         "layout": {
             "background": {
                 "type": "solid",
@@ -374,7 +374,7 @@ if ticker_input:
 
         chart_stock = {
             "chart": {
-                "height": 650,
+                "height": 500,
                 "layout": {
                     "background": {
                         "type": "solid",
