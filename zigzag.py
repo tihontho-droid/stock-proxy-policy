@@ -720,13 +720,25 @@ if ticker_input:
         )
 
 # =========================
-# THỐNG KÊ NGÀNH VƯỢT FLOW / SMDT TRƯỚC SAU ĐÁY
+# THỐNG KÊ THEO NGÀNH: NGÀNH + MÃ
 # =========================
 
-st.subheader("Thống kê ngành vượt Flow/SMDT quanh đáy thị trường")
+st.subheader("Thống kê Flow/SMDT quanh đáy thị trường theo ngành")
+
+# =========================
+# CHUẨN HÓA DỮ LIỆU
+# =========================
 
 sector_all_df["date"] = pd.to_datetime(sector_all_df["date"])
 bottom_signal_df["date"] = pd.to_datetime(bottom_signal_df["date"])
+
+zigzag_all["date"] = pd.to_datetime(zigzag_all["date"])
+zigzag_all["ticker"] = zigzag_all["ticker"].astype(str).str.upper()
+
+stock_signal_df["date"] = pd.to_datetime(stock_signal_df["date"])
+stock_signal_df["ticker"] = stock_signal_df["ticker"].astype(str).str.upper()
+
+ticker_branch_df["ticker"] = ticker_branch_df["ticker"].astype(str).str.upper()
 
 # chỉ lấy những đáy đang hiển thị trên dropdown VNINDEX
 market_bottom_dates = (
@@ -735,6 +747,10 @@ market_bottom_dates = (
     .sort_values()
     .tolist()
 )
+
+# =========================
+# 1 DROPDOWN NGÀNH DUY NHẤT
+# =========================
 
 sector_list = sorted(
     sector_all_df["nganh"]
@@ -745,11 +761,19 @@ sector_list = sorted(
 
 selected_sector = st.selectbox(
     "Chọn ngành",
-    options=sector_list
+    options=sector_list,
+    key="selected_sector_main"
 )
 
 lookback_days = 10
 lookforward_days = 10
+window_days = 2
+
+# =====================================================
+# PHẦN 1: THỐNG KÊ TÍN HIỆU NGÀNH TRƯỚC / SAU ĐÁY
+# =====================================================
+
+st.markdown(f"## 1. Tín hiệu ngành {selected_sector} quanh đáy thị trường")
 
 sector_df = (
     sector_all_df[
@@ -759,9 +783,11 @@ sector_df = (
     .reset_index(drop=True)
 )
 
-result_rows = []
+sector_result_rows = []
 
 for bottom_date in market_bottom_dates:
+
+    bottom_date = pd.to_datetime(bottom_date)
 
     start_window = bottom_date - pd.Timedelta(days=lookback_days)
     end_window = bottom_date + pd.Timedelta(days=lookforward_days)
@@ -773,7 +799,7 @@ for bottom_date in market_bottom_dates:
     ].copy()
 
     # =========================
-    # FLOW VỪA TÍCH CỰC
+    # FLOW NGÀNH
     # =========================
 
     flow_signal = temp[
@@ -805,7 +831,7 @@ for bottom_date in market_bottom_dates:
         flow_nhom = "Không có tín hiệu"
 
     # =========================
-    # SMDT VỪA VƯỢT 70
+    # SMDT NGÀNH
     # =========================
 
     smdt_signal = temp[
@@ -836,17 +862,12 @@ for bottom_date in market_bottom_dates:
         smdt_lech = None
         smdt_nhom = "Không có tín hiệu"
 
-    # nếu ngành không có cả Flow lẫn SMDT quanh đáy này thì bỏ qua
     if (
         flow_nhom == "Không có tín hiệu"
         and
         smdt_nhom == "Không có tín hiệu"
     ):
         continue
-
-    # =========================
-    # XÁC ĐỊNH LOẠI TÍN HIỆU
-    # =========================
 
     if (
         flow_nhom != "Không có tín hiệu"
@@ -855,7 +876,6 @@ for bottom_date in market_bottom_dates:
     ):
         signal_type = "Flow + SMDT"
 
-        # nhóm lấy theo tín hiệu xuất hiện sớm hơn
         valid_lech = [
             x for x in [flow_lech, smdt_lech]
             if x is not None
@@ -877,134 +897,82 @@ for bottom_date in market_bottom_dates:
         signal_type = "Flow"
         nhom = flow_nhom
 
-    elif smdt_nhom != "Không có tín hiệu":
+    else:
         signal_type = "SMDT"
         nhom = smdt_nhom
 
-    else:
-        continue
-
-    result_rows.append({
+    sector_result_rows.append({
         "Đáy thị trường": bottom_date.date(),
         "Ngành": selected_sector,
         "Tín hiệu": signal_type,
         "Nhóm": nhom,
 
-        "Ngày Flow tích cực": None if pd.isna(flow_date) else flow_date.date(),
-        "Flow lệch ngày": flow_lech,
-        "Flow nhóm": flow_nhom,
+        "Ngày Flow ngành": None if pd.isna(flow_date) else flow_date.date(),
+        "Flow ngành lệch ngày": flow_lech,
+        "Flow ngành nhóm": flow_nhom,
 
-        "Ngày SMDT vượt 70": None if pd.isna(smdt_date) else smdt_date.date(),
-        "SMDT lệch ngày": smdt_lech,
-        "SMDT nhóm": smdt_nhom,
+        "Ngày SMDT ngành": None if pd.isna(smdt_date) else smdt_date.date(),
+        "SMDT ngành lệch ngày": smdt_lech,
+        "SMDT ngành nhóm": smdt_nhom,
     })
 
-result_df = pd.DataFrame(result_rows)
+sector_result_df = pd.DataFrame(sector_result_rows)
 
-# =========================
-# BẢNG CHI TIẾT
-# =========================
-
-st.markdown(f"### Chi tiết ngành: {selected_sector}")
-
-if result_df.empty:
+if sector_result_df.empty:
 
     st.warning("Ngành này không có tín hiệu Flow/SMDT quanh các đáy đang xét.")
 
 else:
 
     st.dataframe(
-        result_df,
+        sector_result_df,
         use_container_width=True
     )
 
-    # =========================
-    # BẢNG THỐNG KÊ TÍN HIỆU + TRƯỚC/SAU
-    # =========================
+    st.markdown("### Tổng hợp tín hiệu ngành")
 
-    st.markdown("### Tổng hợp tín hiệu theo thời điểm trước / sau đáy")
-
-    summary_df = (
-        result_df
+    sector_summary_df = (
+        sector_result_df
         .groupby(["Tín hiệu", "Nhóm"])
         .size()
         .reset_index(name="Số lần")
     )
 
-    summary_df["Tỷ lệ (%)"] = (
-        summary_df["Số lần"]
-        / summary_df["Số lần"].sum()
+    sector_summary_df["Tỷ lệ (%)"] = (
+        sector_summary_df["Số lần"]
+        / sector_summary_df["Số lần"].sum()
         * 100
     ).round(2)
 
-    summary_df = summary_df.sort_values(
+    sector_summary_df = sector_summary_df.sort_values(
         ["Tín hiệu", "Nhóm"]
     ).reset_index(drop=True)
 
     st.dataframe(
-        summary_df,
+        sector_summary_df,
         use_container_width=True
     )
 
-# =========================
-# MÃ TẠO ĐÁY CÙNG THỊ TRƯỜNG
-# =========================
+# =====================================================
+# PHẦN 2: MÃ TRONG NGÀNH TẠO ĐÁY CÙNG THỊ TRƯỜNG
+# =====================================================
 
-st.subheader(
-    "Mã tạo đáy cùng thị trường và tín hiệu trước/sau đáy"
-)
+st.markdown(f"## 2. Mã ngành {selected_sector} tạo đáy cùng thị trường")
 
-# đảm bảo đúng kiểu dữ liệu
-zigzag_all["date"] = pd.to_datetime(zigzag_all["date"])
-zigzag_all["ticker"] = zigzag_all["ticker"].astype(str).str.upper()
-
-stock_signal_df["date"] = pd.to_datetime(stock_signal_df["date"])
-stock_signal_df["ticker"] = stock_signal_df["ticker"].astype(str).str.upper()
-
-ticker_branch_df["ticker"] = ticker_branch_df["ticker"].astype(str).str.upper()
-
-# dropdown ngành
-sector_list = sorted(
-    ticker_branch_df["nganh"]
-    .dropna()
-    .unique()
-    .tolist()
-)
-
-selected_sector_stock = st.selectbox(
-    "Chọn ngành để xem mã tạo đáy",
-    sector_list,
-    key="selected_sector_stock"
-)
-
-# lấy danh sách mã thuộc ngành
 sector_tickers = (
     ticker_branch_df[
-        ticker_branch_df["nganh"] == selected_sector_stock
+        ticker_branch_df["nganh"] == selected_sector
     ]["ticker"]
     .drop_duplicates()
     .tolist()
 )
 
-# chỉ lấy những đáy đang hiển thị trong dropdown VNINDEX
-market_bottom_dates = (
-    vnindex_bottoms["date"]
-    .dropna()
-    .sort_values()
-    .tolist()
-)
-
-window_days = 2
-lookback_days = 10
-lookforward_days = 10
-
-result_rows = []
+stock_result_rows = []
 
 for market_bottom_date in market_bottom_dates:
 
     market_bottom_date = pd.to_datetime(market_bottom_date)
 
-    # tìm các mã trong ngành tạo đáy ZigZag quanh đáy thị trường ±2 ngày
     stock_bottoms = zigzag_all[
         (zigzag_all["ticker"].isin(sector_tickers))
         &
@@ -1022,14 +990,9 @@ for market_bottom_date in market_bottom_dates:
     for _, stock_bottom in stock_bottoms.iterrows():
 
         ticker = stock_bottom["ticker"]
-
-        stock_bottom_date = pd.to_datetime(
-            stock_bottom["date"]
-        )
-
+        stock_bottom_date = pd.to_datetime(stock_bottom["date"])
         stock_bottom_price = stock_bottom["price"]
 
-        # lấy tín hiệu mã quanh ngày đáy của chính mã đó
         signal_window = stock_signal_df[
             (stock_signal_df["ticker"] == ticker)
             &
@@ -1048,7 +1011,7 @@ for market_bottom_date in market_bottom_dates:
             continue
 
         # =========================
-        # FLOW MÃ VỪA TÍCH CỰC
+        # FLOW MÃ
         # =========================
 
         flow_signal = signal_window[
@@ -1058,22 +1021,12 @@ for market_bottom_date in market_bottom_dates:
         if not flow_signal.empty:
 
             flow_signal["abs_diff"] = (
-                flow_signal["date"]
-                - stock_bottom_date
+                flow_signal["date"] - stock_bottom_date
             ).abs()
 
-            flow_row = (
-                flow_signal
-                .sort_values("abs_diff")
-                .iloc[0]
-            )
-
+            flow_row = flow_signal.sort_values("abs_diff").iloc[0]
             flow_date = pd.to_datetime(flow_row["date"])
-
-            flow_lech = (
-                flow_date
-                - stock_bottom_date
-            ).days
+            flow_lech = (flow_date - stock_bottom_date).days
 
             if flow_lech < 0:
                 flow_nhom = "Trước đáy"
@@ -1089,7 +1042,7 @@ for market_bottom_date in market_bottom_dates:
             flow_nhom = "Không có tín hiệu"
 
         # =========================
-        # SMDT MÃ VỪA VƯỢT 70
+        # SMDT MÃ
         # =========================
 
         smdt_signal = signal_window[
@@ -1099,22 +1052,12 @@ for market_bottom_date in market_bottom_dates:
         if not smdt_signal.empty:
 
             smdt_signal["abs_diff"] = (
-                smdt_signal["date"]
-                - stock_bottom_date
+                smdt_signal["date"] - stock_bottom_date
             ).abs()
 
-            smdt_row = (
-                smdt_signal
-                .sort_values("abs_diff")
-                .iloc[0]
-            )
-
+            smdt_row = smdt_signal.sort_values("abs_diff").iloc[0]
             smdt_date = pd.to_datetime(smdt_row["date"])
-
-            smdt_lech = (
-                smdt_date
-                - stock_bottom_date
-            ).days
+            smdt_lech = (smdt_date - stock_bottom_date).days
 
             if smdt_lech < 0:
                 smdt_nhom = "Trước đáy"
@@ -1129,7 +1072,6 @@ for market_bottom_date in market_bottom_dates:
             smdt_lech = None
             smdt_nhom = "Không có tín hiệu"
 
-        # bỏ mã không có cả Flow lẫn SMDT quanh đáy
         if (
             flow_nhom == "Không có tín hiệu"
             and
@@ -1148,9 +1090,9 @@ for market_bottom_date in market_bottom_dates:
         else:
             signal_type = "SMDT"
 
-        result_rows.append({
+        stock_result_rows.append({
             "Đáy thị trường": market_bottom_date.date(),
-            "Ngành": selected_sector_stock,
+            "Ngành": selected_sector,
             "Mã": ticker,
             "Ngày đáy mã": stock_bottom_date.date(),
             "Giá đáy mã": round(stock_bottom_price, 2),
@@ -1161,17 +1103,17 @@ for market_bottom_date in market_bottom_dates:
             "Tín hiệu": signal_type,
 
             "Ngày Flow mã": None if pd.isna(flow_date) else flow_date.date(),
-            "Flow lệch đáy": flow_lech,
-            "Flow trước/sau": flow_nhom,
+            "Flow mã lệch đáy": flow_lech,
+            "Flow mã nhóm": flow_nhom,
 
             "Ngày SMDT mã": None if pd.isna(smdt_date) else smdt_date.date(),
-            "SMDT lệch đáy": smdt_lech,
-            "SMDT trước/sau": smdt_nhom,
+            "SMDT mã lệch đáy": smdt_lech,
+            "SMDT mã nhóm": smdt_nhom,
         })
 
-stock_bottom_signal_df = pd.DataFrame(result_rows)
+stock_result_df = pd.DataFrame(stock_result_rows)
 
-if stock_bottom_signal_df.empty:
+if stock_result_df.empty:
 
     st.warning(
         "Không có mã nào trong ngành này tạo đáy cùng thị trường và có tín hiệu quanh đáy."
@@ -1179,30 +1121,17 @@ if stock_bottom_signal_df.empty:
 
 else:
 
-    st.markdown(
-        f"### Chi tiết mã ngành {selected_sector_stock}"
-    )
-
-    stock_bottom_signal_df = stock_bottom_signal_df.sort_values(
-        [
-            "Đáy thị trường",
-            "Mã"
-        ]
-    ).reset_index(drop=True)
-
     st.dataframe(
-        stock_bottom_signal_df,
+        stock_result_df.sort_values(
+            ["Đáy thị trường", "Mã"]
+        ).reset_index(drop=True),
         use_container_width=True
     )
 
-    # =========================
-    # TỔNG HỢP TÍN HIỆU
-    # =========================
+    st.markdown("### Tổng hợp loại tín hiệu mã")
 
-    st.markdown("### Tổng hợp loại tín hiệu")
-
-    signal_summary = (
-        stock_bottom_signal_df
+    stock_signal_summary = (
+        stock_result_df
         .groupby("Tín hiệu")
         .size()
         .reset_index(name="Số lần")
@@ -1210,44 +1139,36 @@ else:
     )
 
     st.dataframe(
-        signal_summary,
+        stock_signal_summary,
         use_container_width=True
     )
 
-    # =========================
-    # FLOW TRƯỚC / SAU ĐÁY
-    # =========================
+    st.markdown("### Flow mã trước / cùng ngày / sau đáy")
 
-    st.markdown("### Flow trước / cùng ngày / sau đáy")
-
-    flow_summary = (
-        stock_bottom_signal_df
-        .groupby("Flow trước/sau")
+    stock_flow_summary = (
+        stock_result_df
+        .groupby("Flow mã nhóm")
         .size()
         .reset_index(name="Số lần")
         .sort_values("Số lần", ascending=False)
     )
 
     st.dataframe(
-        flow_summary,
+        stock_flow_summary,
         use_container_width=True
     )
 
-    # =========================
-    # SMDT TRƯỚC / SAU ĐÁY
-    # =========================
+    st.markdown("### SMDT mã trước / cùng ngày / sau đáy")
 
-    st.markdown("### SMDT trước / cùng ngày / sau đáy")
-
-    smdt_summary = (
-        stock_bottom_signal_df
-        .groupby("SMDT trước/sau")
+    stock_smdt_summary = (
+        stock_result_df
+        .groupby("SMDT mã nhóm")
         .size()
         .reset_index(name="Số lần")
         .sort_values("Số lần", ascending=False)
     )
 
     st.dataframe(
-        smdt_summary,
+        stock_smdt_summary,
         use_container_width=True
     )
