@@ -182,8 +182,6 @@ renderLightweightCharts(
 # DROPDOWN CHỌN ĐÁY VNINDEX
 # =========================
 
-st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
-
 start_date = pd.to_datetime("2023-06-01")
 window_days = 2
 
@@ -465,7 +463,7 @@ else:
 # =========================
 # TÌM CỔ PHIẾU TẠO ĐÁY QUANH NGÀY ĐÓ
 # =========================
-
+st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
 stock_bottoms = zigzag_all[
     (zigzag_all["ticker"] != "VNINDEX") &
     (zigzag_all["type"] == 2)
