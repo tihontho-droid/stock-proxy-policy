@@ -31,9 +31,9 @@ def load_zigzag_data():
     df["date"] = pd.to_datetime(df["date"])
     df["type"] = pd.to_numeric(df["type"], errors="coerce")
     df["price"] = pd.to_numeric(df["price"], errors="coerce")
+    df["percent"] = pd.to_numeric(df["percent"], errors="coerce")
 
     return df
-
 
 price_all = load_price_data()
 zigzag_all = load_zigzag_data()
@@ -48,14 +48,22 @@ df_vnindex_price = (
     .reset_index(drop=True)
 )
 
+# VNINDEX chỉ lấy ZigZag percent = 5
 df_vnindex_zigzag = (
-    zigzag_all[zigzag_all["ticker"] == "VNINDEX"]
+    zigzag_all[
+        (zigzag_all["ticker"] == "VNINDEX") &
+        (zigzag_all["percent"] == 5)
+    ]
     .sort_values("date")
     .reset_index(drop=True)
 )
 
-if df_vnindex_price.empty or df_vnindex_zigzag.empty:
-    st.error("Không tìm thấy dữ liệu VNINDEX trong file CSV.")
+if df_vnindex_price.empty:
+    st.error("Không tìm thấy dữ liệu giá VNINDEX trong all_price_data.csv.")
+    st.stop()
+
+if df_vnindex_zigzag.empty:
+    st.error("Không tìm thấy ZigZag VNINDEX percent = 5 trong all_zigzag_points.csv. Em cần chạy lại file prepare với VNINDEX percent = 5.")
     st.stop()
 
 # =========================
