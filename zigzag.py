@@ -295,3 +295,130 @@ else:
         result_df,
         use_container_width=True
     )
+
+# =========================
+# BOX TÌM MÃ VÀ VẼ ZIGZAG CỔ PHIẾU
+# =========================
+
+st.subheader("Tra cứu biểu đồ ZigZag theo mã cổ phiếu")
+
+ticker_input = st.text_input(
+    "Nhập mã cổ phiếu",
+    value="VIX"
+).upper()
+
+if ticker_input:
+
+    df_stock_price = (
+        price_all[
+            price_all["ticker"] == ticker_input
+        ]
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+
+    df_stock_zigzag = (
+        zigzag_all[
+            zigzag_all["ticker"] == ticker_input
+        ]
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+
+    if df_stock_price.empty:
+        st.warning(f"Không tìm thấy dữ liệu giá của mã {ticker_input}.")
+    elif df_stock_zigzag.empty:
+        st.warning(f"Không tìm thấy dữ liệu ZigZag của mã {ticker_input}.")
+    else:
+
+        candles_stock = []
+
+        for _, row in df_stock_price.iterrows():
+            candles_stock.append({
+                "time": row["date"].strftime("%Y-%m-%d"),
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"])
+            })
+
+        zigzag_line_stock = []
+        markers_stock = []
+
+        for _, row in df_stock_zigzag.iterrows():
+            time_str = row["date"].strftime("%Y-%m-%d")
+            price_text = f"{row['price']:.2f}"
+
+            zigzag_line_stock.append({
+                "time": time_str,
+                "value": float(row["price"])
+            })
+
+            if row["type"] == 1:
+                markers_stock.append({
+                    "time": time_str,
+                    "position": "aboveBar",
+                    "shape": "arrowDown",
+                    "color": "red",
+                    "text": f"Đỉnh {price_text}"
+                })
+
+            elif row["type"] == 2:
+                markers_stock.append({
+                    "time": time_str,
+                    "position": "belowBar",
+                    "shape": "arrowUp",
+                    "color": "green",
+                    "text": f"Đáy {price_text}"
+                })
+
+        chart_stock = {
+            "chart": {
+                "height": 650,
+                "layout": {
+                    "background": {
+                        "type": "solid",
+                        "color": "#ffffff"
+                    },
+                    "textColor": "#000000"
+                },
+                "grid": {
+                    "vertLines": {
+                        "color": "#eeeeee"
+                    },
+                    "horzLines": {
+                        "color": "#eeeeee"
+                    }
+                },
+                "rightPriceScale": {
+                    "borderColor": "#cccccc"
+                },
+                "timeScale": {
+                    "borderColor": "#cccccc",
+                    "timeVisible": True,
+                    "secondsVisible": False
+                }
+            },
+            "series": [
+                {
+                    "type": "Candlestick",
+                    "data": candles_stock,
+                    "markers": markers_stock
+                },
+                {
+                    "type": "Line",
+                    "data": zigzag_line_stock,
+                    "options": {
+                        "color": "#2962FF",
+                        "lineWidth": 2,
+                        "priceLineVisible": False
+                    }
+                }
+            ]
+        }
+
+        renderLightweightCharts(
+            [chart_stock],
+            key=f"stock_zigzag_chart_{ticker_input}"
+        )
+
