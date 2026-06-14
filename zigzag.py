@@ -816,18 +816,34 @@ for bottom_date in market_bottom_dates:
         smdt_nhom == "Không có tín hiệu"
     ):
         continue
-
+    # xác định loại tín hiệu
+    
+    if (
+        flow_nhom != "Không có tín hiệu"
+        and
+        smdt_nhom != "Không có tín hiệu"
+    ):
+        signal_type = "Flow + SMDT"
+    
+    elif flow_nhom != "Không có tín hiệu":
+        signal_type = "Flow"
+    
+    elif smdt_nhom != "Không có tín hiệu":
+        signal_type = "SMDT"
+    
+    else:
+        continue
+        
     result_rows.append({
         "Đáy thị trường": bottom_date.date(),
         "Ngành": selected_sector,
+        "Tín hiệu": signal_type,
 
         "Ngày Flow tích cực": None if pd.isna(flow_date) else flow_date.date(),
         "Flow lệch ngày": flow_lech,
-        "Flow trước/sau": flow_nhom,
 
         "Ngày SMDT vượt 70": None if pd.isna(smdt_date) else smdt_date.date(),
         "SMDT lệch ngày": smdt_lech,
-        "SMDT trước/sau": smdt_nhom
     })
 
 result_df = pd.DataFrame(result_rows)
@@ -844,32 +860,27 @@ st.dataframe(
 )
 
 # =========================
-# BẢNG THỐNG KÊ SỐ LẦN
+# BẢNG THỐNG KÊ TÍN HIỆU
 # =========================
 
-st.markdown("### Tổng hợp số lần trước / cùng ngày / sau đáy")
+st.markdown("### Tổng hợp tín hiệu")
 
-flow_summary = (
-    result_df["Flow trước/sau"]
+summary_df = (
+    result_df["Tín hiệu"]
     .value_counts()
     .reset_index()
 )
 
-flow_summary.columns = ["Nhóm", "Số lần"]
-flow_summary.insert(0, "Tín hiệu", "Flow")
+summary_df.columns = [
+    "Tín hiệu",
+    "Số lần"
+]
 
-smdt_summary = (
-    result_df["SMDT trước/sau"]
-    .value_counts()
-    .reset_index()
-)
-
-smdt_summary.columns = ["Nhóm", "Số lần"]
-smdt_summary.insert(0, "Tín hiệu", "SMDT")
-
-summary_df = pd.concat(
-    [flow_summary, smdt_summary],
-    ignore_index=True
+summary_df["Tỷ lệ (%)"] = round(
+    summary_df["Số lần"]
+    / summary_df["Số lần"].sum()
+    * 100,
+    2
 )
 
 st.dataframe(
@@ -877,37 +888,3 @@ st.dataframe(
     use_container_width=True
 )
 
-# =========================
-# TRUNG BÌNH LỆCH NGÀY
-# =========================
-
-avg_rows = []
-
-flow_valid = result_df[
-    result_df["Flow lệch ngày"].notna()
-]
-
-smdt_valid = result_df[
-    result_df["SMDT lệch ngày"].notna()
-]
-
-avg_rows.append({
-    "Tín hiệu": "Flow",
-    "Lệch TB": round(flow_valid["Flow lệch ngày"].mean(), 2)
-    if not flow_valid.empty else None
-})
-
-avg_rows.append({
-    "Tín hiệu": "SMDT",
-    "Lệch TB": round(smdt_valid["SMDT lệch ngày"].mean(), 2)
-    if not smdt_valid.empty else None
-})
-
-avg_df = pd.DataFrame(avg_rows)
-
-st.markdown("### Trung bình lệch ngày")
-
-st.dataframe(
-    avg_df,
-    use_container_width=True
-)
