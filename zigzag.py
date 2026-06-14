@@ -883,64 +883,82 @@ st.dataframe(
 )
 
 # =========================
-# TỔNG HỢP WINRATE
+# TỔNG HỢP ĐÚNG / SAI
 # =========================
 
-summary_rows = []
-
-for signal_type in ["Flow", "SMDT"]:
-
-    temp = sector_signal_result_df[
-        sector_signal_result_df["Tín hiệu"]
-        == signal_type
-    ]
-
-    so_dung = (
-        temp["Kết quả"] == "Đúng"
-    ).sum()
-
-    so_sai = (
-        temp["Kết quả"] == "Sai"
-    ).sum()
-
-    tong = so_dung + so_sai
-
-    if tong > 0:
-        winrate = round(
-            so_dung / tong * 100,
-            2
-        )
-    else:
-        winrate = 0
-
-    if so_dung > 0:
-
-        avg_days = round(
-            temp[
-                temp["Kết quả"] == "Đúng"
-            ]["Lệch ngày"].mean(),
-            2
-        )
-
-    else:
-        avg_days = None
-
-    summary_rows.append({
-        "Tín hiệu": signal_type,
-        "Đúng": so_dung,
-        "Sai": so_sai,
-        "Tỷ lệ đúng (%)": winrate,
-        "TB số ngày trước đáy": avg_days
-    })
-
-sector_summary_df = pd.DataFrame(
-    summary_rows
+total_signals = len(
+    sector_signal_result_df
 )
 
-st.markdown("### Tổng hợp tín hiệu ngành")
+total_correct = (
+    sector_signal_result_df["Kết quả"] == "Đúng"
+).sum()
+
+total_wrong = (
+    sector_signal_result_df["Kết quả"] == "Sai"
+).sum()
+
+if total_signals > 0:
+    accuracy = round(
+        total_correct
+        / total_signals
+        * 100,
+        2
+    )
+else:
+    accuracy = 0
+
+# =========================
+# TRƯỚC / CÙNG NGÀY / SAU
+# =========================
+
+correct_df = sector_signal_result_df[
+    sector_signal_result_df["Kết quả"] == "Đúng"
+].copy()
+
+before_count = 0
+same_count = 0
+after_count = 0
+avg_days = None
+
+if not correct_df.empty:
+
+    before_count = (
+        correct_df["Lệch ngày"] > 0
+    ).sum()
+
+    same_count = (
+        correct_df["Lệch ngày"] == 0
+    ).sum()
+
+    after_count = (
+        correct_df["Lệch ngày"] < 0
+    ).sum()
+
+    avg_days = round(
+        correct_df["Lệch ngày"].mean(),
+        2
+    )
+
+summary_df = pd.DataFrame([
+    {
+        "Tổng tín hiệu": total_signals,
+        "Đúng": total_correct,
+        "Sai": total_wrong,
+        "Tỷ lệ đúng (%)": accuracy,
+        "Trước đáy": before_count,
+        "Cùng ngày": same_count,
+        "Sau đáy": after_count,
+        "TB số ngày lệch đáy": avg_days
+    }
+])
+
+st.markdown(
+    "### Tổng hợp tín hiệu ngành"
+)
 
 st.dataframe(
-    sector_summary_df,
+    summary_df,
     use_container_width=True
 )
 
