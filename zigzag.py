@@ -690,3 +690,14 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
+check_cols = [
+    "date",
+    "nganh",
+    "flow_vua_tich_cuc",
+    "smdt_vua_vuot_70",
+    "smdt",
+    "flow_num"
+]
+
+for col in check_cols:
+    st.write(col, "=>", col in sector_all_df.columns)
