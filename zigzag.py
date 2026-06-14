@@ -810,6 +810,13 @@ for bottom_date in market_bottom_dates:
         smdt_lech = None
         smdt_nhom = "Không có tín hiệu"
 
+    if (
+        flow_nhom == "Không có tín hiệu"
+        and
+        smdt_nhom == "Không có tín hiệu"
+    ):
+        continue
+
     result_rows.append({
         "Đáy thị trường": bottom_date.date(),
         "Ngành": selected_sector,
