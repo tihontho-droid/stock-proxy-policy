@@ -733,12 +733,107 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
+st.subheader("Mã mạnh nhất khi ngành vừa vượt 70")
 
-st.write("sector_all_df")
-st.write(sector_all_df.columns.tolist())
+# =========================
+# DROPDOWN NGÀNH
+# =========================
 
-st.write("stock_signal_df")
-st.write(stock_signal_df.columns.tolist())
+sector_list = (
+    sector_all_df["nganh"]
+    .dropna()
+    .sort_values()
+    .unique()
+)
 
-st.write("ticker_branch_df")
-st.write(ticker_branch_df.columns.tolist())
+selected_sector = st.selectbox(
+    "Chọn ngành",
+    sector_list
+)
+
+# =========================
+# NGÀY ĐẦU TIÊN NGÀNH VƯỢT 70
+# =========================
+
+sector_cross = (
+    sector_all_df[
+        (sector_all_df["nganh"] == selected_sector)
+        &
+        (sector_all_df["smdt_vua_vuot_70"] == True)
+    ]
+    .sort_values("date")
+)
+
+if sector_cross.empty:
+
+    st.warning("Ngành này chưa có tín hiệu vượt 70.")
+
+else:
+
+    first_row = sector_cross.iloc[0]
+
+    cross_date = first_row["date"]
+    sector_smdt = first_row["smdt"]
+
+    st.write("Ngày vượt 70:", cross_date.date())
+    st.write("SMDT ngành:", round(sector_smdt, 2))
+
+    # =========================
+    # LẤY DANH SÁCH MÃ THUỘC NGÀNH
+    # =========================
+
+    ticker_list = (
+        ticker_branch_df[
+            ticker_branch_df["nganh"] == selected_sector
+        ]["ticker"]
+        .unique()
+    )
+
+    # =========================
+    # SMDT MÃ TẠI NGÀY NGÀNH VƯỢT
+    # =========================
+
+    stock_today = (
+        stock_signal_df[
+            (stock_signal_df["ticker"].isin(ticker_list))
+            &
+            (stock_signal_df["date"] == cross_date)
+        ]
+        .copy()
+    )
+
+    if stock_today.empty:
+
+        st.warning("Không có dữ liệu SMDT mã.")
+
+    else:
+
+        stock_today = (
+            stock_today
+            .sort_values(
+                "smdt_ma",
+                ascending=False
+            )
+            .reset_index(drop=True)
+        )
+
+        top_stock = stock_today.iloc[0]
+
+        st.success(
+            f"""
+            Mã mạnh nhất: {top_stock['ticker']}
+            
+            SMDT mã: {top_stock['smdt_ma']:.2f}
+            """
+        )
+
+        st.dataframe(
+            stock_today[
+                [
+                    "ticker",
+                    "smdt_ma"
+                ]
+            ].head(10),
+            use_container_width=True
+        )
+
