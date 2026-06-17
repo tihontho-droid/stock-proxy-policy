@@ -843,7 +843,7 @@ if ticker_input:
                 "position": "aboveBar",
                 "shape": "circle",
                 "color": "blue",
-                "text": f"SMDT {smdt_text}"
+                "text": f"{smdt_text}"
             })
             
         chart_stock = {
