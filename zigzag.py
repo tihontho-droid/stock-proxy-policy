@@ -7,6 +7,31 @@ st.set_page_config(layout="wide")
 
 st.title("Giao dịch theo sóng thị trường")
 
+ticker_list_202 = [
+    "AAA", "ABB", "ACB", "AGG", "AGR", "ANV", "APG", "APS", "ASM",
+    "BCC", "BCM", "BFC", "BID", "BMI", "BMP", "BSI", "BSR", "BVB",
+    "BVH", "BVS", "C4G", "CEO", "CII", "CMG", "CMX", "CNG", "CSV",
+    "CTD", "CTG", "CTI", "CTR", "CTS", "D2D", "DBC", "DCM", "DDV",
+    "DGC", "DGW", "DHC", "DIG", "DPG", "DPM", "DPR", "DRC", "DTD",
+    "DXG", "DXS", "EIB", "EVF", "FCN", "FIT", "FMC", "FOX", "FPT",
+    "FRT", "FTS", "GAS", "GEG", "GEX", "GIL", "GMD", "GVR", "HAG",
+    "HAH", "HCM", "HDB", "HDC", "HDG", "HHS", "HHV", "HPG", "HQC",
+    "HSG", "HT1", "HTN", "HUT", "HVN", "IDC", "IDI", "IDJ", "IJC",
+    "ITC", "JVC", "KBC", "KDH", "KHG", "KLB", "KSB", "L14", "LAS",
+    "LCG", "LDG", "LHG", "LPB", "LSS", "MBB", "MBS", "MHC", "MIG",
+    "MPC", "MSB", "MSH", "MSN", "MSR", "MST", "MWG", "NAB", "NBC",
+    "NDN", "NKG", "NLG", "NT2", "NTC", "NTL", "NVB", "NVL", "OCB",
+    "OIL", "ORS", "PC1", "PDR", "PET", "PGB", "PHR", "PLC", "PLX",
+    "PNJ", "POW", "PPC", "PTB", "PVC", "PVD", "PVS", "PVT", "QCG",
+    "QNS", "QTP", "REE", "SAB", "SAM", "SBT", "SCR", "SGB", "SHB",
+    "SHS", "SIP", "SMC", "SSB", "SSI", "STB", "SZC", "TCB", "TCH",
+    "TCM", "TCX", "TDC", "TDH", "TLG", "TLH", "TNG", "TPB", "TTF",
+    "TV2", "VCB", "VCG", "VCI", "VCK", "VCS", "VDS", "VEA", "VGC",
+    "VGI", "VGS", "VHC", "VHM", "VIB", "VIC", "VIP", "VIX", "VJC",
+    "VND", "VNM", "VOS", "VPB", "VPI", "VPL", "VPX", "VRE", "VSC",
+    "VTP", "YEG"
+]
+
 # =========================
 # LOAD DATA ĐÃ TÍNH SẴN
 # =========================
@@ -38,6 +63,17 @@ def load_zigzag_data():
 
 price_all = load_price_data()
 zigzag_all = load_zigzag_data()
+
+# chỉ giữ VNINDEX + 202 mã nghiên cứu
+tickers_use = ticker_list_202 + ["VNINDEX"]
+
+price_all = price_all[
+    price_all["ticker"].isin(tickers_use)
+].copy()
+
+zigzag_all = zigzag_all[
+    zigzag_all["ticker"].isin(tickers_use)
+].copy()
 
 @st.cache_data
 def load_bottom_signal():
@@ -77,12 +113,22 @@ stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
 sector_all_df = load_sector()
 
+stock_signal_df = stock_signal_df[
+    stock_signal_df["ticker"].isin(ticker_list_202)
+].copy()
+
+ticker_branch_df = ticker_branch_df[
+    ticker_branch_df["ticker"].isin(ticker_list_202)
+].copy()
+
 ticker_branch_map = dict(
     zip(
         ticker_branch_df["ticker"],
         ticker_branch_df["nganh"]
     )
 )
+
+
 # =========================
 # LẤY DATA VNINDEX
 # =========================
