@@ -75,6 +75,7 @@ def load_ticker_branch():
 
 stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
+sector_all_df = load_sector()
 
 ticker_branch_map = dict(
     zip(
@@ -733,3 +734,11 @@ if ticker_input:
         )
 
 
+st.write("sector_all_df")
+st.write(sector_all_df.columns.tolist())
+
+st.write("stock_signal_df")
+st.write(stock_signal_df.columns.tolist())
+
+st.write("ticker_branch_df")
+st.write(ticker_branch_df.columns.tolist())
