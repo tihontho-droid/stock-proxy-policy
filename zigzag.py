@@ -410,14 +410,25 @@ else:
         "nganh": "Ngành"
     })
 
-    # Chủ lực: ngành vượt sớm trong 0-3 ngày sau xác nhận đáy
+    # =========================
+    # CHIA NGÀNH CHỦ LỰC / NGÀNH PHỤ
+    # =========================
+    
+    nganh_chu_luc = [
+        "Ngân hàng",
+        "Chứng khoán",
+        "BĐS Dân cư",
+        "Xây dựng",
+        "Thép",
+        "Sóng ngành Vin"
+    ]
+    
     chu_luc_df = sector_table[
-        sector_table["Lệch ngày"] <= 3
+        sector_table["Ngành"].isin(nganh_chu_luc)
     ].copy()
-
-    # Phụ: ngành vượt sau đó, từ ngày 4-10
+    
     phu_df = sector_table[
-        sector_table["Lệch ngày"] > 3
+        ~sector_table["Ngành"].isin(nganh_chu_luc)
     ].copy()
 
     col1, col2 = st.columns(2)
