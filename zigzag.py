@@ -360,6 +360,88 @@ selected_confirm_date = pd.to_datetime(
 )
 
 # =========================
+# NGÀNH DẪN SÓNG SAU ĐÁY THỊ TRƯỜNG
+# =========================
+
+st.subheader("Ngành dẫn sóng sau đáy thị trường")
+
+lead_window_days = 10
+
+sector_after_bottom = sector_all_df[
+    (sector_all_df["date"] >= selected_confirm_date)
+    &
+    (sector_all_df["date"] <= selected_confirm_date + pd.Timedelta(days=lead_window_days))
+    &
+    (sector_all_df["smdt_vua_vuot_70"] == True)
+].copy()
+
+if sector_after_bottom.empty:
+
+    st.info("Không có ngành nào vừa vượt SMDT 70 sau đáy thị trường này.")
+
+else:
+
+    sector_after_bottom = (
+        sector_after_bottom
+        .sort_values(["date", "smdt"], ascending=[True, False])
+        .reset_index(drop=True)
+    )
+
+    sector_after_bottom["Lệch ngày"] = (
+        sector_after_bottom["date"] - selected_confirm_date
+    ).dt.days
+
+    sector_after_bottom["Ngày SMDT ngành vượt"] = (
+        sector_after_bottom["date"].dt.date
+    )
+
+    sector_after_bottom["SMDT ngành"] = (
+        sector_after_bottom["smdt"].round(2)
+    )
+
+    sector_table = sector_after_bottom[
+        [
+            "nganh",
+            "Ngày SMDT ngành vượt",
+            "Lệch ngày",
+            "SMDT ngành"
+        ]
+    ].rename(columns={
+        "nganh": "Ngành"
+    })
+
+    # Chủ lực: ngành vượt sớm trong 0-3 ngày sau xác nhận đáy
+    chu_luc_df = sector_table[
+        sector_table["Lệch ngày"] <= 3
+    ].copy()
+
+    # Phụ: ngành vượt sau đó, từ ngày 4-10
+    phu_df = sector_table[
+        sector_table["Lệch ngày"] > 3
+    ].copy()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("### Ngành chủ lực")
+        if chu_luc_df.empty:
+            st.info("Chưa có ngành chủ lực.")
+        else:
+            st.dataframe(
+                chu_luc_df,
+                use_container_width=True
+            )
+
+    with col2:
+        st.markdown("### Ngành phụ")
+        if phu_df.empty:
+            st.info("Chưa có ngành phụ.")
+        else:
+            st.dataframe(
+                phu_df,
+                use_container_width=True
+            )
+# =========================
 # HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
 # =========================
 
