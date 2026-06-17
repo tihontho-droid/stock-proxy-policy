@@ -241,7 +241,7 @@ for _, row in vnindex_bottoms.iterrows():
     future_confirm = confirmed_dates[
         (confirmed_dates >= bottom_date)
         &
-        (confirmed_dates <= bottom_date + pd.Timedelta(days=2))
+        (confirmed_dates <= bottom_date + pd.Timedelta(days=7))
     ]
     if future_confirm.empty:
         continue
