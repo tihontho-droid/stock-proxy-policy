@@ -26,7 +26,7 @@ ticker_list_202 = [
     "QNS", "QTP", "REE", "SAB", "SAM", "SBT", "SCR", "SGB", "SHB",
     "SHS", "SIP", "SMC", "SSB", "SSI", "STB", "SZC", "TCB", "TCH",
     "TCM", "TCX", "TDC", "TDH", "TLG", "TLH", "TNG", "TPB", "TTF",
-    "TV2", "VCB", "VCG", "VCI", "VCK", "VCS", "VDS", "VEA", "VGC",
+    "TV2", "VCB", "VCG", "VCI", "VCS", "VDS", "VEA", "VGC",
     "VGI", "VGS", "VHC", "VHM", "VIB", "VIC", "VIP", "VIX", "VJC",
     "VND", "VNM", "VOS", "VPB", "VPI", "VPL", "VPX", "VRE", "VSC",
     "VTP", "YEG"
