@@ -921,34 +921,36 @@ else:
     result_rows = []
 
     for _, row in sector_cross.iterrows():
-
+    
         cross_date = row["date"]
         sector_smdt = row["smdt"]
-        
-        # tìm đáy VNINDEX gần nhất (cả trước và sau)
-        
-        temp_bottoms = vnindex_bottoms.copy()
-        
-        temp_bottoms["abs_days"] = (
-            temp_bottoms["confirm_date"] - cross_date
-        ).abs().dt.days
-        
-        nearest_bottom = (
-            temp_bottoms
-            .sort_values("abs_days")
-            .iloc[0]
-        )
-        
-        market_bottom_date = nearest_bottom["confirm_date"]
-        
-        delay_days = (
-            cross_date - market_bottom_date
-        ).days
-        
-        else:
-        
+    
+        # tìm đáy VNINDEX gần nhất, cả trước và sau
+        if vnindex_bottoms.empty:
+    
             market_bottom_date = pd.NaT
             delay_days = None
+    
+        else:
+    
+            temp_bottoms = vnindex_bottoms.copy()
+    
+            temp_bottoms["abs_days"] = (
+                temp_bottoms["confirm_date"] - cross_date
+            ).abs().dt.days
+    
+            nearest_bottom = (
+                temp_bottoms
+                .sort_values("abs_days")
+                .iloc[0]
+            )
+    
+            market_bottom_date = nearest_bottom["confirm_date"]
+    
+            delay_days = (
+                cross_date - market_bottom_date
+            ).days
+    
         stock_today = (
             stock_signal_df[
                 (stock_signal_df["ticker"].isin(ticker_list))
