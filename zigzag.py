@@ -881,6 +881,8 @@ else:
 
         result_rows.append({
             "Ngày vượt": cross_date.date(),
+            "Ngày đáy TT": market_bottom_date.date(),
+            "Lệch ngày": delay_days,
             "SMDT ngành": round(sector_smdt, 2),
             "Mã mạnh nhất": top_stock["ticker"],
             "SMDT mã": round(top_stock["smdt_ma"], 2)
