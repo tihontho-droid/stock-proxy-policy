@@ -878,14 +878,22 @@ else:
         )
 
         top_stock = stock_today.iloc[0]
-
+        top_ticker = top_stock["ticker"]
+        
+        # kiểm tra mã mạnh nhất có tạo đáy quanh VNINDEX không
+        in_bottom_table = False
+        
+        if not result_df.empty:
+            in_bottom_table = top_ticker in result_df["Ticker"].values
+            
         result_rows.append({
             "Ngày vượt": cross_date.date(),
             "Ngày đáy TT": market_bottom_date.date(),
             "Lệch ngày": delay_days,
             "SMDT ngành": round(sector_smdt, 2),
             "Mã mạnh nhất": top_stock["ticker"],
-            "SMDT mã": round(top_stock["smdt_ma"], 2)
+            "SMDT mã": round(top_stock["smdt_ma"], 2),
+            "Có tạo đáy quanh VNINDEX": in_bottom_table
         })
 
     result_cross_df = pd.DataFrame(result_rows)
