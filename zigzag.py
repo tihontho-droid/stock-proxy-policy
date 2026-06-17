@@ -363,7 +363,6 @@ selected_confirm_date = pd.to_datetime(
 # NGÀNH DẪN SÓNG SAU ĐÁY THỊ TRƯỜNG
 # =========================
 
-st.subheader("Ngành dẫn sóng sau đáy thị trường")
 
 lead_window_days = 10
 
