@@ -239,11 +239,10 @@ for _, row in vnindex_bottoms.iterrows():
 
     # xác nhận đáy phải đến sau 1-2 ngày
     future_confirm = confirmed_dates[
-        (confirmed_dates >= bottom_date + pd.Timedelta(days=1))
+        (confirmed_dates >= bottom_date)
         &
         (confirmed_dates <= bottom_date + pd.Timedelta(days=2))
     ]
-
     if future_confirm.empty:
         continue
 
