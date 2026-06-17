@@ -924,23 +924,26 @@ else:
 
         cross_date = row["date"]
         sector_smdt = row["smdt"]
-        # tìm đáy VNINDEX gần nhất trước ngày ngành vượt
         
-        past_bottoms = vnindex_bottoms[
-            vnindex_bottoms["date"] <= cross_date
-        ]
+        # tìm đáy VNINDEX gần nhất (cả trước và sau)
         
-        if len(past_bottoms) > 0:
+        temp_bottoms = vnindex_bottoms.copy()
         
-            market_bottom_date = (
-                past_bottoms
-                .sort_values("date")
-                .iloc[-1]["date"]
-            )
+        temp_bottoms["abs_days"] = (
+            temp_bottoms["confirm_date"] - cross_date
+        ).abs().dt.days
         
-            delay_days = (
-                cross_date - market_bottom_date
-            ).days
+        nearest_bottom = (
+            temp_bottoms
+            .sort_values("abs_days")
+            .iloc[0]
+        )
+        
+        market_bottom_date = nearest_bottom["confirm_date"]
+        
+        delay_days = (
+            cross_date - market_bottom_date
+        ).days
         
         else:
         
