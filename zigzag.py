@@ -823,6 +823,29 @@ if ticker_input:
                     "text": f"Đáy {price_text}"
                 })
 
+        # =========================
+        # MARKER NGÀY SMDT MÃ VỪA VƯỢT 70
+        # =========================
+        
+        smdt_cross_df = stock_signal_df[
+            (stock_signal_df["ticker"] == ticker_input)
+            &
+            (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+        ].copy()
+        
+        for _, row in smdt_cross_df.iterrows():
+        
+            time_str = row["date"].strftime("%Y-%m-%d")
+            smdt_text = f"{row['smdt_ma']:.2f}"
+        
+            markers_stock.append({
+                "time": time_str,
+                "position": "aboveBar",
+                "shape": "circle",
+                "color": "blue",
+                "text": f"SMDT {smdt_text}"
+            })
+            
         chart_stock = {
             "chart": {
                 "height": 500,
