@@ -798,7 +798,7 @@ selected_sector = st.selectbox(
 )
 
 # =========================
-# NGÀY ĐẦU TIÊN NGÀNH VƯỢT 70
+# TẤT CẢ NGÀY NGÀNH VỪA VƯỢT 70
 # =========================
 
 sector_cross = (
@@ -808,6 +808,7 @@ sector_cross = (
         (sector_all_df["smdt_vua_vuot_70"] == True)
     ]
     .sort_values("date")
+    .reset_index(drop=True)
 )
 
 if sector_cross.empty:
@@ -816,18 +817,6 @@ if sector_cross.empty:
 
 else:
 
-    first_row = sector_cross.iloc[0]
-
-    cross_date = first_row["date"]
-    sector_smdt = first_row["smdt"]
-
-    st.write("Ngày vượt 70:", cross_date.date())
-    st.write("SMDT ngành:", round(sector_smdt, 2))
-
-    # =========================
-    # LẤY DANH SÁCH MÃ THUỘC NGÀNH
-    # =========================
-
     ticker_list = (
         ticker_branch_df[
             ticker_branch_df["nganh"] == selected_sector
@@ -835,51 +824,49 @@ else:
         .unique()
     )
 
-    # =========================
-    # SMDT MÃ TẠI NGÀY NGÀNH VƯỢT
-    # =========================
+    result_rows = []
 
-    stock_today = (
-        stock_signal_df[
-            (stock_signal_df["ticker"].isin(ticker_list))
-            &
-            (stock_signal_df["date"] == cross_date)
-        ]
-        .copy()
-    )
+    for _, row in sector_cross.iterrows():
 
-    if stock_today.empty:
+        cross_date = row["date"]
+        sector_smdt = row["smdt"]
 
-        st.warning("Không có dữ liệu SMDT mã.")
+        stock_today = (
+            stock_signal_df[
+                (stock_signal_df["ticker"].isin(ticker_list))
+                &
+                (stock_signal_df["date"] == cross_date)
+            ]
+            .copy()
+        )
 
-    else:
+        if stock_today.empty:
+            result_rows.append({
+                "Ngày vượt": cross_date.date(),
+                "SMDT ngành": round(sector_smdt, 2),
+                "Mã mạnh nhất": None,
+                "SMDT mã": None
+            })
+            continue
 
         stock_today = (
             stock_today
-            .sort_values(
-                "smdt_ma",
-                ascending=False
-            )
+            .sort_values("smdt_ma", ascending=False)
             .reset_index(drop=True)
         )
 
         top_stock = stock_today.iloc[0]
 
-        st.success(
-            f"""
-            Mã mạnh nhất: {top_stock['ticker']}
-            
-            SMDT mã: {top_stock['smdt_ma']:.2f}
-            """
-        )
+        result_rows.append({
+            "Ngày vượt": cross_date.date(),
+            "SMDT ngành": round(sector_smdt, 2),
+            "Mã mạnh nhất": top_stock["ticker"],
+            "SMDT mã": round(top_stock["smdt_ma"], 2)
+        })
 
-        st.dataframe(
-            stock_today[
-                [
-                    "ticker",
-                    "smdt_ma"
-                ]
-            ].head(10),
-            use_container_width=True
-        )
+    result_cross_df = pd.DataFrame(result_rows)
 
+    st.dataframe(
+        result_cross_df,
+        use_container_width=True
+    )
