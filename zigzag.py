@@ -76,6 +76,12 @@ def load_ticker_branch():
 stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
 
+ticker_branch_map = dict(
+    zip(
+        ticker_branch_df["ticker"],
+        ticker_branch_df["nganh"]
+    )
+)
 # =========================
 # LẤY DATA VNINDEX
 # =========================
@@ -508,6 +514,12 @@ result_rows = []
 for _, bottom_row in matched_bottoms.iterrows():
 
     ticker = bottom_row["ticker"]
+    
+    sector = ticker_branch_map.get(
+        ticker,
+        "Không xác định"
+    )
+    
     bottom_date = bottom_row["date"]
     bottom_price = bottom_row["price"]
     zigzag_percent = bottom_row["percent"]
@@ -551,6 +563,7 @@ for _, bottom_row in matched_bottoms.iterrows():
 
     result_rows.append({
         "Ticker": ticker,
+        "Ngành": sector,
         "Percent ZigZag": int(zigzag_percent),
         "Đáy VNINDEX": selected_bottom_date,
         "Ngày đáy CP": bottom_date.date(),
@@ -575,6 +588,7 @@ else:
     result_df = result_df[
         [
             "Ticker",
+            "Ngành",
             "Percent ZigZag",
             "Đáy VNINDEX",
             "Ngày đáy CP",
@@ -718,4 +732,4 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
-st.write(ticker_branch_df.columns)
+
