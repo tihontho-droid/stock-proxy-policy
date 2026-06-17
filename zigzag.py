@@ -882,9 +882,27 @@ else:
         
         # kiểm tra mã mạnh nhất có tạo đáy quanh VNINDEX không
         in_bottom_table = False
+
+        # kiểm tra mã mạnh nhất có tạo đáy quanh ngày đáy thị trường gần nhất không
+        if pd.notna(market_bottom_date):
         
-        if not result_df.empty:
-            in_bottom_table = top_ticker in result_df["Ticker"].values
+            ticker_bottom_near_market = zigzag_all[
+                (zigzag_all["ticker"] == top_ticker)
+                &
+                (zigzag_all["type"] == 2)
+                &
+                (
+                    (zigzag_all["date"] - market_bottom_date)
+                    .abs()
+                    .dt.days <= window_days
+                )
+            ]
+        
+            in_bottom_table = not ticker_bottom_near_market.empty
+        
+        else:
+        
+            in_bottom_table = False
             
         result_rows.append({
             "Ngày vượt": cross_date.date(),
