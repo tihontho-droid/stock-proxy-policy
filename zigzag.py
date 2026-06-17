@@ -367,39 +367,41 @@ st.subheader("Ngành dẫn sóng sau đáy thị trường")
 
 lead_window_days = 10
 
-sector_after_bottom = sector_all_df[
-    (sector_all_df["date"] >= selected_confirm_date)
+near_window_days = 7
+
+sector_near_bottom = sector_all_df[
+    (sector_all_df["date"] >= selected_confirm_date - pd.Timedelta(days=near_window_days))
     &
-    (sector_all_df["date"] <= selected_confirm_date + pd.Timedelta(days=lead_window_days))
+    (sector_all_df["date"] <= selected_confirm_date + pd.Timedelta(days=near_window_days))
     &
     (sector_all_df["smdt_vua_vuot_70"] == True)
 ].copy()
 
-if sector_after_bottom.empty:
+if sector_near_bottom.empty:
 
     st.info("Không có ngành nào vừa vượt SMDT 70 sau đáy thị trường này.")
 
 else:
 
-    sector_after_bottom = (
-        sector_after_bottom
+    sector_near_bottom = (
+        sector_near_bottom
         .sort_values(["date", "smdt"], ascending=[True, False])
         .reset_index(drop=True)
     )
 
-    sector_after_bottom["Lệch ngày"] = (
-        sector_after_bottom["date"] - selected_confirm_date
+    sector_near_bottom["Lệch ngày"] = (
+        sector_near_bottom["date"] - selected_confirm_date
     ).dt.days
 
-    sector_after_bottom["Ngày SMDT ngành vượt"] = (
-        sector_after_bottom["date"].dt.date
+    sector_near_bottom["Ngày SMDT ngành vượt"] = (
+        sector_near_bottom["date"].dt.date
     )
 
-    sector_after_bottom["SMDT ngành"] = (
-        sector_after_bottom["smdt"].round(2)
+    sector_near_bottom["SMDT ngành"] = (
+        sector_near_bottom["smdt"].round(2)
     )
 
-    sector_table = sector_after_bottom[
+    sector_table = sector_near_bottom[
         [
             "nganh",
             "Ngày SMDT ngành vượt",
