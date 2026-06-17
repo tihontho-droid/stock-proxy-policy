@@ -830,7 +830,28 @@ else:
 
         cross_date = row["date"]
         sector_smdt = row["smdt"]
-
+        # tìm đáy VNINDEX gần nhất trước ngày ngành vượt
+        
+        past_bottoms = vnindex_bottoms[
+            vnindex_bottoms["date"] <= cross_date
+        ]
+        
+        if len(past_bottoms) > 0:
+        
+            market_bottom_date = (
+                past_bottoms
+                .sort_values("date")
+                .iloc[-1]["date"]
+            )
+        
+            delay_days = (
+                cross_date - market_bottom_date
+            ).days
+        
+        else:
+        
+            market_bottom_date = pd.NaT
+            delay_days = None
         stock_today = (
             stock_signal_df[
                 (stock_signal_df["ticker"].isin(ticker_list))
@@ -843,6 +864,7 @@ else:
         if stock_today.empty:
             result_rows.append({
                 "Ngày vượt": cross_date.date(),
+                "Ngày đáy TT": market_bottom_date.date(),
                 "SMDT ngành": round(sector_smdt, 2),
                 "Mã mạnh nhất": None,
                 "SMDT mã": None
