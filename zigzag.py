@@ -1056,7 +1056,11 @@ else:
     # =========================
 
     sector_on_prepare = sector_all_df[
-        sector_all_df["date"] == selected_prepare_date
+        (sector_all_df["smdt_vua_vuot_70"] == True)
+        &
+        (sector_all_df["date"] >= selected_prepare_date - pd.Timedelta(days=3))
+        &
+        (sector_all_df["date"] <= selected_prepare_date)
     ].copy()
 
     if sector_on_prepare.empty:
@@ -1072,56 +1076,66 @@ else:
             .reset_index(drop=True)
         )
 
-        result_rows = []
-
-        for _, sector_row in sector_on_prepare.iterrows():
-
-            sector_name = sector_row["nganh"]
-            sector_smdt = sector_row["smdt"]
-
-            ticker_list = (
-                ticker_branch_df[
-                    ticker_branch_df["nganh"] == sector_name
-                ]["ticker"]
-                .unique()
+    result_rows = []
+    
+    for _, sector_row in sector_on_prepare.iterrows():
+    
+        sector_name = sector_row["nganh"]
+        sector_cross_date = sector_row["date"]
+    
+        # lấy SMDT ngành đúng ngày chuẩn bị tạo đáy
+        sector_prepare_row = sector_all_df[
+            (sector_all_df["nganh"] == sector_name)
+            &
+            (sector_all_df["date"] == selected_prepare_date)
+        ]
+    
+        if sector_prepare_row.empty:
+            continue
+    
+        sector_smdt_prepare = sector_prepare_row.iloc[0]["smdt"]
+    
+        ticker_list = (
+            ticker_branch_df[
+                ticker_branch_df["nganh"] == sector_name
+            ]["ticker"]
+            .unique()
+        )
+    
+        stock_today = stock_signal_df[
+            (stock_signal_df["ticker"].isin(ticker_list))
+            &
+            (stock_signal_df["date"] == selected_prepare_date)
+        ].copy()
+    
+        if stock_today.empty:
+            top_ticker = None
+            top_smdt_ma = None
+        else:
+            stock_today = (
+                stock_today
+                .sort_values("smdt_ma", ascending=False)
+                .reset_index(drop=True)
             )
-
-            # lấy SMDT mã đúng ngày chuẩn bị tạo đáy
-            stock_today = stock_signal_df[
-                (stock_signal_df["ticker"].isin(ticker_list))
-                &
-                (stock_signal_df["date"] == selected_prepare_date)
-            ].copy()
-
-            if stock_today.empty:
-
-                top_ticker = None
-                top_smdt_ma = None
-
-            else:
-
-                stock_today = (
-                    stock_today
-                    .sort_values("smdt_ma", ascending=False)
-                    .reset_index(drop=True)
-                )
-
-                top_stock = stock_today.iloc[0]
-
-                top_ticker = top_stock["ticker"]
-                top_smdt_ma = top_stock["smdt_ma"]
-
-            result_rows.append({
-                "Ngày chuẩn bị tạo đáy": selected_prepare_date.date(),
-                "Ngành": sector_name,
-                "SMDT ngành tại ngày chuẩn bị": round(sector_smdt, 2),
-                "Mã mạnh nhất trong ngành": top_ticker,
-                "SMDT mã tại ngày chuẩn bị": round(top_smdt_ma, 2) if top_smdt_ma is not None else None
-            })
+    
+            top_stock = stock_today.iloc[0]
+            top_ticker = top_stock["ticker"]
+            top_smdt_ma = top_stock["smdt_ma"]
+    
+        result_rows.append({
+            "Ngày chuẩn bị tạo đáy": selected_prepare_date.date(),
+            "Ngày ngành vừa vượt": sector_cross_date.date(),
+            "Lệch ngày": (sector_cross_date - selected_prepare_date).days,
+            "Ngành": sector_name,
+            "SMDT ngành tại ngày chuẩn bị": round(sector_smdt_prepare, 2),
+            "Mã mạnh nhất trong ngành": top_ticker,
+            "SMDT mã tại ngày chuẩn bị": round(top_smdt_ma, 2) if top_smdt_ma is not None else None
+        })
 
         result_top_sector_df = (
             pd.DataFrame(result_rows)
             .sort_values("SMDT ngành tại ngày chuẩn bị", ascending=False)
+            .head(5)
             .reset_index(drop=True)
         )
 
