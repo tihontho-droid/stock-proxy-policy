@@ -845,7 +845,39 @@ if ticker_input:
                 "color": "blue",
                 "text": f"{smdt_text}"
             })
-            
+
+        ticker_sector = ticker_branch_map.get(ticker_input)
+        
+        if ticker_sector is not None:
+        
+            sector_cross_df = sector_all_df[
+                (sector_all_df["nganh"] == ticker_sector)
+                &
+                (sector_all_df["smdt_vua_vuot_70"] == True)
+            ].copy()
+        
+            for _, row in sector_cross_df.iterrows():
+        
+                if pd.isna(row["date"]) or pd.isna(row["smdt"]):
+                    continue
+        
+                time_str = row["date"].strftime("%Y-%m-%d")
+                smdt_sector_text = f"{row['smdt']:.2f}"
+        
+                markers_stock.append({
+                    "time": time_str,
+                    "position": "belowBar",
+                    "shape": "circle",
+                    "color": "#FF9800",
+                    "text": f"Ngành {smdt_sector_text}"
+                })
+
+        # sort marker
+        markers_stock = sorted(
+            markers_stock,
+            key=lambda x: x["time"]
+        )
+
         chart_stock = {
             "chart": {
                 "height": 500,
