@@ -1204,19 +1204,21 @@ else:
         ].copy()
 
         if ticker_bottoms.empty:
-
-            zigzag_percent = None
-
-        else:
-
-            bottom_row = (
-                ticker_bottoms
-                .sort_values("date")
-                .iloc[-1]
-            )
-
-            zigzag_percent = bottom_row["percent"]
-
+        
+            continue
+        
+        bottom_row = (
+            ticker_bottoms
+            .sort_values("date")
+            .iloc[-1]
+        )
+        
+        zigzag_percent = bottom_row["percent"]
+        
+        # bỏ các mã có Percent ZigZag < 20
+        if pd.isna(zigzag_percent) or zigzag_percent < 20:
+            continue
+        
         result_rows.append({
             "Ngày": row["date"].date(),
             "Mã": ticker,
