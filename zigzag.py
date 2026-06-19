@@ -1143,6 +1143,7 @@ else:
             both_signal_df,
             use_container_width=True
         )
+
 st.subheader("Các mã vượt SMDT mã ngày 03/04/2025")
 
 check_date = pd.to_datetime("2025-04-03")
@@ -1183,7 +1184,7 @@ else:
         if sector_today.empty:
 
             sector_smdt = None
-            sector_cross = None
+            sector_cross = False
 
         else:
 
@@ -1191,7 +1192,7 @@ else:
             sector_cross = sector_today.iloc[0]["smdt_vua_vuot_70"]
 
         # =========================
-        # TÌM ĐÁY ZIGZAG GẦN NHẤT
+        # LẤY PERCENT ZIGZAG GẦN NHẤT TRƯỚC NGÀY KIỂM TRA
         # =========================
 
         ticker_bottoms = zigzag_all[
@@ -1199,32 +1200,22 @@ else:
             &
             (zigzag_all["type"] == 2)
             &
-            (
-                (zigzag_all["date"] - check_date)
-                .abs()
-                .dt.days <= 2
-            )
+            (zigzag_all["date"] <= check_date)
         ].copy()
 
         if ticker_bottoms.empty:
 
             zigzag_percent = None
-            zigzag_bottom_date = None
 
         else:
 
-            ticker_bottoms["abs_days"] = (
-                ticker_bottoms["date"] - check_date
-            ).abs().dt.days
-
             bottom_row = (
                 ticker_bottoms
-                .sort_values("abs_days")
-                .iloc[0]
+                .sort_values("date")
+                .iloc[-1]
             )
 
             zigzag_percent = bottom_row["percent"]
-            zigzag_bottom_date = bottom_row["date"]
 
         result_rows.append({
             "Ngày": row["date"].date(),
@@ -1233,8 +1224,7 @@ else:
             "SMDT mã": round(row["smdt_ma"], 2),
             "SMDT ngành": round(sector_smdt, 2) if sector_smdt is not None else None,
             "Ngành vừa vượt": "Có" if sector_cross else "Không",
-            "Ngày đáy ZigZag": zigzag_bottom_date.date() if zigzag_bottom_date is not None else None,
-            "Percent ZigZag": zigzag_percent
+            "Percent ZigZag": int(zigzag_percent) if zigzag_percent is not None else None
         })
 
     smdt_cross_0304 = (
