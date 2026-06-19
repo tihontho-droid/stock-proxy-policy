@@ -660,7 +660,85 @@ for _, bottom_row in matched_bottoms.iterrows():
         ticker,
         "Không xác định"
     )
+
+
+    # =========================
+    # KIỂM TRA SMDT MÃ / NGÀNH VƯỢT GẦN ĐÁY VNINDEX
+    # =========================
     
+    smdt_window_days = 7
+    
+    # SMDT mã vừa vượt 70 gần ngày đáy VNINDEX
+    stock_smdt_cross = stock_signal_df[
+        (stock_signal_df["ticker"] == ticker)
+        &
+        (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+        &
+        (
+            (stock_signal_df["date"] - selected_date)
+            .abs()
+            .dt.days <= smdt_window_days
+        )
+    ].copy()
+    
+    if stock_smdt_cross.empty:
+        stock_smdt_cross_date = None
+        stock_smdt_delay = None
+        stock_smdt_near = "Không"
+    else:
+        stock_smdt_cross = stock_smdt_cross.copy()
+        stock_smdt_cross["abs_days"] = (
+            stock_smdt_cross["date"] - selected_date
+        ).abs().dt.days
+    
+        stock_smdt_row = (
+            stock_smdt_cross
+            .sort_values("abs_days")
+            .iloc[0]
+        )
+    
+        stock_smdt_cross_date = stock_smdt_row["date"]
+        stock_smdt_delay = (
+            stock_smdt_cross_date - selected_date
+        ).days
+        stock_smdt_near = "Có"
+    
+    
+    # SMDT ngành vừa vượt 70 gần ngày đáy VNINDEX
+    sector_smdt_cross = sector_all_df[
+        (sector_all_df["nganh"] == sector)
+        &
+        (sector_all_df["smdt_vua_vuot_70"] == True)
+        &
+        (
+            (sector_all_df["date"] - selected_date)
+            .abs()
+            .dt.days <= smdt_window_days
+        )
+    ].copy()
+    
+    if sector_smdt_cross.empty:
+        sector_smdt_cross_date = None
+        sector_smdt_delay = None
+        sector_smdt_near = "Không"
+    else:
+        sector_smdt_cross = sector_smdt_cross.copy()
+        sector_smdt_cross["abs_days"] = (
+            sector_smdt_cross["date"] - selected_date
+        ).abs().dt.days
+    
+        sector_smdt_row = (
+            sector_smdt_cross
+            .sort_values("abs_days")
+            .iloc[0]
+        )
+    
+        sector_smdt_cross_date = sector_smdt_row["date"]
+        sector_smdt_delay = (
+            sector_smdt_cross_date - selected_date
+        ).days
+        sector_smdt_near = "Có"    
+        
     bottom_date = bottom_row["date"]
     bottom_price = bottom_row["price"]
     zigzag_percent = bottom_row["percent"]
