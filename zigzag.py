@@ -388,7 +388,7 @@ else:
         .reset_index(drop=True)
     )
 
-    sector_near_bottom["Lệch ngày"] = (
+    sector_near_bottom["Lệch ngày "] = (
         sector_near_bottom["date"] - selected_confirm_date
     ).dt.days
 
@@ -404,7 +404,7 @@ else:
         [
             "nganh",
             "Ngày SMDT ngành vượt",
-            "Lệch ngày",
+            "Lệch ngày ",
             "SMDT ngành"
         ]
     ].rename(columns={
@@ -787,18 +787,18 @@ for _, bottom_row in matched_bottoms.iterrows():
         "Đáy VNINDEX": selected_bottom_date,
         "Ngày đáy CP": bottom_date.date(),
         "Giá đáy CP": round(bottom_price, 2),
-        "Lệch ngày": abs((bottom_date - selected_date).days),
+        "Lệch ngày ": abs((bottom_date - selected_date).days),
         "Ngày đỉnh tiếp theo": peak_date.date(),
         "Giá đỉnh tiếp theo": round(peak_price, 2),
         "Số ngày đáy → đỉnh": days_to_peak,
         "Hiệu suất đáy → đỉnh (%)": round(return_pct, 2), 
         "SMDT mã vượt gần đáy TT": stock_smdt_near,
         "Ngày SMDT mã vượt": stock_smdt_cross_date.date() if stock_smdt_cross_date is not None else None,
-        "Lệch ngày SMDT mã": stock_smdt_delay,
+        "Lệch ngày  SMDT mã": stock_smdt_delay,
         
         "SMDT ngành vượt gần đáy TT": sector_smdt_near,
         "Ngày SMDT ngành vượt": sector_smdt_cross_date.date() if sector_smdt_cross_date is not None else None,
-        "Lệch ngày SMDT ngành": sector_smdt_delay
+        "Lệch ngày  SMDT ngành": sector_smdt_delay
     })
 
 result_df = pd.DataFrame(result_rows)
@@ -819,17 +819,17 @@ else:
             "Đáy VNINDEX",
             "Ngày đáy CP",
             "Giá đáy CP",
-            "Lệch ngày",
+            "Lệch ngày ",
             "Ngày đỉnh tiếp theo",
             "Giá đỉnh tiếp theo",
             "Số ngày đáy → đỉnh",
             "Hiệu suất đáy → đỉnh (%)",
             "SMDT mã vượt gần đáy TT",
             "Ngày SMDT mã vượt",
-            "Lệch ngày SMDT mã",
+            "Lệch ngày  SMDT mã",
             "SMDT ngành vượt gần đáy TT",
             "Ngày SMDT ngành vượt",
-            "Lệch ngày SMDT ngành"
+            "Lệch ngày  SMDT ngành"
         ]
     ]
 
@@ -1120,12 +1120,14 @@ else:
     stock_cross_today = stock_signal_df[
         (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
         &
-        (stock_signal_df["date"] >= selected_prepare_date)
-        &
-        (stock_signal_df["date"] <= selected_prepare_date + pd.Timedelta(days=5))
+        (
+            (stock_signal_df["date"] - selected_prepare_date)
+            .abs()
+            .dt.days <= 5
+        )
     ].copy()
 
-    stock_cross_today["Lệch ngày"] = (
+    stock_cross_today["Lệch ngày "] = (
         stock_cross_today["date"] - selected_prepare_date
     ).dt.days
     if stock_cross_today.empty:
@@ -1160,7 +1162,7 @@ else:
             stock_cross_today[
                 [
                     "date",
-                    "lệch ngày",
+                    "Lệch ngày ",
                     "ticker",
                     "Ngành",
                     "smdt_ma",
@@ -1170,7 +1172,7 @@ else:
             ]
             .rename(columns={
                 "date": "Ngày chuẩn bị tạo đáy",
-                "lệch ngày": "lệch ngày chuẩn bị",
+                "Lệch ngày ": "Lệch ngày  chuẩn bị",
                 "ticker": "Mã",
                 "smdt_ma": "SMDT mã",
                 "smdt": "SMDT ngành",
