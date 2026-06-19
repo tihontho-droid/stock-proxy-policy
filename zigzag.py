@@ -1052,6 +1052,34 @@ def is_smdt_up_3_days_before_cross(df, sector_name, cross_date):
         and smdt_2 < smdt_1
         and smdt_1 < smdt_0
     )
+def is_stock_smdt_up_3_days_before_cross(df, ticker, cross_date):
+
+    temp = (
+        df[df["ticker"] == ticker]
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+
+    idx_list = temp[temp["date"] == cross_date].index
+
+    if len(idx_list) == 0:
+        return False
+
+    idx = idx_list[0]
+
+    if idx < 3:
+        return False
+
+    smdt_3 = temp.loc[idx - 3, "smdt_ma"]
+    smdt_2 = temp.loc[idx - 2, "smdt_ma"]
+    smdt_1 = temp.loc[idx - 1, "smdt_ma"]
+    smdt_0 = temp.loc[idx, "smdt_ma"]
+
+    return (
+        smdt_3 < smdt_2
+        and smdt_2 < smdt_1
+        and smdt_1 < smdt_0
+    )
     
 st.subheader("Top 5 ngành có SMDT cao nhất tại ngày chuẩn bị tạo đáy")
 
@@ -1162,6 +1190,29 @@ else:
                 top_ticker = top_stock["ticker"]
                 top_smdt_ma = top_stock["smdt_ma"]
 
+                stock_cross_row = stock_signal_df[
+                    (stock_signal_df["ticker"] == top_ticker)
+                    &
+                    (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+                    &
+                    (stock_signal_df["date"] >= selected_prepare_date - pd.Timedelta(days=3))
+                    &
+                    (stock_signal_df["date"] <= selected_prepare_date)
+                ].copy()
+                
+                if stock_cross_row.empty:
+                    continue
+                
+                stock_cross_date = stock_cross_row.sort_values("date").iloc[-1]["date"]
+                
+                is_stock_up_before_cross = is_stock_smdt_up_3_days_before_cross(
+                    stock_signal_df,
+                    top_ticker,
+                    stock_cross_date
+                )
+                
+                if not is_stock_up_before_cross:
+                    continue
             result_rows.append({
                 "Ngày chuẩn bị tạo đáy": selected_prepare_date.date(),
                 "Ngày ngành vừa vượt": sector_cross_date.date(),
