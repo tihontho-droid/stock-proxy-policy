@@ -1101,7 +1101,7 @@ else:
 
     else:
 
-        st.write("Các cột hiện có:", both_signal_df.columns.tolist())
+
 
         if "Ngày SMDT mã vượt" in both_signal_df.columns:
 
