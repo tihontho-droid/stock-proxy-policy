@@ -1120,9 +1120,11 @@ else:
     sector_on_prepare = sector_all_df[
         (sector_all_df["smdt_vua_vuot_70"] == True)
         &
-        (sector_all_df["date"] >= selected_prepare_date - pd.Timedelta(days=3))
-        &
-        (sector_all_df["date"] <= selected_prepare_date)
+        (
+            (sector_all_df["date"] - selected_prepare_date)
+            .abs()
+            .dt.days <= 3
+        )
     ].copy()
 
     if sector_on_prepare.empty:
@@ -1197,9 +1199,11 @@ else:
                     &
                     (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
                     &
-                    (stock_signal_df["date"] >= selected_prepare_date - pd.Timedelta(days=3))
-                    &
-                    (stock_signal_df["date"] <= selected_prepare_date)
+                    (
+                        (stock_signal_df["date"] - selected_prepare_date)
+                        .abs()
+                        .dt.days <= 3
+                    )
                 ].copy()
                 
                 if stock_cross_row.empty:
