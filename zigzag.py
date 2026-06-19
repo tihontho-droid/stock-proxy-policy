@@ -1158,7 +1158,8 @@ else:
                 continue
 
             sector_smdt_prepare = sector_prepare_row.iloc[0]["smdt"]
-
+            if sector_smdt_prepare < 70:
+                continue
             ticker_list = (
                 ticker_branch_df[
                     ticker_branch_df["nganh"] == sector_name
@@ -1189,7 +1190,8 @@ else:
                 top_stock = stock_today.iloc[0]
                 top_ticker = top_stock["ticker"]
                 top_smdt_ma = top_stock["smdt_ma"]
-
+                if top_smdt_ma < 70:
+                    continue
                 stock_cross_row = stock_signal_df[
                     (stock_signal_df["ticker"] == top_ticker)
                     &
