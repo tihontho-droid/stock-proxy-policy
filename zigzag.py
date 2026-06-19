@@ -1097,41 +1097,26 @@ else:
 
     if both_signal_df.empty:
 
-        st.warning(
-            "Không có mã nào vừa có tín hiệu SMDT mã và SMDT ngành."
-        )
+        st.warning("Không có mã nào vừa có tín hiệu SMDT mã và SMDT ngành.")
 
     else:
 
-        both_signal_df["Ngày SMDT mã vượt"] = pd.to_datetime(
-            both_signal_df["Ngày SMDT mã vượt"]
-        )
+        st.write("Các cột hiện có:", both_signal_df.columns.tolist())
 
-        both_signal_df = (
-            both_signal_df
-            .sort_values(
-                [
-                    "Ngày SMDT mã vượt",
-                    "Lệch ngày SMDT mã"
-                ],
-                ascending=[True, True],
+        if "Ngày SMDT mã vượt" in both_signal_df.columns:
+
+            both_signal_df["Ngày SMDT mã vượt"] = pd.to_datetime(
+                both_signal_df["Ngày SMDT mã vượt"],
+                errors="coerce"
+            )
+
+            both_signal_df = both_signal_df.sort_values(
+                "Ngày SMDT mã vượt",
+                ascending=True,
                 na_position="last"
             )
-            .reset_index(drop=True)
-        )
 
-        both_signal_df = both_signal_df[
-            [
-                "Ticker",
-                "Ngành",
-                "Ngày đáy CP",
-                "Ngày SMDT mã vượt",
-                "Lệch ngày SMDT mã",
-                "Ngày SMDT ngành vượt",
-                "Lệch ngày SMDT ngành",
-                "Hiệu suất đáy → đỉnh (%)"
-            ]
-        ]
+        both_signal_df = both_signal_df.reset_index(drop=True)
 
         st.dataframe(
             both_signal_df,
