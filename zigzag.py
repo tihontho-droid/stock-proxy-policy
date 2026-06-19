@@ -1019,6 +1019,40 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
+def is_smdt_up_3_days_before_cross(df, sector_name, cross_date):
+
+    temp = (
+        df[
+            df["nganh"] == sector_name
+        ]
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+
+    idx_list = temp[
+        temp["date"] == cross_date
+    ].index
+
+    if len(idx_list) == 0:
+        return False
+
+    idx = idx_list[0]
+
+    # cần có đủ 3 phiên trước ngày vượt
+    if idx < 3:
+        return False
+
+    smdt_3 = temp.loc[idx - 3, "smdt"]
+    smdt_2 = temp.loc[idx - 2, "smdt"]
+    smdt_1 = temp.loc[idx - 1, "smdt"]
+    smdt_0 = temp.loc[idx, "smdt"]
+
+    return (
+        smdt_3 < smdt_2
+        and smdt_2 < smdt_1
+        and smdt_1 < smdt_0
+    )
+    
 st.subheader("Top 5 ngành có SMDT cao nhất tại ngày chuẩn bị tạo đáy")
 
 # =========================
@@ -1076,6 +1110,15 @@ else:
             sector_name = sector_row["nganh"]
             sector_cross_date = sector_row["date"]
 
+            is_up_before_cross = is_smdt_up_3_days_before_cross(
+                sector_all_df,
+                sector_name,
+                sector_cross_date
+            )
+            
+            if not is_up_before_cross:
+                continue
+                
             # lấy SMDT ngành đúng ngày chuẩn bị tạo đáy
             sector_prepare_row = sector_all_df[
                 (sector_all_df["nganh"] == sector_name)
