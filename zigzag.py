@@ -791,7 +791,14 @@ for _, bottom_row in matched_bottoms.iterrows():
         "Ngày đỉnh tiếp theo": peak_date.date(),
         "Giá đỉnh tiếp theo": round(peak_price, 2),
         "Số ngày đáy → đỉnh": days_to_peak,
-        "Hiệu suất đáy → đỉnh (%)": round(return_pct, 2)
+        "Hiệu suất đáy → đỉnh (%)": round(return_pct, 2), 
+        "SMDT mã vượt gần đáy TT": stock_smdt_near,
+        "Ngày SMDT mã vượt": stock_smdt_cross_date.date() if stock_smdt_cross_date is not None else None,
+        "Lệch ngày SMDT mã": stock_smdt_delay,
+        
+        "SMDT ngành vượt gần đáy TT": sector_smdt_near,
+        "Ngày SMDT ngành vượt": sector_smdt_cross_date.date() if sector_smdt_cross_date is not None else None,
+        "Lệch ngày SMDT ngành": sector_smdt_delay
     })
 
 result_df = pd.DataFrame(result_rows)
@@ -816,7 +823,13 @@ else:
             "Ngày đỉnh tiếp theo",
             "Giá đỉnh tiếp theo",
             "Số ngày đáy → đỉnh",
-            "Hiệu suất đáy → đỉnh (%)"
+            "Hiệu suất đáy → đỉnh (%)",
+            "SMDT mã vượt gần đáy TT",
+            "Ngày SMDT mã vượt",
+            "Lệch ngày SMDT mã",
+            "SMDT ngành vượt gần đáy TT",
+            "Ngày SMDT ngành vượt",
+            "Lệch ngày SMDT ngành"
         ]
     ]
 
