@@ -1081,126 +1081,33 @@ def is_stock_smdt_up_3_days_before_cross(df, ticker, cross_date):
         and smdt_1 < smdt_0
     )
     
-st.subheader("Các mã có SMDT vừa vượt tại ngày chuẩn bị tạo đáy")
+st.subheader("Cổ phiếu tạo đáy quanh VNINDEX có cả tín hiệu SMDT mã và ngành")
 
-# =========================
-# LẤY NGÀY CHUẨN BỊ TẠO ĐÁY CỦA ĐÁY ĐANG CHỌN
-# =========================
+if result_df.empty:
 
-prepare_df = bottom_signal_df[
-    (bottom_signal_df["chuan_bi_tao_day"] == True)
-    &
-    (bottom_signal_df["date"] < selected_confirm_date)
-].copy()
-
-if prepare_df.empty:
-
-    st.warning("Không tìm thấy ngày chuẩn bị tạo đáy trước ngày xác nhận này.")
+    st.warning("Chưa có bảng cổ phiếu tạo đáy quanh VNINDEX để lọc.")
 
 else:
 
-    prepare_row = (
-        prepare_df
-        .sort_values("date")
-        .tail(1)
-        .iloc[0]
-    )
-
-    selected_prepare_date = prepare_row["date"]
-
-    st.write(
-        "Ngày chuẩn bị tạo đáy:",
-        selected_prepare_date.date()
-    )
-
-    # =========================
-    # LỌC MÃ CÓ SMDT VỪA VƯỢT 70 ĐÚNG NGÀY CHUẨN BỊ
-    # =========================
-    
-    stock_cross_today = stock_signal_df[
-        (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+    both_signal_df = result_df[
+        (result_df["SMDT mã vượt gần đáy TT"] == "Có")
         &
-        (
-            (stock_signal_df["date"] - selected_prepare_date)
-            .abs()
-            .dt.days <= 5
-        )
+        (result_df["SMDT ngành vượt gần đáy TT"] == "Có")
     ].copy()
 
-    stock_cross_today["Lệch ngày "] = (
-        stock_cross_today["date"] - selected_prepare_date
-    ).dt.days
-    if stock_cross_today.empty:
-    
-        st.warning("Không có mã nào có SMDT vừa vượt 70 tại ngày chuẩn bị tạo đáy.")
-    
+    if both_signal_df.empty:
+
+        st.warning("Không có mã nào vừa có tín hiệu SMDT mã và SMDT ngành.")
+
     else:
-    
-        # map ngành cho từng mã
-        stock_cross_today["Ngành"] = stock_cross_today["ticker"].map(
-            ticker_branch_map
-        )
-    
-        # lấy SMDT ngành tại đúng ngày chuẩn bị
-        sector_lookup = sector_all_df[
-            [
-                "date",
-                "nganh",
-                "smdt",
-                "smdt_vua_vuot_70"
-            ]
-        ].copy()
-    
-        stock_cross_today = stock_cross_today.merge(
-            sector_lookup,
-            left_on=["date", "Ngành"],
-            right_on=["date", "nganh"],
-            how="left"
-        )
-    
-        result_prepare_stock_df = (
-            stock_cross_today[
-                [
-                    "date",
-                    "Lệch ngày ",
-                    "ticker",
-                    "Ngành",
-                    "smdt_ma",
-                    "smdt",
-                    "smdt_vua_vuot_70"
-                ]
-            ]
-            .rename(columns={
-                "date": "Ngày chuẩn bị tạo đáy",
-                "Lệch ngày ": "Lệch ngày  chuẩn bị",
-                "ticker": "Mã",
-                "smdt_ma": "SMDT mã",
-                "smdt": "SMDT ngành",
-                "smdt_vua_vuot_70": "SMDT ngành vừa vượt"
-            })
-            .sort_values("SMDT mã", ascending=False)
+
+        both_signal_df = (
+            both_signal_df
+            .sort_values("Hiệu suất đáy → đỉnh (%)", ascending=False)
             .reset_index(drop=True)
         )
-    
-        result_prepare_stock_df["Ngày chuẩn bị tạo đáy"] = (
-            result_prepare_stock_df["Ngày chuẩn bị tạo đáy"].dt.date
-        )
-    
-        result_prepare_stock_df["SMDT ngành"] = (
-            result_prepare_stock_df["SMDT ngành"].round(2)
-        )
-    
-        result_prepare_stock_df["SMDT mã"] = (
-            result_prepare_stock_df["SMDT mã"].round(2)
-        )
-    
-        result_prepare_stock_df["SMDT ngành vừa vượt"] = (
-            result_prepare_stock_df["SMDT ngành vừa vượt"]
-            .map({True: "Có", False: "Không"})
-            .fillna("Không rõ")
-        )
-    
+
         st.dataframe(
-            result_prepare_stock_df,
+            both_signal_df,
             use_container_width=True
         )
