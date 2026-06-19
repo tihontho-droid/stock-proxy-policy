@@ -1229,20 +1229,27 @@ else:
             "Percent ZigZag": int(zigzag_percent) if zigzag_percent is not None else None
         })
 
+    smdt_cross_0304 = pd.DataFrame(result_rows)
+    
+    smdt_cross_0304 = smdt_cross_0304[
+        smdt_cross_0304["Percent ZigZag"] >= 20
+    ].copy()
+    
     smdt_cross_0304 = (
-        pd.DataFrame(result_rows)
+        smdt_cross_0304
         .sort_values(
             [
+                "Ngành",
                 "Percent ZigZag",
                 "SMDT mã"
             ],
-            ascending=[False, False],
+            ascending=[True, False, False],
             na_position="last"
         )
         .reset_index(drop=True)
     )
 
-    st.dataframe(
-        smdt_cross_0304,
-        use_container_width=True
-    )
+st.dataframe(
+    smdt_cross_0304,
+    use_container_width=True
+)
