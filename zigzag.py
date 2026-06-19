@@ -1103,7 +1103,13 @@ else:
 
         both_signal_df = (
             both_signal_df
-            .sort_values("Hiệu suất đáy → đỉnh (%)", ascending=False)
+            .sort_values(
+                [
+                    "Ngày SMDT mã vượt",
+                    "Lệch ngày SMDT mã"
+                ],
+                ascending=[True, True]
+            )
             .reset_index(drop=True)
         )
 
