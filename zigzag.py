@@ -682,11 +682,16 @@ for _, bottom_row in matched_bottoms.iterrows():
     ].copy()
     
     if stock_smdt_cross.empty:
+    
         stock_smdt_cross_date = None
         stock_smdt_delay = None
         stock_smdt_near = "Không"
+        stock_smdt_value = None
+    
     else:
+    
         stock_smdt_cross = stock_smdt_cross.copy()
+    
         stock_smdt_cross["abs_days"] = (
             stock_smdt_cross["date"] - selected_date
         ).abs().dt.days
@@ -698,10 +703,14 @@ for _, bottom_row in matched_bottoms.iterrows():
         )
     
         stock_smdt_cross_date = stock_smdt_row["date"]
+    
         stock_smdt_delay = (
             stock_smdt_cross_date - selected_date
         ).days
+    
         stock_smdt_near = "Có"
+    
+        stock_smdt_value = stock_smdt_row["smdt_ma"]
     
     
     # SMDT ngành vừa vượt 70 gần ngày đáy VNINDEX
@@ -718,11 +727,16 @@ for _, bottom_row in matched_bottoms.iterrows():
     ].copy()
     
     if sector_smdt_cross.empty:
+    
         sector_smdt_cross_date = None
         sector_smdt_delay = None
         sector_smdt_near = "Không"
+        sector_smdt_value = None
+    
     else:
+    
         sector_smdt_cross = sector_smdt_cross.copy()
+    
         sector_smdt_cross["abs_days"] = (
             sector_smdt_cross["date"] - selected_date
         ).abs().dt.days
@@ -734,10 +748,14 @@ for _, bottom_row in matched_bottoms.iterrows():
         )
     
         sector_smdt_cross_date = sector_smdt_row["date"]
+    
         sector_smdt_delay = (
             sector_smdt_cross_date - selected_date
         ).days
-        sector_smdt_near = "Có"    
+    
+        sector_smdt_near = "Có"
+    
+        sector_smdt_value = sector_smdt_row["smdt"]
         
     bottom_date = bottom_row["date"]
     bottom_price = bottom_row["price"]
@@ -794,10 +812,11 @@ for _, bottom_row in matched_bottoms.iterrows():
         "Hiệu suất đáy → đỉnh (%)": round(return_pct, 2), 
         "SMDT mã vượt gần đáy TT": stock_smdt_near,
         "Ngày SMDT mã vượt": stock_smdt_cross_date.date() if stock_smdt_cross_date is not None else None,
+        "SMDT mã tại ngày vượt": round(stock_smdt_value, 2) if stock_smdt_value is not None else None,
         "Lệch ngày  SMDT mã": stock_smdt_delay,
-        
         "SMDT ngành vượt gần đáy TT": sector_smdt_near,
         "Ngày SMDT ngành vượt": sector_smdt_cross_date.date() if sector_smdt_cross_date is not None else None,
+        "SMDT ngành tại ngày vượt": round(sector_smdt_value, 2) if sector_smdt_value is not None else None,
         "Lệch ngày  SMDT ngành": sector_smdt_delay
     })
 
@@ -826,9 +845,11 @@ else:
             "Hiệu suất đáy → đỉnh (%)",
             "SMDT mã vượt gần đáy TT",
             "Ngày SMDT mã vượt",
+            "SMDT mã tại ngày vượt",
             "Lệch ngày  SMDT mã",
             "SMDT ngành vượt gần đáy TT",
             "Ngày SMDT ngành vượt",
+            "SMDT ngành tại ngày vượt",
             "Lệch ngày  SMDT ngành"
         ]
     ]
