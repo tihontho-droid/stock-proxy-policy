@@ -1019,7 +1019,7 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
-st.subheader("Top ngành vừa vượt SMDT gần ngày chuẩn bị tạo đáy")
+st.subheader("Top 5 ngành có SMDT cao nhất tại ngày chuẩn bị tạo đáy")
 
 # =========================
 # LẤY NGÀY CHUẨN BỊ TẠO ĐÁY CỦA ĐÁY ĐANG CHỌN
@@ -1052,33 +1052,21 @@ else:
     )
 
     # =========================
-    # TÌM NGÀNH VỪA VƯỢT 70 QUANH NGÀY CHUẨN BỊ
+    # LẤY SMDT NGÀNH ĐÚNG NGÀY CHUẨN BỊ TẠO ĐÁY
     # =========================
 
-    window_sector_days = 3
-
-    sector_near_prepare = sector_all_df[
-        (sector_all_df["smdt_vua_vuot_70"] == True)
-        &
-        (
-            (sector_all_df["date"] - selected_prepare_date)
-            .abs()
-            .dt.days <= window_sector_days
-        )
+    sector_on_prepare = sector_all_df[
+        sector_all_df["date"] == selected_prepare_date
     ].copy()
 
-    if sector_near_prepare.empty:
+    if sector_on_prepare.empty:
 
-        st.warning("Không có ngành nào vừa vượt 70 quanh ngày chuẩn bị tạo đáy.")
+        st.warning("Không có dữ liệu SMDT ngành tại ngày chuẩn bị tạo đáy.")
 
     else:
 
-        sector_near_prepare["Lệch ngày"] = (
-            sector_near_prepare["date"] - selected_prepare_date
-        ).dt.days
-
-        sector_near_prepare = (
-            sector_near_prepare
+        sector_on_prepare = (
+            sector_on_prepare
             .sort_values("smdt", ascending=False)
             .head(5)
             .reset_index(drop=True)
@@ -1086,14 +1074,11 @@ else:
 
         result_rows = []
 
-        for _, sector_row in sector_near_prepare.iterrows():
+        for _, sector_row in sector_on_prepare.iterrows():
 
             sector_name = sector_row["nganh"]
-            sector_cross_date = sector_row["date"]
             sector_smdt = sector_row["smdt"]
-            delay_days = sector_row["Lệch ngày"]
 
-            # các mã thuộc ngành đó
             ticker_list = (
                 ticker_branch_df[
                     ticker_branch_df["nganh"] == sector_name
@@ -1101,11 +1086,11 @@ else:
                 .unique()
             )
 
-            # lấy SMDT mã tại đúng ngày ngành vượt
+            # lấy SMDT mã đúng ngày chuẩn bị tạo đáy
             stock_today = stock_signal_df[
                 (stock_signal_df["ticker"].isin(ticker_list))
                 &
-                (stock_signal_df["date"] == sector_cross_date)
+                (stock_signal_df["date"] == selected_prepare_date)
             ].copy()
 
             if stock_today.empty:
@@ -1128,15 +1113,17 @@ else:
 
             result_rows.append({
                 "Ngày chuẩn bị tạo đáy": selected_prepare_date.date(),
-                "Ngày SMDT ngành vượt": sector_cross_date.date(),
-                "Lệch ngày": delay_days,
                 "Ngành": sector_name,
-                "SMDT ngành": round(sector_smdt, 2),
+                "SMDT ngành tại ngày chuẩn bị": round(sector_smdt, 2),
                 "Mã mạnh nhất trong ngành": top_ticker,
-                "SMDT mã": round(top_smdt_ma, 2) if top_smdt_ma is not None else None
+                "SMDT mã tại ngày chuẩn bị": round(top_smdt_ma, 2) if top_smdt_ma is not None else None
             })
 
-        result_top_sector_df = pd.DataFrame(result_rows)
+        result_top_sector_df = (
+            pd.DataFrame(result_rows)
+            .sort_values("SMDT ngành tại ngày chuẩn bị", ascending=False)
+            .reset_index(drop=True)
+        )
 
         st.dataframe(
             result_top_sector_df,
