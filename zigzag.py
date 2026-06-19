@@ -1019,149 +1019,126 @@ if ticker_input:
             key=f"stock_zigzag_chart_{ticker_input}"
         )
 
-st.subheader("Mã mạnh nhất khi ngành vừa vượt 70")
+st.subheader("Top ngành vừa vượt SMDT gần ngày chuẩn bị tạo đáy")
 
 # =========================
-# DROPDOWN NGÀNH
+# LẤY NGÀY CHUẨN BỊ TẠO ĐÁY CỦA ĐÁY ĐANG CHỌN
 # =========================
 
-sector_list = (
-    sector_all_df["nganh"]
-    .dropna()
-    .sort_values()
-    .unique()
-)
+prepare_df = bottom_signal_df[
+    (bottom_signal_df["chuan_bi_tao_day"] == True)
+    &
+    (bottom_signal_df["date"] < selected_confirm_date)
+].copy()
 
-selected_sector = st.selectbox(
-    "Chọn ngành",
-    sector_list
-)
+if prepare_df.empty:
 
-# =========================
-# TẤT CẢ NGÀY NGÀNH VỪA VƯỢT 70
-# =========================
-
-sector_cross = (
-    sector_all_df[
-        (sector_all_df["nganh"] == selected_sector)
-        &
-        (sector_all_df["smdt_vua_vuot_70"] == True)
-    ]
-    .sort_values("date")
-    .reset_index(drop=True)
-)
-
-if sector_cross.empty:
-
-    st.warning("Ngành này chưa có tín hiệu vượt 70.")
+    st.warning("Không tìm thấy ngày chuẩn bị tạo đáy trước ngày xác nhận này.")
 
 else:
 
-    ticker_list = (
-        ticker_branch_df[
-            ticker_branch_df["nganh"] == selected_sector
-        ]["ticker"]
-        .unique()
+    prepare_row = (
+        prepare_df
+        .sort_values("date")
+        .tail(1)
+        .iloc[0]
     )
 
-    result_rows = []
+    selected_prepare_date = prepare_row["date"]
 
-    for _, row in sector_cross.iterrows():
-    
-        cross_date = row["date"]
-        sector_smdt = row["smdt"]
-    
-        # tìm đáy VNINDEX gần nhất, cả trước và sau
-        if vnindex_bottoms.empty:
-    
-            market_bottom_date = pd.NaT
-            delay_days = None
-    
-        else:
-    
-            temp_bottoms = vnindex_bottoms.copy()
-    
-            temp_bottoms["abs_days"] = (
-                temp_bottoms["confirm_date"] - cross_date
-            ).abs().dt.days
-    
-            nearest_bottom = (
-                temp_bottoms
-                .sort_values("abs_days")
-                .iloc[0]
-            )
-    
-            market_bottom_date = nearest_bottom["confirm_date"]
-    
-            delay_days = (
-                cross_date - market_bottom_date
-            ).days
-    
-        stock_today = (
-            stock_signal_df[
-                (stock_signal_df["ticker"].isin(ticker_list))
-                &
-                (stock_signal_df["date"] == cross_date)
-            ]
-            .copy()
+    st.write(
+        "Ngày chuẩn bị tạo đáy:",
+        selected_prepare_date.date()
+    )
+
+    # =========================
+    # TÌM NGÀNH VỪA VƯỢT 70 QUANH NGÀY CHUẨN BỊ
+    # =========================
+
+    window_sector_days = 3
+
+    sector_near_prepare = sector_all_df[
+        (sector_all_df["smdt_vua_vuot_70"] == True)
+        &
+        (
+            (sector_all_df["date"] - selected_prepare_date)
+            .abs()
+            .dt.days <= window_sector_days
         )
+    ].copy()
 
-        if stock_today.empty:
-            result_rows.append({
-                "Ngày vượt": cross_date.date(),
-                "Ngày đáy TT": market_bottom_date.date(),
-                "SMDT ngành": round(sector_smdt, 2),
-                "Mã mạnh nhất": None,
-                "SMDT mã": None
-            })
-            continue
+    if sector_near_prepare.empty:
 
-        stock_today = (
-            stock_today
-            .sort_values("smdt_ma", ascending=False)
+        st.warning("Không có ngành nào vừa vượt 70 quanh ngày chuẩn bị tạo đáy.")
+
+    else:
+
+        sector_near_prepare["Lệch ngày"] = (
+            sector_near_prepare["date"] - selected_prepare_date
+        ).dt.days
+
+        sector_near_prepare = (
+            sector_near_prepare
+            .sort_values("smdt", ascending=False)
+            .head(5)
             .reset_index(drop=True)
         )
 
-        top_stock = stock_today.iloc[0]
-        top_ticker = top_stock["ticker"]
-        
-        # kiểm tra mã mạnh nhất có tạo đáy quanh VNINDEX không
-        in_bottom_table = False
+        result_rows = []
 
-        # kiểm tra mã mạnh nhất có tạo đáy quanh ngày đáy thị trường gần nhất không
-        if pd.notna(market_bottom_date):
-        
-            ticker_bottom_near_market = zigzag_all[
-                (zigzag_all["ticker"] == top_ticker)
+        for _, sector_row in sector_near_prepare.iterrows():
+
+            sector_name = sector_row["nganh"]
+            sector_cross_date = sector_row["date"]
+            sector_smdt = sector_row["smdt"]
+            delay_days = sector_row["Lệch ngày"]
+
+            # các mã thuộc ngành đó
+            ticker_list = (
+                ticker_branch_df[
+                    ticker_branch_df["nganh"] == sector_name
+                ]["ticker"]
+                .unique()
+            )
+
+            # lấy SMDT mã tại đúng ngày ngành vượt
+            stock_today = stock_signal_df[
+                (stock_signal_df["ticker"].isin(ticker_list))
                 &
-                (zigzag_all["type"] == 2)
-                &
-                (
-                    (zigzag_all["date"] - market_bottom_date)
-                    .abs()
-                    .dt.days <= window_days
+                (stock_signal_df["date"] == sector_cross_date)
+            ].copy()
+
+            if stock_today.empty:
+
+                top_ticker = None
+                top_smdt_ma = None
+
+            else:
+
+                stock_today = (
+                    stock_today
+                    .sort_values("smdt_ma", ascending=False)
+                    .reset_index(drop=True)
                 )
-            ]
-        
-            in_bottom_table = not ticker_bottom_near_market.empty
-        
-        else:
-        
-            in_bottom_table = False
-            
-        result_rows.append({
-            "Ngày vượt": cross_date.date(),
-            "Ngày đáy TT": market_bottom_date.date(),
-            "Lệch ngày": delay_days,
-            "SMDT ngành": round(sector_smdt, 2),
-            "Mã mạnh nhất": top_stock["ticker"],
-            "SMDT mã": round(top_stock["smdt_ma"], 2),
-            "Có tạo đáy quanh VNINDEX": in_bottom_table
-        })
 
-    result_cross_df = pd.DataFrame(result_rows)
+                top_stock = stock_today.iloc[0]
 
-    st.dataframe(
-        result_cross_df,
-        use_container_width=True
-    )
+                top_ticker = top_stock["ticker"]
+                top_smdt_ma = top_stock["smdt_ma"]
+
+            result_rows.append({
+                "Ngày chuẩn bị tạo đáy": selected_prepare_date.date(),
+                "Ngày SMDT ngành vượt": sector_cross_date.date(),
+                "Lệch ngày": delay_days,
+                "Ngành": sector_name,
+                "SMDT ngành": round(sector_smdt, 2),
+                "Mã mạnh nhất trong ngành": top_ticker,
+                "SMDT mã": round(top_smdt_ma, 2) if top_smdt_ma is not None else None
+            })
+
+        result_top_sector_df = pd.DataFrame(result_rows)
+
+        st.dataframe(
+            result_top_sector_df,
+            use_container_width=True
+        )
