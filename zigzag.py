@@ -1163,26 +1163,92 @@ else:
         ticker_branch_map
     )
 
-    smdt_cross_0304 = (
-        smdt_cross_0304[
-            [
-                "date",
-                "ticker",
-                "Ngành",
-                "smdt_ma"
-            ]
+    result_rows = []
+
+    for _, row in smdt_cross_0304.iterrows():
+
+        ticker = row["ticker"]
+        sector = row["Ngành"]
+
+        # =========================
+        # LẤY SMDT NGÀNH
+        # =========================
+
+        sector_today = sector_all_df[
+            (sector_all_df["nganh"] == sector)
+            &
+            (sector_all_df["date"] == check_date)
         ]
-        .rename(columns={
-            "date": "Ngày",
-            "ticker": "Mã",
-            "smdt_ma": "SMDT mã"
+
+        if sector_today.empty:
+
+            sector_smdt = None
+            sector_cross = None
+
+        else:
+
+            sector_smdt = sector_today.iloc[0]["smdt"]
+            sector_cross = sector_today.iloc[0]["smdt_vua_vuot_70"]
+
+        # =========================
+        # TÌM ĐÁY ZIGZAG GẦN NHẤT
+        # =========================
+
+        ticker_bottoms = zigzag_all[
+            (zigzag_all["ticker"] == ticker)
+            &
+            (zigzag_all["type"] == 2)
+            &
+            (
+                (zigzag_all["date"] - check_date)
+                .abs()
+                .dt.days <= 2
+            )
+        ].copy()
+
+        if ticker_bottoms.empty:
+
+            zigzag_percent = None
+            zigzag_bottom_date = None
+
+        else:
+
+            ticker_bottoms["abs_days"] = (
+                ticker_bottoms["date"] - check_date
+            ).abs().dt.days
+
+            bottom_row = (
+                ticker_bottoms
+                .sort_values("abs_days")
+                .iloc[0]
+            )
+
+            zigzag_percent = bottom_row["percent"]
+            zigzag_bottom_date = bottom_row["date"]
+
+        result_rows.append({
+            "Ngày": row["date"].date(),
+            "Mã": ticker,
+            "Ngành": sector,
+            "SMDT mã": round(row["smdt_ma"], 2),
+            "SMDT ngành": round(sector_smdt, 2) if sector_smdt is not None else None,
+            "Ngành vừa vượt": "Có" if sector_cross else "Không",
+            "Ngày đáy ZigZag": zigzag_bottom_date.date() if zigzag_bottom_date is not None else None,
+            "Percent ZigZag": zigzag_percent
         })
-        .sort_values("SMDT mã", ascending=False)
+
+    smdt_cross_0304 = (
+        pd.DataFrame(result_rows)
+        .sort_values(
+            [
+                "Percent ZigZag",
+                "SMDT mã"
+            ],
+            ascending=[False, False],
+            na_position="last"
+        )
         .reset_index(drop=True)
     )
-
-    smdt_cross_0304["Ngày"] = smdt_cross_0304["Ngày"].dt.date
-    smdt_cross_0304["SMDT mã"] = smdt_cross_0304["SMDT mã"].round(2)
 
     st.dataframe(
         smdt_cross_0304,
