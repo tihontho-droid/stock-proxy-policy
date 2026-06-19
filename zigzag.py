@@ -1143,3 +1143,48 @@ else:
             both_signal_df,
             use_container_width=True
         )
+st.subheader("Các mã vượt SMDT mã ngày 03/04/2025")
+
+check_date = pd.to_datetime("2025-04-03")
+
+smdt_cross_0304 = stock_signal_df[
+    (stock_signal_df["date"] == check_date)
+    &
+    (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+].copy()
+
+if smdt_cross_0304.empty:
+
+    st.warning("Không có mã nào vượt SMDT mã ngày 03/04/2025.")
+
+else:
+
+    smdt_cross_0304["Ngành"] = smdt_cross_0304["ticker"].map(
+        ticker_branch_map
+    )
+
+    smdt_cross_0304 = (
+        smdt_cross_0304[
+            [
+                "date",
+                "ticker",
+                "Ngành",
+                "smdt_ma"
+            ]
+        ]
+        .rename(columns={
+            "date": "Ngày",
+            "ticker": "Mã",
+            "smdt_ma": "SMDT mã"
+        })
+        .sort_values("SMDT mã", ascending=False)
+        .reset_index(drop=True)
+    )
+
+    smdt_cross_0304["Ngày"] = smdt_cross_0304["Ngày"].dt.date
+    smdt_cross_0304["SMDT mã"] = smdt_cross_0304["SMDT mã"].round(2)
+
+    st.dataframe(
+        smdt_cross_0304,
+        use_container_width=True
+    )
