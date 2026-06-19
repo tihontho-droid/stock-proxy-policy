@@ -1081,7 +1081,7 @@ def is_stock_smdt_up_3_days_before_cross(df, ticker, cross_date):
         and smdt_1 < smdt_0
     )
     
-st.subheader("Top 5 ngành vừa vượt 70 gần ngày chuẩn bị tạo đáy")
+st.subheader("Các mã có SMDT vừa vượt tại ngày chuẩn bị tạo đáy")
 
 # =========================
 # LẤY NGÀY CHUẨN BỊ TẠO ĐÁY CỦA ĐÁY ĐANG CHỌN
@@ -1114,130 +1114,48 @@ else:
     )
 
     # =========================
-    # LẤY NGÀNH VỪA VƯỢT 70 TRONG +/- 3 NGÀY QUANH NGÀY CHUẨN BỊ
+    # LỌC MÃ CÓ SMDT VỪA VƯỢT 70 ĐÚNG NGÀY CHUẨN BỊ
     # =========================
 
-    sector_on_prepare = sector_all_df[
-        (sector_all_df["smdt_vua_vuot_70"] == True)
+    stock_cross_today = stock_signal_df[
+        (stock_signal_df["date"] == selected_prepare_date)
         &
-        (
-            (sector_all_df["date"] - selected_prepare_date)
-            .abs()
-            .dt.days <= 3
-        )
+        (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
     ].copy()
 
-    if sector_on_prepare.empty:
+    if stock_cross_today.empty:
 
-        st.warning("Không có ngành nào vừa vượt 70 trong +/- 3 ngày quanh ngày chuẩn bị tạo đáy.")
+        st.warning("Không có mã nào có SMDT vừa vượt 70 tại ngày chuẩn bị tạo đáy.")
 
     else:
 
-        result_rows = []
+        stock_cross_today["Ngành"] = stock_cross_today["ticker"].map(
+            ticker_branch_map
+        )
 
-        for _, sector_row in sector_on_prepare.iterrows():
-
-            sector_name = sector_row["nganh"]
-            sector_cross_date = sector_row["date"]
-            sector_smdt_cross = sector_row["smdt"]
-
-            # ngành phải tăng dần 3 phiên trước ngày vượt
-            is_up_before_cross = is_smdt_up_3_days_before_cross(
-                sector_all_df,
-                sector_name,
-                sector_cross_date
-            )
-
-            if not is_up_before_cross:
-                continue
-
-            ticker_list = (
-                ticker_branch_df[
-                    ticker_branch_df["nganh"] == sector_name
-                ]["ticker"]
-                .unique()
-            )
-
-            # lấy SMDT mã đúng ngày NGÀNH VƯỢT
-            stock_today = stock_signal_df[
-                (stock_signal_df["ticker"].isin(ticker_list))
-                &
-                (stock_signal_df["date"] == sector_cross_date)
-            ].copy()
-
-            if stock_today.empty:
-                continue
-
-            stock_today = (
-                stock_today
-                .sort_values("smdt_ma", ascending=False)
-                .reset_index(drop=True)
-            )
-
-            top_stock = stock_today.iloc[0]
-            top_ticker = top_stock["ticker"]
-            top_smdt_ma = top_stock["smdt_ma"]
-
-            if top_smdt_ma < 70:
-                continue
-
-            # mã mạnh nhất cũng phải vừa vượt 70 trong +/- 3 ngày quanh ngày chuẩn bị
-            stock_cross_row = stock_signal_df[
-                (stock_signal_df["ticker"] == top_ticker)
-                &
-                (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
-                &
-                (
-                    (stock_signal_df["date"] - selected_prepare_date)
-                    .abs()
-                    .dt.days <= 3
-                )
-            ].copy()
-
-            if stock_cross_row.empty:
-                continue
-
-            stock_cross_date = (
-                stock_cross_row
-                .sort_values("date")
-                .iloc[-1]["date"]
-            )
-
-            is_stock_up_before_cross = is_stock_smdt_up_3_days_before_cross(
-                stock_signal_df,
-                top_ticker,
-                stock_cross_date
-            )
-
-            if not is_stock_up_before_cross:
-                continue
-
-            result_rows.append({
-                "Ngày chuẩn bị tạo đáy": selected_prepare_date.date(),
-                "Ngày ngành vừa vượt": sector_cross_date.date(),
-                "Lệch ngày": (sector_cross_date - selected_prepare_date).days,
-                "Ngành": sector_name,
-                "SMDT ngành tại ngày vượt": round(sector_smdt_cross, 2),
-                "Mã mạnh nhất trong ngành": top_ticker,
-                "SMDT mã tại ngày ngành vượt": round(top_smdt_ma, 2),
-                "Ngày mã vừa vượt": stock_cross_date.date(),
-                "Lệch ngày mã vượt": (stock_cross_date - selected_prepare_date).days
+        result_prepare_stock_df = (
+            stock_cross_today[
+                [
+                    "date",
+                    "ticker",
+                    "Ngành",
+                    "smdt_ma"
+                ]
+            ]
+            .rename(columns={
+                "date": "Ngày chuẩn bị tạo đáy",
+                "ticker": "Mã",
+                "smdt_ma": "SMDT mã"
             })
+            .sort_values("SMDT mã", ascending=False)
+            .reset_index(drop=True)
+        )
 
-        if len(result_rows) == 0:
+        result_prepare_stock_df["Ngày chuẩn bị tạo đáy"] = (
+            result_prepare_stock_df["Ngày chuẩn bị tạo đáy"].dt.date
+        )
 
-            st.warning("Không tạo được bảng top ngành.")
-
-        else:
-
-            result_top_sector_df = (
-                pd.DataFrame(result_rows)
-                .sort_values("SMDT ngành tại ngày vượt", ascending=False)
-                .head(5)
-                .reset_index(drop=True)
-            )
-
-            st.dataframe(
-                result_top_sector_df,
-                use_container_width=True
-            )
+        st.dataframe(
+            result_prepare_stock_df,
+            use_container_width=True
+        )
