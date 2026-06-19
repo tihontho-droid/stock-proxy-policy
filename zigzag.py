@@ -1118,11 +1118,16 @@ else:
     # =========================
     
     stock_cross_today = stock_signal_df[
-        (stock_signal_df["date"] == selected_prepare_date)
-        &
         (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+        &
+        (stock_signal_df["date"] >= selected_prepare_date)
+        &
+        (stock_signal_df["date"] <= selected_prepare_date + pd.Timedelta(days=5))
     ].copy()
-    
+
+    stock_cross_today["Lệch ngày"] = (
+        stock_cross_today["date"] - selected_prepare_date
+    ).dt.days
     if stock_cross_today.empty:
     
         st.warning("Không có mã nào có SMDT vừa vượt 70 tại ngày chuẩn bị tạo đáy.")
@@ -1155,6 +1160,7 @@ else:
             stock_cross_today[
                 [
                     "date",
+                    "lệch ngày",
                     "ticker",
                     "Ngành",
                     "smdt_ma",
@@ -1164,6 +1170,7 @@ else:
             ]
             .rename(columns={
                 "date": "Ngày chuẩn bị tạo đáy",
+                "lệch ngày": "lệch ngày chuẩn bị",
                 "ticker": "Mã",
                 "smdt_ma": "SMDT mã",
                 "smdt": "SMDT ngành",
