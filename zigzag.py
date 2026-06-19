@@ -1116,45 +1116,81 @@ else:
     # =========================
     # LỌC MÃ CÓ SMDT VỪA VƯỢT 70 ĐÚNG NGÀY CHUẨN BỊ
     # =========================
-
+    
     stock_cross_today = stock_signal_df[
         (stock_signal_df["date"] == selected_prepare_date)
         &
         (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
     ].copy()
-
+    
     if stock_cross_today.empty:
-
+    
         st.warning("Không có mã nào có SMDT vừa vượt 70 tại ngày chuẩn bị tạo đáy.")
-
+    
     else:
-
+    
+        # map ngành cho từng mã
         stock_cross_today["Ngành"] = stock_cross_today["ticker"].map(
             ticker_branch_map
         )
-
+    
+        # lấy SMDT ngành tại đúng ngày chuẩn bị
+        sector_lookup = sector_all_df[
+            [
+                "date",
+                "nganh",
+                "smdt",
+                "smdt_vua_vuot_70"
+            ]
+        ].copy()
+    
+        stock_cross_today = stock_cross_today.merge(
+            sector_lookup,
+            left_on=["date", "Ngành"],
+            right_on=["date", "nganh"],
+            how="left"
+        )
+    
         result_prepare_stock_df = (
             stock_cross_today[
                 [
                     "date",
                     "ticker",
                     "Ngành",
-                    "smdt_ma"
+                    "smdt_ma",
+                    "smdt",
+                    "smdt_vua_vuot_70"
                 ]
             ]
             .rename(columns={
                 "date": "Ngày chuẩn bị tạo đáy",
                 "ticker": "Mã",
-                "smdt_ma": "SMDT mã"
+                "smdt_ma": "SMDT mã",
+                "smdt": "SMDT ngành",
+                "smdt_vua_vuot_70": "SMDT ngành vừa vượt"
             })
             .sort_values("SMDT mã", ascending=False)
             .reset_index(drop=True)
         )
-
+    
         result_prepare_stock_df["Ngày chuẩn bị tạo đáy"] = (
             result_prepare_stock_df["Ngày chuẩn bị tạo đáy"].dt.date
         )
-
+    
+        result_prepare_stock_df["SMDT ngành"] = (
+            result_prepare_stock_df["SMDT ngành"].round(2)
+        )
+    
+        result_prepare_stock_df["SMDT mã"] = (
+            result_prepare_stock_df["SMDT mã"].round(2)
+        )
+    
+        result_prepare_stock_df["SMDT ngành vừa vượt"] = (
+            result_prepare_stock_df["SMDT ngành vừa vượt"]
+            .map({True: "Có", False: "Không"})
+            .fillna("Không rõ")
+        )
+    
         st.dataframe(
             result_prepare_stock_df,
             use_container_width=True
