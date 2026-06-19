@@ -1144,36 +1144,37 @@ else:
             use_container_width=True
         )
 
-st.subheader("Các mã vượt SMDT mã ngày 03/04/2025")
+st.subheader("Các mã vượt SMDT mã theo ngày chọn")
 
-check_date = pd.to_datetime("2025-04-03")
+selected_check_date = st.date_input(
+    "Chọn ngày kiểm tra",
+    value=pd.to_datetime("2025-04-03").date()
+)
 
-smdt_cross_0304 = stock_signal_df[
+check_date = pd.to_datetime(selected_check_date)
+
+smdt_cross_df = stock_signal_df[
     (stock_signal_df["date"] == check_date)
     &
     (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
 ].copy()
 
-if smdt_cross_0304.empty:
+if smdt_cross_df.empty:
 
-    st.warning("Không có mã nào vượt SMDT mã ngày 03/04/2025.")
+    st.warning("Không có mã nào vượt SMDT mã trong ngày này.")
 
 else:
 
-    smdt_cross_0304["Ngành"] = smdt_cross_0304["ticker"].map(
+    smdt_cross_df["Ngành"] = smdt_cross_df["ticker"].map(
         ticker_branch_map
     )
 
     result_rows = []
 
-    for _, row in smdt_cross_0304.iterrows():
+    for _, row in smdt_cross_df.iterrows():
 
         ticker = row["ticker"]
         sector = row["Ngành"]
-
-        # =========================
-        # LẤY SMDT NGÀNH
-        # =========================
 
         sector_today = sector_all_df[
             (sector_all_df["nganh"] == sector)
@@ -1182,18 +1183,11 @@ else:
         ]
 
         if sector_today.empty:
-
             sector_smdt = None
             sector_cross = False
-
         else:
-
             sector_smdt = sector_today.iloc[0]["smdt"]
             sector_cross = sector_today.iloc[0]["smdt_vua_vuot_70"]
-
-        # =========================
-        # LẤY PERCENT ZIGZAG GẦN NHẤT TRƯỚC NGÀY KIỂM TRA
-        # =========================
 
         ticker_bottoms = zigzag_all[
             (zigzag_all["ticker"] == ticker)
@@ -1204,21 +1198,19 @@ else:
         ].copy()
 
         if ticker_bottoms.empty:
-        
             continue
-        
+
         bottom_row = (
             ticker_bottoms
             .sort_values("date")
             .iloc[-1]
         )
-        
+
         zigzag_percent = bottom_row["percent"]
-        
-        # bỏ các mã có Percent ZigZag < 20
+
         if pd.isna(zigzag_percent) or zigzag_percent < 20:
             continue
-        
+
         result_rows.append({
             "Ngày": row["date"].date(),
             "Mã": ticker,
@@ -1226,30 +1218,31 @@ else:
             "SMDT mã": round(row["smdt_ma"], 2),
             "SMDT ngành": round(sector_smdt, 2) if sector_smdt is not None else None,
             "Ngành vừa vượt": "Có" if sector_cross else "Không",
-            "Percent ZigZag": int(zigzag_percent) if zigzag_percent is not None else None
+            "Percent ZigZag": int(zigzag_percent)
         })
 
-    smdt_cross_0304 = pd.DataFrame(result_rows)
-    
-    smdt_cross_0304 = smdt_cross_0304[
-        smdt_cross_0304["Percent ZigZag"] >= 20
-    ].copy()
-    
-    smdt_cross_0304 = (
-        smdt_cross_0304
-        .sort_values(
-            [
-                "Ngành",
-                "Percent ZigZag",
-                "SMDT mã"
-            ],
-            ascending=[True, False, False],
-            na_position="last"
-        )
-        .reset_index(drop=True)
-    )
+    if len(result_rows) == 0:
 
-st.dataframe(
-    smdt_cross_0304,
-    use_container_width=True
-)
+        st.warning("Không có mã nào thỏa điều kiện Percent ZigZag >= 20.")
+
+    else:
+
+        result_check_df = pd.DataFrame(result_rows)
+
+        result_check_df = (
+            result_check_df
+            .sort_values(
+                [
+                    "Ngành",
+                    "Percent ZigZag",
+                    "SMDT mã"
+                ],
+                ascending=[True, False, False]
+            )
+            .reset_index(drop=True)
+        )
+
+        st.dataframe(
+            result_check_df,
+            use_container_width=True
+        )
