@@ -1389,9 +1389,11 @@ if tong_so_lan > 0:
     # =========================
 
     same_day_df = match_df[
-        match_df["Ngày SMDT mã vượt"]
-        ==
-        match_df["Ngày SMDT ngành vượt"]
+        (
+            match_df["SMDT mã lệch nến"]
+            -
+            match_df["SMDT ngành lệch nến"]
+        ).between(-1, 0)
     ]
 
     same_day_pct = (
