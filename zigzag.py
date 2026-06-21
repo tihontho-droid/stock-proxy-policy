@@ -1380,11 +1380,12 @@ tong_so_lan = len(match_df)
 if tong_so_lan > 0:
 
     cung_ngay = match_df[
-        (match_df["SMDT mã lệch nến"] == 0)
-        &
-        (match_df["SMDT ngành lệch nến"] == 0)
+        (
+            pd.to_datetime(match_df["Ngày SMDT mã vượt"])
+            ==
+            pd.to_datetime(match_df["Ngày SMDT ngành vượt"])
+        )
     ]
-
     so_lan_cung_ngay = len(cung_ngay)
 
     ty_le = round(
