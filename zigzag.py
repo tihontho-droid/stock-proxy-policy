@@ -1370,3 +1370,60 @@ else:
         match_df,
         use_container_width=True
     )
+
+# =========================
+# RÚT RA ĐẶC ĐIỂM CỦA MÃ
+# =========================
+
+tong_so_lan = len(match_df)
+
+if tong_so_lan > 0:
+
+    cung_ngay = match_df[
+        (match_df["SMDT mã lệch nến"] == 0)
+        &
+        (match_df["SMDT ngành lệch nến"] == 0)
+    ]
+
+    so_lan_cung_ngay = len(cung_ngay)
+
+    ty_le = round(
+        so_lan_cung_ngay / tong_so_lan * 100,
+        1
+    )
+
+    ticker_sector = ticker_branch_map.get(
+        ticker_input,
+        "ngành hiện tại"
+    )
+
+    if ty_le >= 60:
+
+        rule_text = (
+            f"Mã {ticker_input} thường có SMDT vượt cùng ngày với ngành "
+            f"{ticker_sector} ({so_lan_cung_ngay}/{tong_so_lan} lần, "
+            f"chiếm {ty_le}%). "
+            f"Do đó khi thị trường xuất hiện tín hiệu chuẩn bị tạo đáy, "
+            f"nếu {ticker_input} và ngành {ticker_sector} cùng vượt SMDT "
+            f"trong cùng thời điểm thì đây là tín hiệu đáng chú ý để theo dõi giải ngân."
+        )
+
+    elif ty_le >= 40:
+
+        rule_text = (
+            f"Mã {ticker_input} đôi khi có SMDT vượt đồng pha với ngành "
+            f"{ticker_sector} ({so_lan_cung_ngay}/{tong_so_lan} lần, "
+            f"chiếm {ty_le}%). "
+            f"Tín hiệu này có giá trị tham khảo nhưng chưa đủ mạnh để dùng riêng lẻ."
+        )
+
+    else:
+
+        rule_text = (
+            f"Mã {ticker_input} hiếm khi vượt SMDT cùng ngày với ngành "
+            f"{ticker_sector} ({so_lan_cung_ngay}/{tong_so_lan} lần, "
+            f"chiếm {ty_le}%). "
+            f"Vì vậy việc chọn điểm mua nên dựa thêm các yếu tố khác ngoài SMDT ngành."
+        )
+
+    st.success(rule_text)
