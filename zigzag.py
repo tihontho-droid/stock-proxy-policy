@@ -1365,9 +1365,6 @@ else:
         .reset_index(drop=True)
     )
 
-    st.markdown(
-        f"### Số lần khớp còn lại: {len(match_df)}"
-    )
 
     st.dataframe(
         match_df,
