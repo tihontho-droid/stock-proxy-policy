@@ -1311,3 +1311,16 @@ else:
         use_container_width=True
     )
 
+
+st.subheader("DEBUG result_df")
+
+st.write("Shape:", result_df.shape)
+
+st.write("Columns:")
+st.write(result_df.columns.tolist())
+
+st.dataframe(
+    result_df.head(5),
+    use_container_width=True
+)
+
