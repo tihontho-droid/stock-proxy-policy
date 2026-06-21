@@ -1517,7 +1517,7 @@ if tong_so_lan > 0:
             direction_text = "cùng thời điểm đáy"
     
         rule_text = (
-            f"Ngành {ticker_sector} thường vượt SMDT {direction_text} đáy và vượt cùng thời điểm với {ticker_input}. " 
+            f"Ngành {ticker_sector} thường vượt SMDT {direction_text} và vượt cùng thời điểm với {ticker_input}. " 
             f"Đây là tín hiệu đáng chú ý để theo dõi giải ngân."
         )
 
