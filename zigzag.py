@@ -1485,12 +1485,42 @@ if tong_so_lan > 0:
         )
 
     elif max_pct == same_day_pct and same_day_pct >= 50:
-
+    
+        # =========================
+        # XÁC ĐỊNH HƯỚNG SAME DAY
+        # =========================
+    
+        same_day_before = same_day_df[
+            same_day_df["SMDT ngành lệch nến"] > 0
+        ]
+    
+        same_day_after = same_day_df[
+            same_day_df["SMDT ngành lệch nến"] < 0
+        ]
+    
+        same_day_equal = same_day_df[
+            same_day_df["SMDT ngành lệch nến"] == 0
+        ]
+    
+        before_pct_sd = len(same_day_before) / tong_so_lan * 100
+        after_pct_sd = len(same_day_after) / tong_so_lan * 100
+        equal_pct_sd = len(same_day_equal) / tong_so_lan * 100
+    
+        # chọn hướng dominant
+        max_sd = max(before_pct_sd, after_pct_sd, equal_pct_sd)
+    
+        if max_sd == before_pct_sd:
+            direction_text = "trước đáy"
+        elif max_sd == after_pct_sd:
+            direction_text = "sau đáy"
+        else:
+            direction_text = "cùng thời điểm đáy"
+    
         rule_text = (
-            f"Ngành {ticker_sector} thường vượt SMDT cùng thời điểm với "
-            f"{ticker_input}. "
-            f"Trong đó, {ticker_input} nếu vượt SMDT cùng ngành "
-            f"{ticker_sector} sẽ là mã tiềm năng."
+            f"Ngành {ticker_sector} thường vượt SMDT quanh đáy (trước/sau/cùng thời điểm), "
+            f"trong đó có xu hướng nghiêng về {direction_text}. "
+            f"Khi {ticker_input} đồng pha hoặc dẫn trước ngành vượt SMDT thì đây là tín hiệu "
+            f"đáng chú ý để theo dõi giải ngân."
         )
 
     elif max_pct == lag_pct and lag_pct >= 50:
