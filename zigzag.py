@@ -1379,52 +1379,77 @@ tong_so_lan = len(match_df)
 
 if tong_so_lan > 0:
 
-    cung_ngay = match_df[
-        (
-            pd.to_datetime(match_df["Ngày SMDT mã vượt"])
-            ==
-            pd.to_datetime(match_df["Ngày SMDT ngành vượt"])
-        )
-    ]
-    so_lan_cung_ngay = len(cung_ngay)
-
-    ty_le = round(
-        so_lan_cung_ngay / tong_so_lan * 100,
-        1
-    )
-
     ticker_sector = ticker_branch_map.get(
         ticker_input,
         "ngành hiện tại"
     )
 
-    if ty_le >= 60:
+    # =========================
+    # TH1: MÃ & NGÀNH CÙNG NGÀY
+    # =========================
+
+    same_day_df = match_df[
+        match_df["Ngày SMDT mã vượt"]
+        ==
+        match_df["Ngày SMDT ngành vượt"]
+    ]
+
+    same_day_pct = (
+        len(same_day_df)
+        / tong_so_lan
+        * 100
+    )
+
+    # =========================
+    # TH2: MÃ DẪN NGÀNH
+    # mã vượt trước ngành
+    # =========================
+
+    lead_df = match_df[
+        (
+            match_df["SMDT mã lệch nến"]
+            >
+            match_df["SMDT ngành lệch nến"]
+        )
+    ]
+
+    lead_pct = (
+        len(lead_df)
+        / tong_so_lan
+        * 100
+    )
+
+    # =========================
+    # KẾT LUẬN
+    # =========================
+
+    if lead_pct >= 60:
 
         rule_text = (
-            f"Mã {ticker_input} thường có SMDT vượt cùng ngày với ngành "
-            f"{ticker_sector} ({so_lan_cung_ngay}/{tong_so_lan} lần, "
-            f"chiếm {ty_le}%). "
-            f"Do đó khi thị trường xuất hiện tín hiệu chuẩn bị tạo đáy, "
-            f"nếu {ticker_input} và ngành {ticker_sector} cùng vượt SMDT "
-            f"trong cùng thời điểm thì đây là tín hiệu đáng chú ý để theo dõi giải ngân."
+            f"{ticker_input} thường vượt SMDT trước ngành "
+            f"{ticker_sector} ({len(lead_df)}/{tong_so_lan} lần, "
+            f"{lead_pct:.1f}%). "
+            f"Điều này cho thấy {ticker_input} có xu hướng đóng vai trò cổ phiếu dẫn sóng. "
+            f"Nếu thị trường xuất hiện tín hiệu chuẩn bị hoặc xác nhận tạo đáy, "
+            f"{ticker_input} vượt SMDT trước và sau đó ngành {ticker_sector} tiếp tục vượt SMDT, "
+            f"đó là tín hiệu đáng chú ý để theo dõi giải ngân."
         )
 
-    elif ty_le >= 40:
+    elif same_day_pct >= 60:
 
         rule_text = (
-            f"Mã {ticker_input} đôi khi có SMDT vượt đồng pha với ngành "
-            f"{ticker_sector} ({so_lan_cung_ngay}/{tong_so_lan} lần, "
-            f"chiếm {ty_le}%). "
-            f"Tín hiệu này có giá trị tham khảo nhưng chưa đủ mạnh để dùng riêng lẻ."
+            f"{ticker_input} thường vượt SMDT đồng thời với ngành "
+            f"{ticker_sector} ({len(same_day_df)}/{tong_so_lan} lần, "
+            f"{same_day_pct:.1f}%). "
+            f"Khi thị trường tạo đáy, việc {ticker_input} và ngành cùng vượt SMDT "
+            f"là tín hiệu đáng chú ý."
         )
 
     else:
 
         rule_text = (
-            f"Mã {ticker_input} hiếm khi vượt SMDT cùng ngày với ngành "
-            f"{ticker_sector} ({so_lan_cung_ngay}/{tong_so_lan} lần, "
-            f"chiếm {ty_le}%). "
-            f"Vì vậy việc chọn điểm mua nên dựa thêm các yếu tố khác ngoài SMDT ngành."
+            f"Chưa tìm thấy một mẫu hành vi SMDT đủ rõ ràng đối với "
+            f"{ticker_input}. Nên kết hợp thêm các tín hiệu khác."
         )
 
     st.success(rule_text)
