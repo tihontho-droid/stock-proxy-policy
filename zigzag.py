@@ -1046,14 +1046,23 @@ if ticker_input:
 
 st.subheader("Các lần khớp đáy ZigZag với VNINDEX")
 
+start_date = pd.to_datetime("2023-06-08")
 window_days = 2
 
+# =========================
+# ĐÁY ZIGZAG TỪ 08/06/2023
+# =========================
+
 stock_bottoms = df_stock_zigzag[
-    df_stock_zigzag["type"] == 2
+    (df_stock_zigzag["type"] == 2)
+    &
+    (df_stock_zigzag["date"] >= start_date)
 ].copy()
 
 vnindex_bottoms = df_vnindex_zigzag[
-    df_vnindex_zigzag["type"] == 2
+    (df_vnindex_zigzag["type"] == 2)
+    &
+    (df_vnindex_zigzag["date"] >= start_date)
 ].copy()
 
 result_rows = []
@@ -1061,6 +1070,10 @@ result_rows = []
 for _, stock_row in stock_bottoms.iterrows():
 
     stock_bottom_date = stock_row["date"]
+
+    # =========================
+    # TÌM ĐÁY VNINDEX GẦN NHẤT
+    # =========================
 
     near_market = vnindex_bottoms[
         (
@@ -1098,6 +1111,8 @@ for _, stock_row in stock_bottoms.iterrows():
         (stock_signal_df["ticker"] == ticker_input)
         &
         (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+        &
+        (stock_signal_df["date"] >= start_date)
     ].copy()
 
     stock_cross_date = None
@@ -1150,6 +1165,8 @@ for _, stock_row in stock_bottoms.iterrows():
             (sector_all_df["nganh"] == ticker_sector)
             &
             (sector_all_df["smdt_vua_vuot_70"] == True)
+            &
+            (sector_all_df["date"] >= start_date)
         ].copy()
 
         if not sector_cross.empty:
@@ -1213,9 +1230,14 @@ for _, stock_row in stock_bottoms.iterrows():
 
     result_rows.append({
 
-        "Đáy VNINDEX": market_bottom_date.date(),
-        "Đáy CP": stock_bottom_date.date(),
-        "Lệch ngày đáy": delay_days,
+        "Đáy VNINDEX":
+            market_bottom_date.date(),
+
+        "Đáy CP":
+            stock_bottom_date.date(),
+
+        "Lệch ngày đáy":
+            delay_days,
 
         "Ngày SMDT mã vượt":
             stock_cross_date.date()
