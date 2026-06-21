@@ -1339,15 +1339,37 @@ if match_df.empty:
 
 else:
 
+    # =========================
+    # CHỈ GIỮ TÍN HIỆU CÁCH ĐÁY <= 5 NẾN
+    # =========================
+
+    match_df = match_df[
+        (
+            match_df["SMDT mã lệch nến"]
+            .abs()
+            .fillna(999)
+            <= 5
+        )
+        |
+        (
+            match_df["SMDT ngành lệch nến"]
+            .abs()
+            .fillna(999)
+            <= 5
+        )
+    ].copy()
+
     match_df = (
         match_df
         .sort_values("Đáy VNINDEX")
         .reset_index(drop=True)
     )
 
+    st.markdown(
+        f"### Số lần khớp còn lại: {len(match_df)}"
+    )
+
     st.dataframe(
         match_df,
         use_container_width=True
     )
-
-
