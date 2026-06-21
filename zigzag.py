@@ -1538,5 +1538,26 @@ if tong_so_lan > 0:
             f"Chưa tìm thấy một mẫu hành vi SMDT đủ rõ ràng đối với "
             f"{ticker_input}. Nên kết hợp thêm các tín hiệu khác."
         )
+# =========================
+# MÔ TẢ CHUẨN HÓA
+# =========================
 
+sector_vs_bottom = (
+    "trước đáy" if before_pct > after_pct else "sau đáy"
+)
+
+ticker_vs_bottom = (
+    "trước đáy" if lead_pct > lag_pct else "sau đáy"
+)
+
+ticker_vs_sector = (
+    "vượt trước ngành" if lead_pct >= lag_pct else "vượt sau ngành"
+)
+
+rule_text = (
+    f"Ngành {ticker_sector} thường vượt SMDT {sector_vs_bottom}. "
+    f"{ticker_input} thường vượt SMDT {ticker_vs_bottom}. "
+    f"{ticker_input} thường {ticker_vs_sector} {ticker_sector}. "
+    f"Đây là tín hiệu đáng chú ý để theo dõi giải ngân."
+)
     st.success(rule_text)
