@@ -991,6 +991,21 @@ st.dataframe(
     ],
     use_container_width=True
 )
+df["group"] = pd.cut(
+    df["Hiệu suất đáy → đỉnh (%)"],
+    bins=[-999, 50, 150, 300, 999],
+    labels=["weak", "medium", "strong", "super"]
+)
+
+df.groupby("group")[["Lệch ngày  SMDT mã", "Lệch ngày  SMDT ngành"]].mean()
+
+df["lead"] = df["Lệch ngày  SMDT mã"] < df["Lệch ngày  SMDT ngành"]
+
+df.groupby("group")["lead"].mean()
+
+df["sync"] = abs(df["Lệch ngày  SMDT mã"] - df["Lệch ngày  SMDT ngành"]) <= 1
+
+df.groupby("group")["sync"].mean()
 # =========================
 # BOX TÌM MÃ VÀ VẼ ZIGZAG CỔ PHIẾU
 # =========================
