@@ -1054,7 +1054,9 @@ window_days = 5
 # =========================
 
 price_dates = (
-    stock_price_df["date"]
+    stock_signal_df[
+        stock_signal_df["ticker"] == ticker_input
+    ]["date"]
     .drop_duplicates()
     .sort_values()
     .reset_index(drop=True)
