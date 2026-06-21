@@ -479,7 +479,9 @@ else:
         .tail(1)
         .iloc[0]
     )
-
+    selected_prepare_date = pd.to_datetime(
+        prepare_row["date"]
+    )
     confirm_row = confirm_df.iloc[0]
 
     prepare_date_str = prepare_row["date"].strftime("%Y-%m-%d")
@@ -781,19 +783,17 @@ for _, bottom_row in matched_bottoms.iterrows():
     # =========================
 
     stock_prepare_cross = ""
-
-    if "selected_prepare_date" in locals():
-
-        prepare_stock_signal = stock_signal_df[
-            (stock_signal_df["ticker"] == ticker)
-            &
-            (stock_signal_df["date"] == selected_prepare_date)
-            &
-            (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
-        ]
-
-        if not prepare_stock_signal.empty:
-            stock_prepare_cross = "✓"
+    
+    prepare_stock_signal = stock_signal_df[
+        (stock_signal_df["ticker"] == ticker)
+        &
+        (stock_signal_df["date"] == selected_prepare_date)
+        &
+        (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+    ]
+    
+    if not prepare_stock_signal.empty:
+        stock_prepare_cross = "✓"
 
     bottom_date = bottom_row["date"]
     bottom_price = bottom_row["price"]
