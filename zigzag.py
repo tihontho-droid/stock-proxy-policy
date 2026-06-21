@@ -775,6 +775,26 @@ for _, bottom_row in matched_bottoms.iterrows():
             else ""
         )
 
+
+    # =========================
+    # KIỂM TRA VƯỢT SMDT TẠI NGÀY CHUẨN BỊ ĐÁY
+    # =========================
+
+    stock_prepare_cross = ""
+
+    if "selected_prepare_date" in locals():
+
+        prepare_stock_signal = stock_signal_df[
+            (stock_signal_df["ticker"] == ticker)
+            &
+            (stock_signal_df["date"] == selected_prepare_date)
+            &
+            (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+        ]
+
+        if not prepare_stock_signal.empty:
+            stock_prepare_cross = "✓"
+
     bottom_date = bottom_row["date"]
     bottom_price = bottom_row["price"]
     zigzag_percent = bottom_row["percent"]
