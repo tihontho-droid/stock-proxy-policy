@@ -1478,8 +1478,7 @@ if tong_so_lan > 0:
         rule_text = (
             f"Ngành {ticker_sector} thường vượt SMDT sau đáy. "
             f"Trong đó, {ticker_input} thường vượt SMDT trước ngành "
-            f"{ticker_sector} ({len(lead_df)}/{tong_so_lan} lần, "
-            f"{lead_pct:.1f}%). "
+            f"{ticker_sector}. "
             f"Nếu {ticker_input} vượt SMDT trước và sau đó ngành "
             f"{ticker_sector} tiếp tục vượt SMDT thì đây là tín hiệu "
             f"đáng chú ý để theo dõi giải ngân."
@@ -1489,8 +1488,7 @@ if tong_so_lan > 0:
 
         rule_text = (
             f"Ngành {ticker_sector} thường vượt SMDT cùng thời điểm với "
-            f"{ticker_input} ({len(same_day_df)}/{tong_so_lan} lần, "
-            f"{same_day_pct:.1f}%). "
+            f"{ticker_input}. "
             f"Trong đó, {ticker_input} nếu vượt SMDT cùng ngành "
             f"{ticker_sector} sẽ là mã tiềm năng."
         )
@@ -1500,8 +1498,7 @@ if tong_so_lan > 0:
         rule_text = (
             f"Ngành {ticker_sector} thường vượt SMDT trước đáy. "
             f"Trong đó, {ticker_input} thường vượt SMDT sau ngành "
-            f"{ticker_sector} ({len(lag_df)}/{tong_so_lan} lần, "
-            f"{lag_pct:.1f}%). "
+            f"{ticker_sector}. "
             f"Nếu ngành {ticker_sector} vượt SMDT trước và sau đó "
             f"{ticker_input} tiếp tục vượt SMDT thì đây là tín hiệu "
             f"đáng chú ý để theo dõi giải ngân."
