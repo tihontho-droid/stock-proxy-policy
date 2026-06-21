@@ -897,7 +897,100 @@ else:
         result_df,
         use_container_width=True
     )
+# =========================
+# 🔥 CHẤM ĐIỂM + GỢI Ý GIẢI NGÂN 3-5-2
+# =========================
 
+df = result_df.copy()
+
+# =========================
+# CHUYỂN SMDT THÀNH FEATURE SỐ
+# =========================
+
+df["stock_timing"] = df["Lệch ngày  SMDT mã"].fillna(999)
+df["sector_timing"] = df["Lệch ngày  SMDT ngành"].fillna(999)
+
+# normalize hướng timing
+df["stock_before"] = (df["stock_timing"] < 0).astype(int)
+df["stock_after"] = (df["stock_timing"] > 0).astype(int)
+
+df["sector_before"] = (df["sector_timing"] < 0).astype(int)
+df["sector_after"] = (df["sector_timing"] > 0).astype(int)
+
+# đồng pha
+df["sync"] = (abs(df["stock_timing"] - df["sector_timing"]) <= 1).astype(int)
+
+# =========================
+# SCORE (cốt lõi)
+# =========================
+
+def calc_score(row):
+    score = 0
+
+    # mạnh nhất: cả ngành + mã trước đáy hoặc cùng đáy
+    if row["stock_timing"] <= 0 and row["sector_timing"] <= 0:
+        score += 3
+
+    # ngành dẫn hoặc đồng pha
+    if row["sector_timing"] <= row["stock_timing"]:
+        score += 2
+
+    # đồng bộ timing
+    if row["sync"] == 1:
+        score += 1
+
+    # bonus: hiệu suất cao
+    if row["Hiệu suất đáy → đỉnh (%)"] > 150:
+        score += 1
+
+    return score
+
+
+df["score"] = df.apply(calc_score, axis=1)
+
+# =========================
+# PHÂN NHÓM 3-5-2
+# =========================
+
+def alloc(row):
+    if row["score"] >= 5:
+        return "30 - 50 - 20 (AGGRESSIVE)"
+    elif row["score"] >= 3:
+        return "20 - 50 - 30 (NORMAL)"
+    elif row["score"] >= 1:
+        return "10 - 40 - 50 (DEFENSIVE)"
+    else:
+        return "0 - 30 - 70 (WAIT BREAKOUT)"
+
+
+df["Gợi ý giải ngân"] = df.apply(alloc, axis=1)
+
+# =========================
+# SORT theo chất lượng setup
+# =========================
+
+df = df.sort_values(["score", "Hiệu suất đáy → đỉnh (%)"], ascending=False)
+
+# =========================
+# HIỂN THỊ KẾT QUẢ MỚI
+# =========================
+
+st.subheader("🔥 Gợi ý giải ngân theo SMDT + đáy thị trường")
+
+st.dataframe(
+    df[
+        [
+            "Ticker",
+            "Ngành",
+            "score",
+            "Hiệu suất đáy → đỉnh (%)",
+            "stock_timing",
+            "sector_timing",
+            "Gợi ý giải ngân"
+        ]
+    ],
+    use_container_width=True
+)
 # =========================
 # BOX TÌM MÃ VÀ VẼ ZIGZAG CỔ PHIẾU
 # =========================
