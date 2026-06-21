@@ -1517,10 +1517,8 @@ if tong_so_lan > 0:
             direction_text = "cùng thời điểm đáy"
     
         rule_text = (
-            f"Ngành {ticker_sector} thường vượt SMDT quanh đáy (trước/sau/cùng thời điểm), "
-            f"trong đó có xu hướng nghiêng về {direction_text}. "
-            f"Khi {ticker_input} đồng pha hoặc dẫn trước ngành vượt SMDT thì đây là tín hiệu "
-            f"đáng chú ý để theo dõi giải ngân."
+            f"Ngành {ticker_sector} thường vượt SMDT {direction_text} đáy và vượt cùng thời điểm với {ticker_input}. " 
+            f"Đây là tín hiệu đáng chú ý để theo dõi giải ngân."
         )
 
     elif max_pct == lag_pct and lag_pct >= 50:
