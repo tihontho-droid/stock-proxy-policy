@@ -1050,7 +1050,23 @@ start_date = pd.to_datetime("2023-06-08")
 window_days = 5
 
 # =========================
-# ĐÁY ZIGZAG TỪ 08/06/2023
+# MAP NGÀY -> THỨ TỰ NẾN
+# =========================
+
+price_dates = (
+    stock_price_df["date"]
+    .drop_duplicates()
+    .sort_values()
+    .reset_index(drop=True)
+)
+
+date_to_idx = {
+    d: i
+    for i, d in enumerate(price_dates)
+}
+
+# =========================
+# ĐÁY ZIGZAG
 # =========================
 
 stock_bottoms = df_stock_zigzag[
@@ -1070,10 +1086,6 @@ result_rows = []
 for _, stock_row in stock_bottoms.iterrows():
 
     stock_bottom_date = stock_row["date"]
-
-    # =========================
-    # TÌM ĐÁY VNINDEX GẦN NHẤT
-    # =========================
 
     near_market = vnindex_bottoms[
         (
@@ -1134,22 +1146,28 @@ for _, stock_row in stock_bottoms.iterrows():
 
         stock_cross_date = stock_cross_row["date"]
 
-        stock_cross_delay = (
-            stock_bottom_date
-            - stock_cross_date
-        ).days
+        if (
+            stock_bottom_date in date_to_idx
+            and
+            stock_cross_date in date_to_idx
+        ):
 
-        if stock_cross_delay > 0:
+            stock_cross_delay = (
+                date_to_idx[stock_bottom_date]
+                - date_to_idx[stock_cross_date]
+            )
 
-            stock_position = "Trước đáy"
+            if stock_cross_delay > 0:
 
-        elif stock_cross_delay < 0:
+                stock_position = "Trước đáy"
 
-            stock_position = "Sau đáy"
+            elif stock_cross_delay < 0:
 
-        else:
+                stock_position = "Sau đáy"
 
-            stock_position = "Đúng đáy"
+            else:
+
+                stock_position = "Đúng đáy"
 
     # =========================
     # SMDT NGÀNH GẦN NHẤT
@@ -1184,25 +1202,31 @@ for _, stock_row in stock_bottoms.iterrows():
 
             sector_cross_date = sector_cross_row["date"]
 
-            sector_cross_delay = (
-                stock_bottom_date
-                - sector_cross_date
-            ).days
+            if (
+                stock_bottom_date in date_to_idx
+                and
+                sector_cross_date in date_to_idx
+            ):
 
-            if sector_cross_delay > 0:
+                sector_cross_delay = (
+                    date_to_idx[stock_bottom_date]
+                    - date_to_idx[sector_cross_date]
+                )
 
-                sector_position = "Trước đáy"
+                if sector_cross_delay > 0:
 
-            elif sector_cross_delay < 0:
+                    sector_position = "Trước đáy"
 
-                sector_position = "Sau đáy"
+                elif sector_cross_delay < 0:
 
-            else:
+                    sector_position = "Sau đáy"
 
-                sector_position = "Đúng đáy"
+                else:
+
+                    sector_position = "Đúng đáy"
 
     # =========================
-    # TÍN HIỆU GẦN ĐÁY NHẤT
+    # TÍN HIỆU GẦN NHẤT
     # =========================
 
     nearest_signal = None
@@ -1244,7 +1268,7 @@ for _, stock_row in stock_bottoms.iterrows():
             if stock_cross_date is not None
             else None,
 
-        "SMDT mã cách đáy":
+        "SMDT mã lệch nến":
             stock_cross_delay,
 
         "Vị trí SMDT mã":
@@ -1255,7 +1279,7 @@ for _, stock_row in stock_bottoms.iterrows():
             if sector_cross_date is not None
             else None,
 
-        "SMDT ngành cách đáy":
+        "SMDT ngành lệch nến":
             sector_cross_delay,
 
         "Vị trí SMDT ngành":
