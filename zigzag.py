@@ -756,7 +756,25 @@ for _, bottom_row in matched_bottoms.iterrows():
         sector_smdt_near = "Có"
     
         sector_smdt_value = sector_smdt_row["smdt"]
-        
+
+        # =========================
+        # CÓ VƯỢT SMDT MÃ TẠI NGÀY CHUẨN BỊ ĐÁY KHÔNG
+        # =========================
+    
+        prepare_stock_signal = stock_signal_df[
+            (stock_signal_df["ticker"] == ticker)
+            &
+            (stock_signal_df["date"] == selected_prepare_date)
+            &
+            (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+        ]
+    
+        stock_prepare_cross = (
+            "✓"
+            if not prepare_stock_signal.empty
+            else ""
+        )
+
     bottom_date = bottom_row["date"]
     bottom_price = bottom_row["price"]
     zigzag_percent = bottom_row["percent"]
@@ -802,6 +820,7 @@ for _, bottom_row in matched_bottoms.iterrows():
         "Ticker": ticker,
         "Ngành": sector,
         "Percent ZigZag": int(zigzag_percent),
+        "Có vượt SMDT ngày chuẩn bị": stock_prepare_cross,
         "Đáy VNINDEX": selected_bottom_date,
         "Ngày đáy CP": bottom_date.date(),
         "Giá đáy CP": round(bottom_price, 2),
@@ -835,6 +854,7 @@ else:
             "Ticker",
             "Ngành",
             "Percent ZigZag",
+            "Có vượt SMDT ngày chuẩn bị",
             "Đáy VNINDEX",
             "Ngày đáy CP",
             "Giá đáy CP",
@@ -859,106 +879,6 @@ else:
         use_container_width=True
     )
 
-st.subheader(
-    "Các mã vượt SMDT tại ngày chuẩn bị tạo đáy và tạo đáy quanh VNINDEX"
-)
-
-result_prepare_rows = []
-
-for prepare_date in prepare_dates:
-
-    # Các mã vượt SMDT mã tại ngày chuẩn bị
-
-    smdt_today = stock_signal_df[
-        (stock_signal_df["date"] == prepare_date)
-        &
-        (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
-    ].copy()
-
-    if smdt_today.empty:
-        continue
-
-    for _, row in smdt_today.iterrows():
-
-        ticker = row["ticker"]
-
-        # Mã này có nằm trong bảng tạo đáy quanh VNINDEX không?
-
-        match_rows = result_df[
-            result_df["Ticker"] == ticker
-        ]
-
-        if match_rows.empty:
-            continue
-
-        # Lấy lần tạo đáy gần nhất sau prepare_date
-
-        match_rows = match_rows[
-            match_rows["Đáy VNINDEX"] >= prepare_date
-        ]
-
-        if match_rows.empty:
-            continue
-
-        match_row = (
-            match_rows
-            .sort_values("Đáy VNINDEX")
-            .iloc[0]
-        )
-
-        result_prepare_rows.append({
-
-            "Ngày chuẩn bị tạo đáy":
-                prepare_date.date(),
-
-            "Mã":
-                ticker,
-
-            "Ngành":
-                row["ticker"],
-
-            "SMDT mã":
-                round(row["smdt_ma"], 2),
-
-            "Đáy VNINDEX":
-                match_row["Đáy VNINDEX"],
-
-            "Ngày đáy CP":
-                match_row["Ngày đáy CP"],
-
-            "Hiệu suất đáy → đỉnh (%)":
-                match_row["Hiệu suất đáy → đỉnh (%)"]
-
-        })
-
-if len(result_prepare_rows) == 0:
-
-    st.warning("Không có dữ liệu.")
-
-else:
-
-    prepare_result_df = pd.DataFrame(
-        result_prepare_rows
-    )
-
-    prepare_result_df = (
-        prepare_result_df
-        .sort_values(
-            [
-                "Ngày chuẩn bị tạo đáy",
-                "Hiệu suất đáy → đỉnh (%)"
-            ],
-            ascending=[True, False]
-        )
-        .reset_index(drop=True)
-    )
-
-    st.dataframe(
-        prepare_result_df,
-        use_container_width=True
-    )
-
- 
 # =========================
 # BOX TÌM MÃ VÀ VẼ ZIGZAG CỔ PHIẾU
 # =========================
