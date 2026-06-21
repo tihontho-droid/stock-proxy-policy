@@ -1047,7 +1047,7 @@ if ticker_input:
 st.subheader("Các lần khớp đáy ZigZag với VNINDEX")
 
 start_date = pd.to_datetime("2023-06-08")
-window_days = 2
+window_days = 5
 
 # =========================
 # ĐÁY ZIGZAG TỪ 08/06/2023
