@@ -874,7 +874,6 @@ else:
             "Ticker",
             "Ngành",
             "Percent ZigZag",
-            "Có vượt SMDT ngày chuẩn bị",
             "Đáy VNINDEX",
             "Ngày đáy CP",
             "Giá đáy CP",
