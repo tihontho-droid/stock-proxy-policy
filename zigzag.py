@@ -1538,6 +1538,9 @@ if tong_so_lan > 0:
             f"Chưa tìm thấy một mẫu hành vi SMDT đủ rõ ràng đối với "
             f"{ticker_input}. Nên kết hợp thêm các tín hiệu khác."
         )
+
+    st.success(rule_text)
+
 # =========================
 # MÔ TẢ CHUẨN HÓA
 # =========================
@@ -1560,4 +1563,3 @@ rule_text = (
     f"{ticker_input} thường {ticker_vs_sector} {ticker_sector}. "
     f"Đây là tín hiệu đáng chú ý để theo dõi giải ngân."
 )
-    st.success(rule_text)
