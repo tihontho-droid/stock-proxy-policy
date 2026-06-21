@@ -1339,9 +1339,9 @@ if match_df.empty:
 
 else:
 
-    # =========================
-    # CHỈ GIỮ TÍN HIỆU CÁCH ĐÁY <= 5 NẾN
-    # =========================
+    # chỉ giữ trường hợp
+    # SMDT mã và SMDT ngành
+    # đều nằm trong ±5 nến
 
     match_df = match_df[
         (
@@ -1350,7 +1350,7 @@ else:
             .fillna(999)
             <= 5
         )
-        |
+        &
         (
             match_df["SMDT ngành lệch nến"]
             .abs()
@@ -1365,6 +1365,9 @@ else:
         .reset_index(drop=True)
     )
 
+    st.markdown(
+        f"### Số mẫu còn lại: {len(match_df)}"
+    )
 
     st.dataframe(
         match_df,
