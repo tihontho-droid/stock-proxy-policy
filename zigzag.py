@@ -1039,210 +1039,155 @@ if ticker_input:
             [chart_stock],
             key=f"stock_zigzag_chart_{ticker_input}"
         )
+# =========================
+# THỐNG KÊ CÁC LẦN KHỚP ĐÁY VỚI VNINDEX
+# =========================
 
-def is_smdt_up_3_days_before_cross(df, sector_name, cross_date):
+st.subheader("Các lần khớp đáy ZigZag với VNINDEX")
 
-    temp = (
-        df[
-            df["nganh"] == sector_name
-        ]
-        .sort_values("date")
-        .reset_index(drop=True)
-    )
+window_days = 2
 
-    idx_list = temp[
-        temp["date"] == cross_date
-    ].index
-
-    if len(idx_list) == 0:
-        return False
-
-    idx = idx_list[0]
-
-    # cần có đủ 3 phiên trước ngày vượt
-    if idx < 3:
-        return False
-
-    smdt_3 = temp.loc[idx - 3, "smdt"]
-    smdt_2 = temp.loc[idx - 2, "smdt"]
-    smdt_1 = temp.loc[idx - 1, "smdt"]
-    smdt_0 = temp.loc[idx, "smdt"]
-
-    return (
-        smdt_3 < smdt_2
-        and smdt_2 < smdt_1
-        and smdt_1 < smdt_0
-    )
-def is_stock_smdt_up_3_days_before_cross(df, ticker, cross_date):
-
-    temp = (
-        df[df["ticker"] == ticker]
-        .sort_values("date")
-        .reset_index(drop=True)
-    )
-
-    idx_list = temp[temp["date"] == cross_date].index
-
-    if len(idx_list) == 0:
-        return False
-
-    idx = idx_list[0]
-
-    if idx < 3:
-        return False
-
-    smdt_3 = temp.loc[idx - 3, "smdt_ma"]
-    smdt_2 = temp.loc[idx - 2, "smdt_ma"]
-    smdt_1 = temp.loc[idx - 1, "smdt_ma"]
-    smdt_0 = temp.loc[idx, "smdt_ma"]
-
-    return (
-        smdt_3 < smdt_2
-        and smdt_2 < smdt_1
-        and smdt_1 < smdt_0
-    )
-    
-st.subheader("Cổ phiếu tạo đáy quanh VNINDEX có cả tín hiệu SMDT mã và ngành")
-
-if result_df.empty:
-
-    st.warning("Chưa có bảng cổ phiếu tạo đáy quanh VNINDEX để lọc.")
-
-else:
-
-    both_signal_df = result_df[
-        (result_df["SMDT mã vượt gần đáy TT"] == "Có")
-        &
-        (result_df["SMDT ngành vượt gần đáy TT"] == "Có")
-    ].copy()
-
-    if both_signal_df.empty:
-
-        st.warning("Không có mã nào vừa có tín hiệu SMDT mã và SMDT ngành.")
-
-    else:
-
-
-
-        if "Ngày SMDT mã vượt" in both_signal_df.columns:
-
-            both_signal_df["Ngày SMDT mã vượt"] = pd.to_datetime(
-                both_signal_df["Ngày SMDT mã vượt"],
-                errors="coerce"
-            )
-
-            both_signal_df = both_signal_df.sort_values(
-                "Ngày SMDT mã vượt",
-                ascending=True,
-                na_position="last"
-            )
-
-        both_signal_df = both_signal_df.reset_index(drop=True)
-
-        st.dataframe(
-            both_signal_df,
-            use_container_width=True
-        )
-
-st.subheader("Các mã vượt SMDT mã theo ngày chọn")
-
-selected_check_date = st.date_input(
-    "Chọn ngày kiểm tra",
-    value=pd.to_datetime("2025-04-03").date()
-)
-
-check_date = pd.to_datetime(selected_check_date)
-
-smdt_cross_df = stock_signal_df[
-    (stock_signal_df["date"] == check_date)
-    &
-    (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+stock_bottoms = df_stock_zigzag[
+    df_stock_zigzag["type"] == 2
 ].copy()
 
-if smdt_cross_df.empty:
+vnindex_bottoms = df_vnindex_zigzag[
+    df_vnindex_zigzag["type"] == 2
+].copy()
 
-    st.warning("Không có mã nào vượt SMDT mã trong ngày này.")
+result_rows = []
 
-else:
+for _, stock_row in stock_bottoms.iterrows():
 
-    smdt_cross_df["Ngành"] = smdt_cross_df["ticker"].map(
-        ticker_branch_map
+    stock_bottom_date = stock_row["date"]
+
+    near_market = vnindex_bottoms[
+        (
+            vnindex_bottoms["date"]
+            - stock_bottom_date
+        ).abs().dt.days <= window_days
+    ].copy()
+
+    if near_market.empty:
+        continue
+
+    near_market["abs_days"] = (
+        near_market["date"]
+        - stock_bottom_date
+    ).abs().dt.days
+
+    market_row = (
+        near_market
+        .sort_values("abs_days")
+        .iloc[0]
     )
 
-    result_rows = []
+    market_bottom_date = market_row["date"]
 
-    for _, row in smdt_cross_df.iterrows():
+    delay_days = (
+        stock_bottom_date
+        - market_bottom_date
+    ).days
 
-        ticker = row["ticker"]
-        sector = row["Ngành"]
+    # =========================
+    # SMDT MÃ GẦN NHẤT TRƯỚC ĐÁY
+    # =========================
 
-        sector_today = sector_all_df[
-            (sector_all_df["nganh"] == sector)
-            &
-            (sector_all_df["date"] == check_date)
-        ]
+    stock_cross = stock_signal_df[
+        (stock_signal_df["ticker"] == ticker_input)
+        &
+        (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+        &
+        (stock_signal_df["date"] <= stock_bottom_date)
+    ].copy()
 
-        if sector_today.empty:
-            sector_smdt = None
-            sector_cross = False
-        else:
-            sector_smdt = sector_today.iloc[0]["smdt"]
-            sector_cross = sector_today.iloc[0]["smdt_vua_vuot_70"]
+    if stock_cross.empty:
 
-        ticker_bottoms = zigzag_all[
-            (zigzag_all["ticker"] == ticker)
-            &
-            (zigzag_all["type"] == 2)
-            &
-            (zigzag_all["date"] <= check_date)
-        ].copy()
-
-        if ticker_bottoms.empty:
-            continue
-
-        bottom_row = (
-            ticker_bottoms
-            .sort_values("date")
-            .iloc[-1]
-        )
-
-        zigzag_percent = bottom_row["percent"]
-
-        if pd.isna(zigzag_percent) or zigzag_percent < 20:
-            continue
-
-        result_rows.append({
-            "Ngày": row["date"].date(),
-            "Mã": ticker,
-            "Ngành": sector,
-            "SMDT mã": round(row["smdt_ma"], 2),
-            "SMDT ngành": round(sector_smdt, 2) if sector_smdt is not None else None,
-            "Ngành vừa vượt": "Có" if sector_cross else "Không",
-            "Percent ZigZag": int(zigzag_percent)
-        })
-
-    if len(result_rows) == 0:
-
-        st.warning("Không có mã nào thỏa điều kiện Percent ZigZag >= 20.")
+        stock_cross_date = None
+        stock_cross_delay = None
 
     else:
 
-        result_check_df = pd.DataFrame(result_rows)
+        stock_cross_date = (
+            stock_cross
+            .sort_values("date")
+            .iloc[-1]["date"]
+        )
 
-        result_check_df = (
-            result_check_df
-            .sort_values(
-                [
-                    "Ngành",
-                    "Percent ZigZag",
-                    "SMDT mã"
-                ],
-                ascending=[True, False, False]
+        stock_cross_delay = (
+            stock_bottom_date
+            - stock_cross_date
+        ).days
+
+    # =========================
+    # SMDT NGÀNH GẦN NHẤT TRƯỚC ĐÁY
+    # =========================
+
+    sector_cross_date = None
+    sector_cross_delay = None
+
+    if ticker_sector is not None:
+
+        sector_cross = sector_all_df[
+            (sector_all_df["nganh"] == ticker_sector)
+            &
+            (sector_all_df["smdt_vua_vuot_70"] == True)
+            &
+            (sector_all_df["date"] <= stock_bottom_date)
+        ].copy()
+
+        if not sector_cross.empty:
+
+            sector_cross_date = (
+                sector_cross
+                .sort_values("date")
+                .iloc[-1]["date"]
             )
-            .reset_index(drop=True)
-        )
 
-        st.dataframe(
-            result_check_df,
-            use_container_width=True
-        )
+            sector_cross_delay = (
+                stock_bottom_date
+                - sector_cross_date
+            ).days
+
+    result_rows.append({
+
+        "Đáy VNINDEX": market_bottom_date.date(),
+        "Đáy CP": stock_bottom_date.date(),
+        "Lệch ngày": delay_days,
+
+        "Ngày SMDT mã vượt":
+            stock_cross_date.date()
+            if stock_cross_date is not None
+            else None,
+
+        "SMDT mã trước đáy":
+            stock_cross_delay,
+
+        "Ngày SMDT ngành vượt":
+            sector_cross_date.date()
+            if sector_cross_date is not None
+            else None,
+
+        "SMDT ngành trước đáy":
+            sector_cross_delay
+
+    })
+
+match_df = pd.DataFrame(result_rows)
+
+if match_df.empty:
+
+    st.info("Không có lần nào khớp đáy với VNINDEX.")
+
+else:
+
+    match_df = (
+        match_df
+        .sort_values("Đáy VNINDEX")
+        .reset_index(drop=True)
+    )
+
+    st.dataframe(
+        match_df,
+        use_container_width=True
+    )
