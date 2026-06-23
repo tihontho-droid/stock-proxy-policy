@@ -690,10 +690,15 @@ else:
                 hide_index=True
             )
 
+# =========================
+# CỔ PHIẾU TẠO ĐÁY QUANH VNINDEX
+# =========================
+
 st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
 
-selected_date = st.date_input("Chọn ngày đáy VNINDEX")
-window_days = st.slider("Window ngày quanh đáy", 1, 20, 5)
+# lấy từ dropdown phía trên
+selected_date = selected_confirm_date
+window_days = 5  # hoặc giữ slider nếu muốn
 
 def build_bottom_stock_table(
     selected_date,
@@ -722,7 +727,6 @@ def build_bottom_stock_table(
 
     smdt_window_days = 7
 
-    # optimize zigzag lookup
     zigzag_grouped = zigzag_all.groupby("ticker")
 
     for _, row in matched_bottoms.iterrows():
@@ -751,6 +755,7 @@ def build_bottom_stock_table(
             continue
 
         zz_idx = matched_idx[0]
+
         if zz_idx + 1 >= len(ticker_zigzag):
             continue
 
@@ -763,7 +768,6 @@ def build_bottom_stock_table(
         peak_price = next_peak["price"]
 
         return_pct = (peak_price - bottom_price) / bottom_price * 100
-        days_to_peak = (peak_date - bottom_date).days
 
         # =========================
         # SMDT STOCK
@@ -792,8 +796,6 @@ def build_bottom_stock_table(
         # =========================
         # SMDT SECTOR
         # =========================
-        sector = ticker_branch_map.get(ticker, "Không xác định")
-
         sector_smdt = sector_all_df[
             (sector_all_df["nganh"] == sector) &
             (sector_all_df["smdt_vua_vuot_70"] == True) &
@@ -851,6 +853,11 @@ def build_bottom_stock_table(
         "Hiệu suất đáy -> đỉnh (%)",
         ascending=False
     )
+
+
+# =========================
+# RUN TABLE
+# =========================
 
 result_df = build_bottom_stock_table(
     selected_date,
