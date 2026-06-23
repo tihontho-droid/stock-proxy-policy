@@ -222,39 +222,51 @@ renderLightweightCharts(
 # =========================
 # DROPDOWN CHỌN ĐÁY VNINDEX
 # =========================
-
-signal_df = bottom_signal_df.sort_values("date").reset_index(drop=True)
+signal_df = (
+    bottom_signal_df
+    .sort_values("date")
+    .reset_index(drop=True)
+)
 
 bottom_events = []
 
 prepare_date = None
+prev_confirm = False
 
 for _, row in signal_df.iterrows():
 
+    current_date = pd.to_datetime(
+        row["date"]
+    )
+
     if row["chuan_bi_tao_day"]:
 
-        prepare_date = row["date"]
+        prepare_date = current_date
 
-    if row["xac_nhan_tao_day"]:
+    current_confirm = bool(
+        row["xac_nhan_tao_day"]
+    )
 
-        # chỉ lấy ngày xác nhận đầu tiên
-        if (
-            len(bottom_events) > 0
-            and
-            (
-                bottom_events[-1]["confirm_date"]
-                + pd.Timedelta(days=1)
-                >= row["date"]
-            )
-        ):
-            continue
+    # chỉ lấy ngày xác nhận đầu tiên
+    if current_confirm and not prev_confirm:
 
-        bottom_events.append({
-            "prepare_date": prepare_date,
-            "confirm_date": row["date"]
-        })
+        if prepare_date is not None:
+
+            bottom_events.append({
+                "prepare_date": prepare_date,
+                "confirm_date": current_date
+            })
+
+    prev_confirm = current_confirm
+
 bottom_events_df = pd.DataFrame(bottom_events)
 
+bottom_events_df = pd.DataFrame(bottom_events)
+
+if bottom_events_df.empty:
+    st.warning("Không tìm thấy đáy nào.")
+    st.stop()
+    
 bottom_events_df["dropdown_text"] = (
     bottom_events_df["confirm_date"]
     .dt.strftime("%Y-%m-%d")
@@ -385,35 +397,31 @@ else:
 # HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
 # =========================
 
-prepare_df = bottom_signal_df[
-    (bottom_signal_df["chuan_bi_tao_day"] == True)
-    &
-    (bottom_signal_df["date"] < selected_confirm_date)
-].copy()
+prepare_match = bottom_signal_df[
+    bottom_signal_df["date"] == selected_prepare_date
+]
 
-confirm_df = bottom_signal_df[
+confirm_match = bottom_signal_df[
     bottom_signal_df["date"] == selected_confirm_date
-].copy()
+]
 
-if prepare_df.empty or confirm_df.empty:
+if prepare_match.empty or confirm_match.empty:
 
-    st.info("Không tìm thấy đủ dữ liệu chuẩn bị / xác nhận đáy cho ngày này.")
-
-else:
-
-    prepare_row = (
-        prepare_df
-        .sort_values("date")
-        .tail(1)
-        .iloc[0]
+    st.info(
+        "Không tìm thấy đủ dữ liệu chuẩn bị / xác nhận đáy."
     )
-    selected_prepare_date = pd.to_datetime(
-        prepare_row["date"]
-    )
-    confirm_row = confirm_df.iloc[0]
+    st.stop()
 
-    prepare_date_str = prepare_row["date"].strftime("%Y-%m-%d")
-    confirm_date_str = confirm_row["date"].strftime("%Y-%m-%d")
+prepare_row = prepare_match.iloc[0]
+confirm_row = confirm_match.iloc[0]
+
+prepare_date_str = (
+    selected_prepare_date.strftime("%Y-%m-%d")
+)
+
+confirm_date_str = (
+    selected_confirm_date.strftime("%Y-%m-%d")
+)
 
     st.markdown(
         f"""
