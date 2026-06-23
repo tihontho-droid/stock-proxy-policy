@@ -13,7 +13,7 @@ st.title("Giao dịch theo sóng thị trường")
 
 @st.cache_data
 def load_price_data():
-    df = pd.read_csv("all_price_data.csv")
+    df = pd.read_csv("vnindex_price.csv")
 
     df["ticker"] = df["ticker"].astype(str).str.upper()
     df["date"] = pd.to_datetime(df["date"])
