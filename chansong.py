@@ -8,6 +8,34 @@ st.set_page_config(layout="wide")
 st.title("Giao dịch theo sóng thị trường") 
 
 # =========================
+# DANH SÁCH MÃ NGHIÊN CỨU
+# =========================
+ticker_list_202 = [
+    "AAA", "ABB", "ACB", "AGG", "AGR", "ANV", "APG", "APS", "ASM",
+    "BCC", "BCM", "BFC", "BID", "BMI", "BMP", "BSI", "BSR", "BVB",
+    "BVH", "BVS", "C4G", "CEO", "CII", "CMG", "CMX", "CNG", "CSV",
+    "CTD", "CTG", "CTI", "CTR", "CTS", "D2D", "DBC", "DCM", "DDV",
+    "DGC", "DGW", "DHC", "DIG", "DPG", "DPM", "DPR", "DRC", "DTD",
+    "DXG", "DXS", "EIB", "EVF", "FCN", "FIT", "FMC", "FOX", "FPT",
+    "FRT", "FTS", "GAS", "GEG", "GEX", "GIL", "GMD", "GVR", "HAG",
+    "HAH", "HCM", "HDB", "HDC", "HDG", "HHS", "HHV", "HPG", "HQC",
+    "HSG", "HT1", "HTN", "HUT", "HVN", "IDC", "IDI", "IDJ", "IJC",
+    "ITC", "JVC", "KBC", "KDH", "KHG", "KLB", "KSB", "L14", "LAS",
+    "LCG", "LDG", "LHG", "LPB", "LSS", "MBB", "MBS", "MHC", "MIG",
+    "MPC", "MSB", "MSH", "MSN", "MSR", "MST", "MWG", "NAB", "NBC",
+    "NDN", "NKG", "NLG", "NT2", "NTC", "NTL", "NVB", "NVL", "OCB",
+    "OIL", "ORS", "PC1", "PDR", "PET", "PGB", "PHR", "PLC", "PLX",
+    "PNJ", "POW", "PPC", "PTB", "PVC", "PVD", "PVS", "PVT", "QCG",
+    "QNS", "QTP", "REE", "SAB", "SAM", "SBT", "SCR", "SGB", "SHB",
+    "SHS", "SIP", "SMC", "SSB", "SSI", "STB", "SZC", "TCB", "TCH",
+    "TCM", "TCX", "TDC", "TDH", "TLG", "TLH", "TNG", "TPB", "TTF",
+    "TV2", "VCB", "VCG", "VCI", "VCS", "VDS", "VEA", "VGC",
+    "VGI", "VGS", "VHC", "VHM", "VIB", "VIC", "VIP", "VIX", "VJC",
+    "VND", "VNM", "VOS", "VPB", "VPI", "VPL", "VPX", "VRE", "VSC",
+    "VTP", "YEG"
+]
+
+# =========================
 # LOAD DATA ĐÃ TÍNH SẴN 
 # =========================
 
@@ -64,6 +92,19 @@ def load_sector():
     df["date"] = pd.to_datetime(df["date"])
     return df
 
+@st.cache_data
+def load_stock_signal():
+    df = pd.read_parquet("stock_signal_df.parquet")
+    df["date"] = pd.to_datetime(df["date"])
+    df["ticker"] = df["ticker"].astype(str).str.upper()
+    return df
+
+@st.cache_data
+def load_ticker_branch():
+    df = pd.read_parquet("ticker_branch_df.parquet")
+    df["ticker"] = df["ticker"].astype(str).str.upper()
+    return df
+
 
 # =========================
 # LOAD DATA
@@ -78,6 +119,9 @@ zigzag_all = load_zigzag_data()
 bottom_signal_df = load_bottom_signal()
 
 sector_all_df = load_sector()
+stock_signal_df = load_stock_signal()
+ticker_branch_df = load_ticker_branch()
+
 # =========================
 # LẤY DATA VNINDEX
 # =========================
