@@ -1,11 +1,11 @@
 import streamlit as st
-import pandas as pd 
+import pandas as pd
 import plotly.graph_objects as go
 from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("Giao dịch theo sóng thị trường") 
+st.title("Giao dịch theo sóng thị trường")
 
 # =========================
 # LOAD DATA ĐÃ TÍNH SẴN
@@ -36,9 +36,6 @@ def load_zigzag_data():
 
     return df
 
-price_all = load_price_data()
-zigzag_all = load_zigzag_data()
-
 
 @st.cache_data
 def load_bottom_signal():
@@ -47,61 +44,39 @@ def load_bottom_signal():
     return df
 
 
-bottom_signal_df = load_bottom_signal()
-
 @st.cache_data
 def load_sector():
     df = pd.read_parquet("sector_all_df.parquet")
-
     df["date"] = pd.to_datetime(df["date"])
-
     return df
+
+
+# =========================
+# LOAD DATA
+# =========================
+
+price_all = load_price_data()
+zigzag_all = load_zigzag_data()
+
+bottom_signal_df = load_bottom_signal()
 
 sector_all_df = load_sector()
-
-@st.cache_data
-def load_stock_signal():
-    df = pd.read_parquet("stock_signal_df.parquet")
-    df["date"] = pd.to_datetime(df["date"])
-    df["ticker"] = df["ticker"].astype(str).str.upper()
-    return df
-
-
-@st.cache_data
-def load_ticker_branch():
-    df = pd.read_parquet("ticker_branch_df.parquet")
-    df["ticker"] = df["ticker"].astype(str).str.upper()
-    return df
-
-
-stock_signal_df = load_stock_signal()
-ticker_branch_df = load_ticker_branch()
-sector_all_df = load_sector()
-
-
-
-ticker_branch_map = dict(
-    zip(
-        ticker_branch_df["ticker"],
-        ticker_branch_df["nganh"]
-    )
-)
-
-
 # =========================
 # LẤY DATA VNINDEX
 # =========================
 
 df_vnindex_price = (
-    price_all[price_all["ticker"] == "VNINDEX"]
+    price_all[
+        price_all["ticker"] == "VNINDEX"
+    ]
     .sort_values("date")
     .reset_index(drop=True)
 )
 
-# VNINDEX chỉ lấy ZigZag percent = 5
 df_vnindex_zigzag = (
     zigzag_all[
-        (zigzag_all["ticker"] == "VNINDEX") &
+        (zigzag_all["ticker"] == "VNINDEX")
+        &
         (zigzag_all["percent"] == 5)
     ]
     .sort_values("date")
@@ -109,20 +84,26 @@ df_vnindex_zigzag = (
 )
 
 if df_vnindex_price.empty:
-    st.error("Không tìm thấy dữ liệu giá VNINDEX trong all_price_data.csv.")
+    st.error(
+        "Không tìm thấy dữ liệu VNINDEX trong all_price_data.csv"
+    )
     st.stop()
 
 if df_vnindex_zigzag.empty:
-    st.error("Không tìm thấy ZigZag VNINDEX percent = 5 trong all_zigzag_points.csv. Em cần chạy lại file prepare với VNINDEX percent = 5.")
+    st.error(
+        "Không tìm thấy ZigZag VNINDEX percent = 5"
+    )
     st.stop()
 
+
 # =========================
-# CHUẨN BỊ NẾN VNINDEX
+# CHUẨN BỊ DỮ LIỆU NẾN
 # =========================
 
 candles = []
 
 for _, row in df_vnindex_price.iterrows():
+
     candles.append({
         "time": row["date"].strftime("%Y-%m-%d"),
         "open": float(row["open"]),
@@ -139,6 +120,7 @@ zigzag_line = []
 markers = []
 
 for _, row in df_vnindex_zigzag.iterrows():
+
     time_str = row["date"].strftime("%Y-%m-%d")
 
     zigzag_line.append({
@@ -147,8 +129,9 @@ for _, row in df_vnindex_zigzag.iterrows():
     })
 
     price_text = f"{row['price']:.2f}"
-    
+
     if row["type"] == 1:
+
         markers.append({
             "time": time_str,
             "position": "aboveBar",
@@ -156,8 +139,9 @@ for _, row in df_vnindex_zigzag.iterrows():
             "color": "red",
             "text": f"Đỉnh {price_text}"
         })
-    
+
     elif row["type"] == 2:
+
         markers.append({
             "time": time_str,
             "position": "belowBar",
@@ -165,6 +149,8 @@ for _, row in df_vnindex_zigzag.iterrows():
             "color": "green",
             "text": f"Đáy {price_text}"
         })
+
+
 # =========================
 # VẼ CHART NẾN + ZIGZAG
 # =========================
@@ -180,12 +166,8 @@ chart = {
             "textColor": "#000000"
         },
         "grid": {
-            "vertLines": {
-                "color": "#eeeeee"
-            },
-            "horzLines": {
-                "color": "#eeeeee"
-            }
+            "vertLines": {"color": "#eeeeee"},
+            "horzLines": {"color": "#eeeeee"}
         },
         "rightPriceScale": {
             "borderColor": "#cccccc"
@@ -220,8 +202,9 @@ renderLightweightCharts(
 )
 
 # =========================
-# DROPDOWN CHỌN ĐÁY VNINDEX
+# DROPDOWN CHỌN ĐÁY
 # =========================
+
 signal_df = (
     bottom_signal_df
     .sort_values("date")
@@ -261,12 +244,22 @@ for _, row in signal_df.iterrows():
 
 bottom_events_df = pd.DataFrame(bottom_events)
 
-bottom_events_df = pd.DataFrame(bottom_events)
-
 if bottom_events_df.empty:
-    st.warning("Không tìm thấy đáy nào.")
+
+    st.warning(
+        "Không tìm thấy tín hiệu xác nhận đáy."
+    )
     st.stop()
-    
+
+bottom_events_df = (
+    bottom_events_df
+    .sort_values(
+        "confirm_date",
+        ascending=False
+    )
+    .reset_index(drop=True)
+)
+
 bottom_events_df["dropdown_text"] = (
     bottom_events_df["confirm_date"]
     .dt.strftime("%Y-%m-%d")
@@ -281,16 +274,20 @@ selected_text = st.selectbox(
     "Chọn đáy",
     bottom_events_df["dropdown_text"]
 )
-selected_match = bottom_events_df[
+
+selected_row = bottom_events_df[
     bottom_events_df["dropdown_text"]
     == selected_text
 ]
 
-if selected_match.empty:
-    st.error("Không tìm thấy dữ liệu đáy được chọn.")
+if selected_row.empty:
+
+    st.error(
+        "Không tìm thấy dữ liệu đáy được chọn."
+    )
     st.stop()
 
-selected_row = selected_match.iloc[0]
+selected_row = selected_row.iloc[0]
 
 selected_prepare_date = pd.to_datetime(
     selected_row["prepare_date"]
@@ -299,12 +296,10 @@ selected_prepare_date = pd.to_datetime(
 selected_confirm_date = pd.to_datetime(
     selected_row["confirm_date"]
 )
+
 # =========================
 # NGÀNH DẪN SÓNG SAU ĐÁY THỊ TRƯỜNG
 # =========================
-
-
-lead_window_days = 10
 
 near_window_days = 7
 
@@ -318,43 +313,52 @@ sector_near_bottom = sector_all_df[
 
 if sector_near_bottom.empty:
 
-    st.info("Không có ngành nào vừa vượt SMDT 70 sau đáy thị trường này.")
+    st.info(
+        "Không có ngành nào vượt SMDT 70 quanh đáy này."
+    )
 
 else:
 
     sector_near_bottom = (
         sector_near_bottom
-        .sort_values(["date", "smdt"], ascending=[True, False])
+        .sort_values(
+            ["date", "smdt"],
+            ascending=[True, False]
+        )
         .reset_index(drop=True)
     )
 
-    sector_near_bottom["Lệch ngày "] = (
-        sector_near_bottom["date"] - selected_confirm_date
+    sector_near_bottom["Lệch ngày"] = (
+        sector_near_bottom["date"]
+        - selected_confirm_date
     ).dt.days
 
-    sector_near_bottom["Ngày SMDT ngành vượt"] = (
-        sector_near_bottom["date"].dt.date
+    sector_near_bottom["Ngày vượt"] = (
+        sector_near_bottom["date"].dt.strftime("%Y-%m-%d")
     )
 
-    sector_near_bottom["SMDT ngành"] = (
-        sector_near_bottom["smdt"].round(2)
+    sector_near_bottom["SMDT"] = (
+        sector_near_bottom["smdt"]
+        .round(2)
     )
 
     sector_table = sector_near_bottom[
         [
             "nganh",
-            "Ngày SMDT ngành vượt",
-            "Lệch ngày ",
-            "SMDT ngành"
+            "Ngày vượt",
+            "Lệch ngày",
+            "SMDT"
         ]
-    ].rename(columns={
-        "nganh": "Ngành"
-    })
+    ].rename(
+        columns={
+            "nganh": "Ngành"
+        }
+    )
 
     # =========================
-    # CHIA NGÀNH CHỦ LỰC / NGÀNH PHỤ
+    # NGÀNH CHỦ LỰC
     # =========================
-    
+
     nganh_chu_luc = [
         "Ngân hàng",
         "Chứng khoán",
@@ -363,36 +367,58 @@ else:
         "Thép",
         "Sóng ngành Vin"
     ]
-    
+
     chu_luc_df = sector_table[
-        sector_table["Ngành"].isin(nganh_chu_luc)
+        sector_table["Ngành"]
+        .isin(nganh_chu_luc)
     ].copy()
-    
+
     phu_df = sector_table[
-        ~sector_table["Ngành"].isin(nganh_chu_luc)
+        ~sector_table["Ngành"]
+        .isin(nganh_chu_luc)
     ].copy()
+
+    st.markdown(
+        f"""
+        ### Ngành dẫn sóng quanh đáy
+        Ngày xác nhận đáy: **{selected_confirm_date.strftime('%Y-%m-%d')}**
+        """
+    )
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### Ngành chủ lực")
+
+        st.markdown("#### Ngành chủ lực")
+
         if chu_luc_df.empty:
+
             st.info("Chưa có ngành chủ lực.")
+
         else:
+
             st.dataframe(
                 chu_luc_df,
-                use_container_width=True
+                use_container_width=True,
+                hide_index=True
             )
 
     with col2:
-        st.markdown("### Ngành phụ")
+
+        st.markdown("#### Ngành phụ")
+
         if phu_df.empty:
+
             st.info("Chưa có ngành phụ.")
+
         else:
+
             st.dataframe(
                 phu_df,
-                use_container_width=True
+                use_container_width=True,
+                hide_index=True
             )
+            
 # =========================
 # HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
 # =========================
@@ -410,18 +436,19 @@ if prepare_match.empty or confirm_match.empty:
     st.info(
         "Không tìm thấy đủ dữ liệu chuẩn bị / xác nhận đáy."
     )
-    st.stop()
 
-prepare_row = prepare_match.iloc[0]
-confirm_row = confirm_match.iloc[0]
+else:
 
-prepare_date_str = (
-    selected_prepare_date.strftime("%Y-%m-%d")
-)
+    prepare_row = prepare_match.iloc[0]
+    confirm_row = confirm_match.iloc[0]
 
-confirm_date_str = (
-    selected_confirm_date.strftime("%Y-%m-%d")
-)
+    prepare_date_str = (
+        selected_prepare_date.strftime("%Y-%m-%d")
+    )
+
+    confirm_date_str = (
+        selected_confirm_date.strftime("%Y-%m-%d")
+    )
 
     st.markdown(
         f"""
@@ -443,7 +470,12 @@ confirm_date_str = (
         unsafe_allow_html=True
     )
 
-    labels = ["Chờ mua", "Mua", "Chờ bán", "Bán"]
+    labels = [
+        "Chờ mua",
+        "Mua",
+        "Chờ bán",
+        "Bán"
+    ]
 
     colors = [
         "#11D99A",
@@ -509,12 +541,7 @@ confirm_date_str = (
         fig.update_layout(
             title=dict(
                 text=title,
-                x=0.5,
-                xanchor="center",
-                font=dict(
-                    size=14,
-                    color="#333"
-                )
+                x=0.5
             ),
             height=250,
             margin=dict(
@@ -530,11 +557,10 @@ confirm_date_str = (
                     text=f"<b>{total}</b>",
                     x=0.5,
                     y=0.5,
+                    showarrow=False,
                     font=dict(
-                        size=22,
-                        color="#111111"
-                    ),
-                    showarrow=False
+                        size=22
+                    )
                 )
             ]
         )
@@ -556,7 +582,10 @@ confirm_date_str = (
             config={"displayModeBar": False}
         )
 
-        st.markdown(legend_html, unsafe_allow_html=True)
+        st.markdown(
+            legend_html,
+            unsafe_allow_html=True
+        )
 
     with col2:
 
@@ -571,5 +600,7 @@ confirm_date_str = (
             config={"displayModeBar": False}
         )
 
-        st.markdown(legend_html, unsafe_allow_html=True)
-
+        st.markdown(
+            legend_html,
+            unsafe_allow_html=True
+        )
