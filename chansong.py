@@ -23,6 +23,20 @@ def load_price_data():
 
     return df
 
+@st.cache_data
+def load_price_data():
+    df1 = pd.read_csv("all_price_group1.csv")
+    df2 = pd.read_csv("all_price_group2.csv")
+
+    df = pd.concat([df1, df2], ignore_index=True).copy()
+
+    df["ticker"] = df["ticker"].astype(str).str.upper()
+    df["date"] = pd.to_datetime(df["date"])
+
+    for col in ["open", "high", "low", "close"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    return df
 
 @st.cache_data
 def load_zigzag_data():
