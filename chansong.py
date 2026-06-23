@@ -269,10 +269,16 @@ selected_text = st.selectbox(
     "Chọn đáy",
     bottom_events_df["dropdown_text"]
 )
-selected_row = bottom_events_df[
+selected_match = bottom_events_df[
     bottom_events_df["dropdown_text"]
     == selected_text
-].iloc[0]
+]
+
+if selected_match.empty:
+    st.error("Không tìm thấy dữ liệu đáy được chọn.")
+    st.stop()
+
+selected_row = selected_match.iloc[0]
 
 selected_prepare_date = pd.to_datetime(
     selected_row["prepare_date"]
