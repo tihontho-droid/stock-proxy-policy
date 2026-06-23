@@ -541,7 +541,8 @@ else:
         fig.update_layout(
             title=dict(
                 text=title,
-                x=0.5
+                x=0.5,
+                xanchor="center"
             ),
             height=250,
             margin=dict(
