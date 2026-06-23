@@ -1047,36 +1047,57 @@ if ticker_input:
             [chart_stock],
             key=f"stock_chart_{ticker_input}"
         )
-        
+
         st.markdown(
             """
-            <div style="
-                display:flex;
-                gap:20px;
-                justify-content:center;
-                margin-top:10px;
-                font-size:14px;
-                color:#333;
-                flex-wrap:wrap;
-            ">
+            <style>
+            .tv-legend {
+                position: fixed;
+                right: 25px;
+                top: 120px;
+                background: rgba(255,255,255,0.92);
+                border: 1px solid #e6e6e6;
+                border-radius: 12px;
+                padding: 12px 14px;
+                font-size: 13px;
+                color: #333;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                z-index: 9999;
+                width: 210px;
+            }
         
-                <div>
-                    <span style="color:#00A86B; font-size:18px;">●</span>
+            .tv-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin: 6px 0;
+            }
+        
+            .dot {
+                font-size: 16px;
+                line-height: 1;
+            }
+            </style>
+        
+            <div class="tv-legend">
+        
+                <div class="tv-item">
+                    <span class="dot" style="color:#00A86B;">●</span>
                     Đáy ZigZag
                 </div>
         
-                <div>
-                    <span style="color:#F23670; font-size:18px;">●</span>
+                <div class="tv-item">
+                    <span class="dot" style="color:#F23670;">●</span>
                     Đỉnh ZigZag
                 </div>
         
-                <div>
-                    <span style="color:#2962FF; font-size:18px;">●</span>
+                <div class="tv-item">
+                    <span class="dot" style="color:#2962FF;">●</span>
                     SMDT mã vượt 70
                 </div>
         
-                <div>
-                    <span style="color:#FF9800; font-size:18px;">●</span>
+                <div class="tv-item">
+                    <span class="dot" style="color:#FF9800;">●</span>
                     SMDT ngành vượt 70
                 </div>
         
