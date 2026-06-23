@@ -6,31 +6,6 @@ from streamlit_lightweight_charts import renderLightweightCharts
 st.set_page_config(layout="wide")
 
 st.title("Giao dịch theo sóng thị trường") 
- 
-ticker_list_202 = [
-    "AAA", "ABB", "ACB", "AGG", "AGR", "ANV", "APG", "APS", "ASM",
-    "BCC", "BCM", "BFC", "BID", "BMI", "BMP", "BSI", "BSR", "BVB",
-    "BVH", "BVS", "C4G", "CEO", "CII", "CMG", "CMX", "CNG", "CSV",
-    "CTD", "CTG", "CTI", "CTR", "CTS", "D2D", "DBC", "DCM", "DDV",
-    "DGC", "DGW", "DHC", "DIG", "DPG", "DPM", "DPR", "DRC", "DTD",
-    "DXG", "DXS", "EIB", "EVF", "FCN", "FIT", "FMC", "FOX", "FPT",
-    "FRT", "FTS", "GAS", "GEG", "GEX", "GIL", "GMD", "GVR", "HAG",
-    "HAH", "HCM", "HDB", "HDC", "HDG", "HHS", "HHV", "HPG", "HQC",
-    "HSG", "HT1", "HTN", "HUT", "HVN", "IDC", "IDI", "IDJ", "IJC",
-    "ITC", "JVC", "KBC", "KDH", "KHG", "KLB", "KSB", "L14", "LAS",
-    "LCG", "LDG", "LHG", "LPB", "LSS", "MBB", "MBS", "MHC", "MIG",
-    "MPC", "MSB", "MSH", "MSN", "MSR", "MST", "MWG", "NAB", "NBC",
-    "NDN", "NKG", "NLG", "NT2", "NTC", "NTL", "NVB", "NVL", "OCB",
-    "OIL", "ORS", "PC1", "PDR", "PET", "PGB", "PHR", "PLC", "PLX",
-    "PNJ", "POW", "PPC", "PTB", "PVC", "PVD", "PVS", "PVT", "QCG",
-    "QNS", "QTP", "REE", "SAB", "SAM", "SBT", "SCR", "SGB", "SHB",
-    "SHS", "SIP", "SMC", "SSB", "SSI", "STB", "SZC", "TCB", "TCH",
-    "TCM", "TCX", "TDC", "TDH", "TLG", "TLH", "TNG", "TPB", "TTF",
-    "TV2", "VCB", "VCG", "VCI", "VCS", "VDS", "VEA", "VGC",
-    "VGI", "VGS", "VHC", "VHM", "VIB", "VIC", "VIP", "VIX", "VJC",
-    "VND", "VNM", "VOS", "VPB", "VPI", "VPL", "VPX", "VRE", "VSC",
-    "VTP", "YEG"
-]
 
 # =========================
 # LOAD DATA ĐÃ TÍNH SẴN
@@ -264,101 +239,64 @@ renderLightweightCharts(
 # DROPDOWN CHỌN ĐÁY VNINDEX
 # =========================
 
-start_date = pd.to_datetime("2015-01-01")
-window_days = 2
+signal_df = bottom_signal_df.sort_values("date").reset_index(drop=True)
 
-# các ngày xác nhận đáy
-confirmed_dates = (
-    bottom_signal_df[
-        bottom_signal_df["xac_nhan_tao_day"] == True
-    ]["date"]
-    .dropna()
-    .sort_values()
-    .reset_index(drop=True)
-)
+bottom_events = []
 
-# các đáy ZigZag VNINDEX
-vnindex_bottoms = df_vnindex_zigzag[
-    (df_vnindex_zigzag["type"] == 2)
-    &
-    (df_vnindex_zigzag["date"] >= start_date)
-].copy()
+prepare_date = None
 
-matched_bottoms = []
+for _, row in signal_df.iterrows():
 
-for _, row in vnindex_bottoms.iterrows():
+    if row["chuan_bi_tao_day"]:
 
-    bottom_date = pd.to_datetime(row["date"])
+        prepare_date = row["date"]
 
-    # xác nhận đáy phải đến sau 1-2 ngày
-    future_confirm = confirmed_dates[
-        (confirmed_dates >= bottom_date)
-        &
-        (confirmed_dates <= bottom_date + pd.Timedelta(days=7))
-    ]
-    if future_confirm.empty:
-        continue
+    if row["xac_nhan_tao_day"]:
 
-    temp = row.copy()
+        # chỉ lấy ngày xác nhận đầu tiên
+        if (
+            len(bottom_events) > 0
+            and
+            (
+                bottom_events[-1]["confirm_date"]
+                + pd.Timedelta(days=1)
+                >= row["date"]
+            )
+        ):
+            continue
 
-    temp["confirm_date"] = future_confirm.iloc[0]
+        bottom_events.append({
+            "prepare_date": prepare_date,
+            "confirm_date": row["date"]
+        })
+bottom_events_df = pd.DataFrame(bottom_events)
 
-    temp["delay_days"] = (
-        future_confirm.iloc[0]
-        - bottom_date
-    ).days
-
-    matched_bottoms.append(temp)
-
-vnindex_bottoms = pd.DataFrame(matched_bottoms)
-
-if vnindex_bottoms.empty:
-    st.warning(
-        "Không có đáy ZigZag VNINDEX nào được xác nhận sau 1-2 ngày."
-    )
-    st.stop()
-
-vnindex_bottoms = (
-    vnindex_bottoms
-    .sort_values("date")
-    .reset_index(drop=True)
-)
-
-vnindex_bottoms["dropdown_text"] = (
-    vnindex_bottoms["date"]
+bottom_events_df["dropdown_text"] = (
+    bottom_events_df["confirm_date"]
     .dt.strftime("%Y-%m-%d")
     +
-    " | Xác nhận: "
+    " | Chuẩn bị: "
     +
-    vnindex_bottoms["confirm_date"]
+    bottom_events_df["prepare_date"]
     .dt.strftime("%Y-%m-%d")
 )
 
 selected_text = st.selectbox(
-    "Chọn đáy VNINDEX",
-    vnindex_bottoms["dropdown_text"]
+    "Chọn đáy",
+    bottom_events_df["dropdown_text"]
 )
-
-selected_row = vnindex_bottoms[
-    vnindex_bottoms["dropdown_text"]
+selected_row = bottom_events_df[
+    bottom_events_df["dropdown_text"]
     == selected_text
 ].iloc[0]
 
-# ngày đáy ZigZag VNINDEX
-selected_date = pd.to_datetime(
-    selected_row["date"]
+selected_prepare_date = pd.to_datetime(
+    selected_row["prepare_date"]
 )
 
-selected_bottom_date = (
-    selected_row["date"]
-    .date()
-)
-
-# ngày xác nhận đáy
 selected_confirm_date = pd.to_datetime(
     selected_row["confirm_date"]
 )
-
 # =========================
 # NGÀNH DẪN SÓNG SAU ĐÁY THỊ TRƯỜNG
 # =========================
