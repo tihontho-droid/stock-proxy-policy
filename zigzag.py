@@ -264,7 +264,7 @@ renderLightweightCharts(
 # DROPDOWN CHỌN ĐÁY VNINDEX
 # =========================
 
-start_date = pd.to_datetime("2023-06-01")
+start_date = pd.to_datetime("2015-01-01")
 window_days = 2
 
 # các ngày xác nhận đáy
