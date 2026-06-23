@@ -39,16 +39,6 @@ def load_zigzag_data():
 price_all = load_price_data()
 zigzag_all = load_zigzag_data()
 
-# chỉ giữ VNINDEX + 202 mã nghiên cứu
-tickers_use = ticker_list_202 + ["VNINDEX"]
-
-price_all = price_all[
-    price_all["ticker"].isin(tickers_use)
-].copy()
-
-zigzag_all = zigzag_all[
-    zigzag_all["ticker"].isin(tickers_use)
-].copy()
 
 @st.cache_data
 def load_bottom_signal():
