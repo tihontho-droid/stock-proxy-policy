@@ -846,3 +846,19 @@ def build_bottom_stock_table(
     )
 
     return result_df
+
+st.subheader("Cổ phiếu tạo đáy quanh đáy VNINDEX")
+
+result_df = build_bottom_stock_table(
+    selected_date,
+    window_days,
+    zigzag_all,
+    stock_signal_df,
+    sector_all_df,
+    ticker_branch_map
+)
+
+if result_df.empty:
+    st.warning("Không có cổ phiếu nào tạo đáy quanh VNINDEX")
+else:
+    st.dataframe(result_df, use_container_width=True)
