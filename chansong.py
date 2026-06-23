@@ -8,7 +8,7 @@ st.set_page_config(layout="wide")
 st.title("Giao dịch theo sóng thị trường") 
 
 # =========================
-# LOAD DATA ĐÃ TÍNH SẴN
+# LOAD DATA ĐÃ TÍNH SẴN 
 # =========================
 
 @st.cache_data
