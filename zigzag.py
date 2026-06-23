@@ -1084,7 +1084,7 @@ if ticker_input:
 
 st.subheader("Các lần khớp đáy ZigZag với VNINDEX")
 
-start_date = pd.to_datetime("2023-06-08")
+start_date = pd.to_datetime("2015-01-01")
 window_days = 5
 
 # =========================
