@@ -106,6 +106,22 @@ def load_ticker_branch():
     return df
 
 # =========================
+# LOAD DATA
+# =========================
+
+price_all = load_price_data()
+vnindex = load_vnindex()
+vnindex_df = vnindex.copy()
+
+zigzag_all = load_zigzag_data()
+
+bottom_signal_df = load_bottom_signal()
+
+sector_all_df = load_sector()
+stock_signal_df = load_stock_signal()
+ticker_branch_df = load_ticker_branch()
+
+# =========================
 # FILTER UNIVERSE (IMPORTANT)
 # =========================
 tickers_use = ticker_list_202 + ["VNINDEX"]
@@ -135,22 +151,6 @@ ticker_branch_map = dict(
         ticker_branch_df["nganh"]
     )
 )
-
-# =========================
-# LOAD DATA
-# =========================
-
-price_all = load_price_data()
-vnindex = load_vnindex()
-vnindex_df = vnindex.copy()
-
-zigzag_all = load_zigzag_data()
-
-bottom_signal_df = load_bottom_signal()
-
-sector_all_df = load_sector()
-stock_signal_df = load_stock_signal()
-ticker_branch_df = load_ticker_branch()
 
 # =========================
 # LẤY DATA VNINDEX
