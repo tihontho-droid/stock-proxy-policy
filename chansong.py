@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from streamlit_lightweight_charts import renderLightweightCharts
-
+ 
 st.set_page_config(layout="wide")
 
 st.title("Giao dịch theo sóng thị trường")
