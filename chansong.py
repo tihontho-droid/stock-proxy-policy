@@ -1047,38 +1047,40 @@ if ticker_input:
             [chart_stock],
             key=f"stock_chart_{ticker_input}"
         )
-
-
-       st.markdown(
-           """
-           <div style="
-               display:flex;
-               gap:20px;
-               justify-content:center;
-               margin-top:10px;
-               font-size:14px;
-               color:#333;
-           ">
-               <div>
-                   <span style="color:#00A86B; font-size:18px;">●</span>
-                   Đáy ZigZag
-               </div>
-       
-               <div>
-                   <span style="color:#F23670; font-size:18px;">●</span>
-                   Đỉnh ZigZag
-               </div>
-       
-               <div>
-                   <span style="color:#2962FF; font-size:18px;">●</span>
-                   SMDT mã vượt 70
-               </div>
-       
-               <div>
-                   <span style="color:#FF9800; font-size:18px;">●</span>
-                   SMDT ngành vượt 70
-               </div>
-           </div>
-           """,
-           unsafe_allow_html=True
-       )
+        
+        st.markdown(
+            """
+            <div style="
+                display:flex;
+                gap:20px;
+                justify-content:center;
+                margin-top:10px;
+                font-size:14px;
+                color:#333;
+                flex-wrap:wrap;
+            ">
+        
+                <div>
+                    <span style="color:#00A86B; font-size:18px;">●</span>
+                    Đáy ZigZag
+                </div>
+        
+                <div>
+                    <span style="color:#F23670; font-size:18px;">●</span>
+                    Đỉnh ZigZag
+                </div>
+        
+                <div>
+                    <span style="color:#2962FF; font-size:18px;">●</span>
+                    SMDT mã vượt 70
+                </div>
+        
+                <div>
+                    <span style="color:#FF9800; font-size:18px;">●</span>
+                    SMDT ngành vượt 70
+                </div>
+        
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
