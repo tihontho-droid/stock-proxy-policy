@@ -12,6 +12,18 @@ st.title("Giao dịch theo sóng thị trường")
 # =========================
 
 @st.cache_data
+def load_vnindex():
+    df = pd.read_csv("vnindex_price.csv")
+
+    df["ticker"] = "VNINDEX"
+    df["date"] = pd.to_datetime(df["date"])
+
+    for col in ["open", "high", "low", "close"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    return df
+ 
+@st.cache_data
 def load_price_data():
     df1 = pd.read_csv("all_price_group1.csv")
     df2 = pd.read_csv("all_price_group2.csv")
@@ -58,8 +70,9 @@ def load_sector():
 # =========================
 
 price_all = load_price_data()
+vnindex = load_vnindex()
+vnindex_df = vnindex.copy()
 
-vnindex_df = price_all[price_all["ticker"] == "VNINDEX"]
 zigzag_all = load_zigzag_data()
 
 bottom_signal_df = load_bottom_signal()
@@ -70,9 +83,7 @@ sector_all_df = load_sector()
 # =========================
 
 df_vnindex_price = (
-    price_all[
-        price_all["ticker"] == "VNINDEX"
-    ]
+    vnindex
     .sort_values("date")
     .reset_index(drop=True)
 )
