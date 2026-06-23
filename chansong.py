@@ -78,13 +78,7 @@ stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
 sector_all_df = load_sector()
 
-stock_signal_df = stock_signal_df[
-    stock_signal_df["ticker"].isin(ticker_list_202)
-].copy()
 
-ticker_branch_df = ticker_branch_df[
-    ticker_branch_df["ticker"].isin(ticker_list_202)
-].copy()
 
 ticker_branch_map = dict(
     zip(
