@@ -872,3 +872,178 @@ if result_df.empty:
     st.warning("Không có cổ phiếu nào tạo đáy quanh VNINDEX")
 else:
     st.dataframe(result_df, use_container_width=True)
+
+
+# =========================
+# BOX TÌM MÃ VÀ VẼ ZIGZAG CỔ PHIẾU
+# =========================
+
+st.subheader("Tra cứu biểu đồ ZigZag theo mã cổ phiếu")
+
+ticker_input = st.text_input(
+    "Nhập mã cổ phiếu",
+    value="VIX"
+).upper().strip()
+
+if ticker_input:
+
+    df_stock_price = price_all[
+        price_all["ticker"] == ticker_input
+    ].sort_values("date")
+
+    df_stock_zigzag = zigzag_all[
+        zigzag_all["ticker"] == ticker_input
+    ].sort_values("date")
+
+    if df_stock_price.empty or df_stock_zigzag.empty:
+        st.warning(f"Không đủ dữ liệu cho mã {ticker_input}")
+
+    else:
+
+        # =========================
+        # CANDLESTICK DATA
+        # =========================
+        candles_stock = [
+            {
+                "time": row["date"].strftime("%Y-%m-%d"),
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"])
+            }
+            for _, row in df_stock_price.iterrows()
+        ]
+
+        # =========================
+        # ZIGZAG LINE + MARKERS
+        # =========================
+        zigzag_line_stock = []
+        markers_stock = []
+
+        for _, row in df_stock_zigzag.iterrows():
+
+            time_str = row["date"].strftime("%Y-%m-%d")
+            price_val = float(row["price"])
+
+            zigzag_line_stock.append({
+                "time": time_str,
+                "value": price_val
+            })
+
+            if row["type"] == 1:
+                markers_stock.append({
+                    "time": time_str,
+                    "position": "aboveBar",
+                    "shape": "arrowDown",
+                    "color": "#F23670",
+                    "text": f"Đỉnh {price_val:.2f}"
+                })
+
+            elif row["type"] == 2:
+                markers_stock.append({
+                    "time": time_str,
+                    "position": "belowBar",
+                    "shape": "arrowUp",
+                    "color": "#00A86B",
+                    "text": f"Đáy {price_val:.2f}"
+                })
+
+        # =========================
+        # SMDT STOCK MARKERS
+        # =========================
+        smdt_cross_df = stock_signal_df[
+            (stock_signal_df["ticker"] == ticker_input) &
+            (stock_signal_df["smdt_ma_vua_vuot_70"] == True)
+        ]
+
+        for _, row in smdt_cross_df.iterrows():
+
+            if pd.isna(row["date"]) or pd.isna(row["smdt_ma"]):
+                continue
+
+            markers_stock.append({
+                "time": row["date"].strftime("%Y-%m-%d"),
+                "position": "aboveBar",
+                "shape": "circle",
+                "color": "#2962FF",
+                "text": f"SMDT {row['smdt_ma']:.2f}"
+            })
+
+        # =========================
+        # SMDT SECTOR MARKERS
+        # =========================
+        ticker_sector = ticker_branch_map.get(ticker_input, None)
+
+        if ticker_sector:
+
+            sector_cross_df = sector_all_df[
+                (sector_all_df["nganh"] == ticker_sector) &
+                (sector_all_df["smdt_vua_vuot_70"] == True)
+            ]
+
+            for _, row in sector_cross_df.iterrows():
+
+                if pd.isna(row["date"]) or pd.isna(row["smdt"]):
+                    continue
+
+                markers_stock.append({
+                    "time": row["date"].strftime("%Y-%m-%d"),
+                    "position": "belowBar",
+                    "shape": "circle",
+                    "color": "#FF9800",
+                    "text": f"Ngành {row['smdt']:.2f}"
+                })
+
+        # =========================
+        # SORT MARKERS (SAFE)
+        # =========================
+        markers_stock = sorted(
+            markers_stock,
+            key=lambda x: x["time"]
+        )
+
+        # =========================
+        # CHART CONFIG
+        # =========================
+        chart_stock = {
+            "chart": {
+                "height": 520,
+                "layout": {
+                    "background": {"type": "solid", "color": "#ffffff"},
+                    "textColor": "#000000"
+                },
+                "grid": {
+                    "vertLines": {"color": "#eeeeee"},
+                    "horzLines": {"color": "#eeeeee"}
+                },
+                "rightPriceScale": {"borderColor": "#cccccc"},
+                "timeScale": {
+                    "borderColor": "#cccccc",
+                    "timeVisible": True
+                }
+            },
+            "series": [
+                {
+                    "type": "Candlestick",
+                    "data": candles_stock,
+                    "markers": markers_stock
+                },
+                {
+                    "type": "Line",
+                    "data": zigzag_line_stock,
+                    "options": {
+                        "color": "#2962FF",
+                        "lineWidth": 2,
+                        "priceLineVisible": False
+                    }
+                }
+            ]
+        }
+
+        # =========================
+        # RENDER
+        # =========================
+        renderLightweightCharts(
+            [chart_stock],
+            key=f"stock_chart_{ticker_input}"
+        )
