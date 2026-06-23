@@ -297,127 +297,6 @@ selected_confirm_date = pd.to_datetime(
     selected_row["confirm_date"]
 )
 
-# =========================
-# NGÀNH DẪN SÓNG SAU ĐÁY THỊ TRƯỜNG
-# =========================
-
-near_window_days = 7
-
-sector_near_bottom = sector_all_df[
-    (sector_all_df["date"] >= selected_confirm_date - pd.Timedelta(days=near_window_days))
-    &
-    (sector_all_df["date"] <= selected_confirm_date + pd.Timedelta(days=near_window_days))
-    &
-    (sector_all_df["smdt_vua_vuot_70"] == True)
-].copy()
-
-if sector_near_bottom.empty:
-
-    st.info(
-        "Không có ngành nào vượt SMDT 70 quanh đáy này."
-    )
-
-else:
-
-    sector_near_bottom = (
-        sector_near_bottom
-        .sort_values(
-            ["date", "smdt"],
-            ascending=[True, False]
-        )
-        .reset_index(drop=True)
-    )
-
-    sector_near_bottom["Lệch ngày"] = (
-        sector_near_bottom["date"]
-        - selected_confirm_date
-    ).dt.days
-
-    sector_near_bottom["Ngày vượt"] = (
-        sector_near_bottom["date"].dt.strftime("%Y-%m-%d")
-    )
-
-    sector_near_bottom["SMDT"] = (
-        sector_near_bottom["smdt"]
-        .round(2)
-    )
-
-    sector_table = sector_near_bottom[
-        [
-            "nganh",
-            "Ngày vượt",
-            "Lệch ngày",
-            "SMDT"
-        ]
-    ].rename(
-        columns={
-            "nganh": "Ngành"
-        }
-    )
-
-    # =========================
-    # NGÀNH CHỦ LỰC
-    # =========================
-
-    nganh_chu_luc = [
-        "Ngân hàng",
-        "Chứng khoán",
-        "BĐS Dân cư",
-        "Xây dựng",
-        "Thép",
-        "Sóng ngành Vin"
-    ]
-
-    chu_luc_df = sector_table[
-        sector_table["Ngành"]
-        .isin(nganh_chu_luc)
-    ].copy()
-
-    phu_df = sector_table[
-        ~sector_table["Ngành"]
-        .isin(nganh_chu_luc)
-    ].copy()
-
-    st.markdown(
-        f"""
-        ### Ngành dẫn sóng quanh đáy
-        Ngày xác nhận đáy: **{selected_confirm_date.strftime('%Y-%m-%d')}**
-        """
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.markdown("#### Ngành chủ lực")
-
-        if chu_luc_df.empty:
-
-            st.info("Chưa có ngành chủ lực.")
-
-        else:
-
-            st.dataframe(
-                chu_luc_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-    with col2:
-
-        st.markdown("#### Ngành phụ")
-
-        if phu_df.empty:
-
-            st.info("Chưa có ngành phụ.")
-
-        else:
-
-            st.dataframe(
-                phu_df,
-                use_container_width=True,
-                hide_index=True
-            )
             
 # =========================
 # HIỂN THỊ CHUẨN BỊ / XÁC NHẬN ĐÁY
@@ -605,3 +484,120 @@ else:
             legend_html,
             unsafe_allow_html=True
         )
+
+# =========================
+# NGÀNH DẪN SÓNG SAU ĐÁY THỊ TRƯỜNG
+# =========================
+
+near_window_days = 7
+
+sector_near_bottom = sector_all_df[
+    (sector_all_df["date"] >= selected_confirm_date - pd.Timedelta(days=near_window_days))
+    &
+    (sector_all_df["date"] <= selected_confirm_date + pd.Timedelta(days=near_window_days))
+    &
+    (sector_all_df["smdt_vua_vuot_70"] == True)
+].copy()
+
+if sector_near_bottom.empty:
+
+    st.info(
+        "Không có ngành nào vượt SMDT 70 quanh đáy này."
+    )
+
+else:
+
+    sector_near_bottom = (
+        sector_near_bottom
+        .sort_values(
+            ["date", "smdt"],
+            ascending=[True, False]
+        )
+        .reset_index(drop=True)
+    )
+
+    sector_near_bottom["Lệch ngày"] = (
+        sector_near_bottom["date"]
+        - selected_confirm_date
+    ).dt.days
+
+    sector_near_bottom["Ngày vượt"] = (
+        sector_near_bottom["date"].dt.strftime("%Y-%m-%d")
+    )
+
+    sector_near_bottom["SMDT"] = (
+        sector_near_bottom["smdt"]
+        .round(2)
+    )
+
+    sector_table = sector_near_bottom[
+        [
+            "nganh",
+            "Ngày vượt",
+            "Lệch ngày",
+            "SMDT"
+        ]
+    ].rename(
+        columns={
+            "nganh": "Ngành"
+        }
+    )
+
+    # =========================
+    # NGÀNH CHỦ LỰC
+    # =========================
+
+    nganh_chu_luc = [
+        "Ngân hàng",
+        "Chứng khoán",
+        "BĐS Dân cư",
+        "Xây dựng",
+        "Thép",
+        "Sóng ngành Vin"
+    ]
+
+    chu_luc_df = sector_table[
+        sector_table["Ngành"]
+        .isin(nganh_chu_luc)
+    ].copy()
+
+    phu_df = sector_table[
+        ~sector_table["Ngành"]
+        .isin(nganh_chu_luc)
+    ].copy()
+
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.markdown("#### Ngành chủ lực")
+
+        if chu_luc_df.empty:
+
+            st.info("Chưa có ngành chủ lực.")
+
+        else:
+
+            st.dataframe(
+                chu_luc_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+    with col2:
+
+        st.markdown("#### Ngành phụ")
+
+        if phu_df.empty:
+
+            st.info("Chưa có ngành phụ.")
+
+        else:
+
+            st.dataframe(
+                phu_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
