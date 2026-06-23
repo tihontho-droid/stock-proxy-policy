@@ -105,6 +105,36 @@ def load_ticker_branch():
     df["ticker"] = df["ticker"].astype(str).str.upper()
     return df
 
+# =========================
+# FILTER UNIVERSE (IMPORTANT)
+# =========================
+tickers_use = ticker_list_202 + ["VNINDEX"]
+
+price_all = price_all[
+    price_all["ticker"].isin(tickers_use)
+].copy()
+
+zigzag_all = zigzag_all[
+    zigzag_all["ticker"].isin(tickers_use)
+].copy()
+
+stock_signal_df = stock_signal_df[
+    stock_signal_df["ticker"].isin(ticker_list_202)
+].copy()
+
+ticker_branch_df = ticker_branch_df[
+    ticker_branch_df["ticker"].isin(ticker_list_202)
+].copy()
+
+# =========================
+# MAP NGÀNH
+# =========================
+ticker_branch_map = dict(
+    zip(
+        ticker_branch_df["ticker"],
+        ticker_branch_df["nganh"]
+    )
+)
 
 # =========================
 # LOAD DATA
@@ -660,3 +690,159 @@ else:
                 hide_index=True
             )
 
+
+def build_bottom_stock_table(
+    selected_date,
+    window_days,
+    zigzag_all,
+    stock_signal_df,
+    sector_all_df,
+    ticker_branch_map
+):
+    # =========================
+    # 1. LẤY CỔ PHIẾU TẠO ĐÁY QUANH VNINDEX
+    # =========================
+    stock_bottoms = zigzag_all[
+        (zigzag_all["ticker"] != "VNINDEX") &
+        (zigzag_all["type"] == 2)
+    ].copy()
+
+    matched_bottoms = stock_bottoms[
+        (stock_bottoms["date"] - selected_date).abs().dt.days <= window_days
+    ].copy()
+
+    result_rows = []
+
+    smdt_window_days = 7
+
+    # =========================
+    # 2. LOOP CÁC ĐÁY CP
+    # =========================
+    for _, row in matched_bottoms.iterrows():
+
+        ticker = row["ticker"]
+        sector = ticker_branch_map.get(ticker, "Không xác định")
+
+        bottom_date = row["date"]
+        bottom_price = row["price"]
+        zigzag_percent = row["percent"]
+
+        # =========================
+        # 3. TÌM ĐỈNH SAU ĐÁY
+        # =========================
+        ticker_zigzag = (
+            zigzag_all[zigzag_all["ticker"] == ticker]
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
+
+        matched_idx = ticker_zigzag[
+            (ticker_zigzag["date"] == bottom_date) &
+            (ticker_zigzag["type"] == 2)
+        ].index
+
+        if len(matched_idx) == 0:
+            continue
+
+        zz_idx = matched_idx[0]
+        if zz_idx + 1 >= len(ticker_zigzag):
+            continue
+
+        next_peak = ticker_zigzag.iloc[zz_idx + 1]
+
+        if next_peak["type"] != 1:
+            continue
+
+        peak_date = next_peak["date"]
+        peak_price = next_peak["price"]
+
+        return_pct = (peak_price - bottom_price) / bottom_price * 100
+        days_to_peak = (peak_date - bottom_date).days
+
+        # =========================
+        # 4. SMDT MÃ
+        # =========================
+        stock_smdt = stock_signal_df[
+            (stock_signal_df["ticker"] == ticker) &
+            (stock_signal_df["smdt_ma_vua_vuot_70"] == True) &
+            ((stock_signal_df["date"] - selected_date).abs().dt.days <= smdt_window_days)
+        ].copy()
+
+        if stock_smdt.empty:
+            stock_smdt_near = "Không"
+            stock_smdt_cross_date = None
+            stock_smdt_value = None
+            stock_smdt_delay = None
+        else:
+            stock_smdt["abs_days"] = (stock_smdt["date"] - selected_date).abs().dt.days
+            best = stock_smdt.sort_values("abs_days").iloc[0]
+
+            stock_smdt_near = "Có"
+            stock_smdt_cross_date = best["date"]
+            stock_smdt_value = best["smdt_ma"]
+            stock_smdt_delay = (stock_smdt_cross_date - selected_date).days
+
+        # =========================
+        # 5. SMDT NGÀNH
+        # =========================
+        sector_smdt = sector_all_df[
+            (sector_all_df["nganh"] == sector) &
+            (sector_all_df["smdt_vua_vuot_70"] == True) &
+            ((sector_all_df["date"] - selected_date).abs().dt.days <= smdt_window_days)
+        ].copy()
+
+        if sector_smdt.empty:
+            sector_smdt_near = "Không"
+            sector_smdt_cross_date = None
+            sector_smdt_value = None
+            sector_smdt_delay = None
+        else:
+            sector_smdt["abs_days"] = (sector_smdt["date"] - selected_date).abs().dt.days
+            best = sector_smdt.sort_values("abs_days").iloc[0]
+
+            sector_smdt_near = "Có"
+            sector_smdt_cross_date = best["date"]
+            sector_smdt_value = best["smdt"]
+            sector_smdt_delay = (sector_smdt_cross_date - selected_date).days
+
+        # =========================
+        # 6. APPEND RESULT
+        # =========================
+        result_rows.append({
+            "Ticker": ticker,
+            "Ngành": sector,
+            "Percent ZigZag": int(zigzag_percent),
+
+            "Ngày đáy CP": bottom_date.date(),
+            "Giá đáy CP": round(bottom_price, 2),
+            "Lệch ngày": abs((bottom_date - selected_date).days),
+
+            "Ngày đỉnh tiếp theo": peak_date.date(),
+            "Giá đỉnh tiếp theo": round(peak_price, 2),
+            "Hiệu suất đáy -> đỉnh (%)": round(return_pct, 2),
+
+            "SMDT mã vượt gần đáy TT": stock_smdt_near,
+            "Ngày SMDT mã vượt": stock_smdt_cross_date.date() if stock_smdt_cross_date is not None else None,
+            "SMDT mã tại ngày vượt": round(stock_smdt_value, 2) if stock_smdt_value is not None else None,
+            "Lệch ngày SMDT mã": stock_smdt_delay,
+
+            "SMDT ngành vượt gần đáy TT": sector_smdt_near,
+            "Ngày SMDT ngành vượt": sector_smdt_cross_date.date() if sector_smdt_cross_date is not None else None,
+            "SMDT ngành tại ngày vượt": round(sector_smdt_value, 2) if sector_smdt_value is not None else None,
+            "Lệch ngày SMDT ngành": sector_smdt_delay
+        })
+
+    # =========================
+    # 7. BUILD DATAFRAME
+    # =========================
+    result_df = pd.DataFrame(result_rows)
+
+    if result_df.empty:
+        return result_df
+
+    result_df = result_df.sort_values(
+        "Hiệu suất đáy -> đỉnh (%)",
+        ascending=False
+    )
+
+    return result_df
