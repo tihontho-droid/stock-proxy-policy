@@ -5,7 +5,7 @@ from streamlit_lightweight_charts import renderLightweightCharts
 
 st.set_page_config(layout="wide")
 
-st.title("Giao dịch theo sóng thị trường")
+st.title("Giao dịch theo sóng thị trường") 
 
 ticker_list_202 = [
     "AAA", "ABB", "ACB", "AGG", "AGR", "ANV", "APG", "APS", "ASM",
