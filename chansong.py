@@ -833,35 +833,31 @@ if prepare_top_date is not None:
         )
     })
 
-if (
-    prepare_top_date is not None
-    and
-    confirm_top_date is not None
-):
+if prepare_top_date is not None:
 
     cycle_rows.append({
         "giai_doan": "Lập đỉnh",
         "ngay_bat_dau": prepare_top_date,
         "ngay_ket_thuc": (
-            confirm_top_date
+            top_zz_date
             - pd.Timedelta(days=1)
         ),
         "ly_do": (
-            "Xuất hiện tín hiệu "
-            "chuẩn bị tạo đỉnh"
+            "Xuất hiện tín hiệu chuẩn bị đỉnh "
+            "và VNINDEX đang tiến tới "
+            "đỉnh ZigZag +30%"
         )
     })
 
-if confirm_top_date is not None:
-
-    cycle_rows.append({
-        "giai_doan": "Đỉnh",
-        "ngay_bat_dau": confirm_top_date,
-        "ngay_ket_thuc": confirm_top_date,
-        "ly_do": (
-            "Xác nhận tạo đỉnh"
-        )
-    })
+cycle_rows.append({
+    "giai_doan": "Đỉnh",
+    "ngay_bat_dau": top_zz_date,
+    "ngay_ket_thuc": top_zz_date,
+    "ly_do": (
+        "Đỉnh ZigZag đầu tiên "
+        "sau đáy tăng tối thiểu 30%"
+    )
+})
 
 cycle_df = pd.DataFrame(
     cycle_rows
