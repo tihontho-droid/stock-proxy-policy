@@ -726,8 +726,7 @@ prepare_top_rows = top_signal_df[
     )
     &
     (
-        top_signal_df["date"]
-        <= top_zz_date
+        top_signal_df["date"] <= top_zz_date
     )
     &
     (
@@ -742,8 +741,7 @@ confirm_top_rows = top_signal_df[
     )
     &
     (
-        top_signal_df["date"]
-        <= top_zz_date
+        top_signal_df["date"] <= top_zz_date
     )
     &
     (
