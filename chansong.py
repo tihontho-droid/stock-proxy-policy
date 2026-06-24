@@ -699,12 +699,6 @@ else:
                 hide_index=True
             )
 
-st.write(vnindex_zz["type"].value_counts())
-
-# =========================
-# TÌM ĐỈNH ZZ +30%
-# =========================
-
 vnindex_zz = (
     zigzag_all[
         (zigzag_all["ticker"] == "VNINDEX")
@@ -715,19 +709,15 @@ vnindex_zz = (
 vnindex_zz["date"] = pd.to_datetime(vnindex_zz["date"])
 vnindex_zz = vnindex_zz.sort_values("date")
 
-bottom_candidates = vnindex_zz[
-    (vnindex_zz["type"] == 2)
-    & (vnindex_zz["date"] <= selected_confirm_date)
-].sort_values("date")
+# BOTTOM
+bottom_row = vnindex_zz[
+    vnindex_zz["type"] == 2
+].iloc[-1]
 
-if bottom_candidates.empty:
-    st.warning("Không tìm thấy đáy ZigZag.")
-    st.stop()
-
-bottom_row = bottom_candidates.iloc[-1]
 bottom_price = bottom_row["price"]
 bottom_date = bottom_row["date"]
 
+# TOP SAU BOTTOM
 future_tops = vnindex_zz[
     (vnindex_zz["type"] == 1)
     & (vnindex_zz["date"] > bottom_date)
@@ -739,14 +729,17 @@ future_tops["pct_gain"] = (
 )
 
 future_tops = future_tops.sort_values("date")
-future_tops = future_tops[future_tops["pct_gain"] >= 0.30]
+
+future_tops = future_tops[
+    future_tops["pct_gain"] >= 0.30
+]
 
 if future_tops.empty:
-    st.warning("Không tìm thấy đỉnh ZigZag tăng trên 30%.")
+    st.warning("Không có đỉnh +30% từ bottom này")
     st.stop()
 
 top_row = future_tops.iloc[0]
-top_zz_date = pd.to_datetime(top_row["date"])
+top_zz_date = top_row["date"]
 top_zz_price = top_row["price"]
 
 # =========================
