@@ -700,7 +700,7 @@ else:
             )
 
 # =========================
-# TÌM ĐỈNH ZZ +30%
+# TÌM ĐỈNH ZZ TIẾP THEO
 # =========================
 
 vnindex_zz = (
@@ -716,60 +716,20 @@ vnindex_zz["date"] = pd.to_datetime(
     vnindex_zz["date"]
 )
 
-# tìm đáy ZZ gần nhất trước ngày xác nhận đáy
-
-bottom_candidates = vnindex_zz[
-    (vnindex_zz["type"] == 2)
-    &
-    (vnindex_zz["date"] <= selected_confirm_date)
-].sort_values("date")
-
-if bottom_candidates.empty:
-
-    st.warning(
-        "Không tìm thấy đáy ZigZag."
-    )
-    st.stop()
-
-bottom_row = bottom_candidates.iloc[-1]
-
-bottom_price = bottom_row["price"]
-
-# tìm đỉnh ZZ đầu tiên tăng >=30%
-
 future_tops = vnindex_zz[
     (vnindex_zz["date"] > selected_confirm_date)
     &
     (vnindex_zz["type"] == 1)
-].copy()
-
-future_tops["pct_gain"] = (
-    (future_tops["price"] - bottom_price)
-    / bottom_price
-)
-
-future_tops = future_tops[
-    future_tops["pct_gain"] >= 0.30
 ]
 
 if future_tops.empty:
 
     st.warning(
-        "Không tìm thấy đỉnh ZigZag tăng trên 30%."
+        "Không tìm thấy đỉnh ZigZag tiếp theo."
     )
     st.stop()
 
-top_row = future_tops.iloc[0]
-
-top_zz_date = pd.to_datetime(
-    top_row["date"]
-)
-
-top_zz_price = top_row["price"]
-
-# =========================
-# TÌM CHUẨN BỊ ĐỈNH
-# =========================
+top_zz_date = future_tops.iloc[0]["date"]
 
 prepare_top_rows = top_signal_df[
     (
@@ -787,21 +747,45 @@ prepare_top_rows = top_signal_df[
     )
 ].sort_values("date")
 
-prepare_top_date = None
+confirm_top_rows = top_signal_df[
+    (
+        top_signal_df["date"]
+        >= selected_confirm_date
+    )
+    &
+    (
+        top_signal_df["date"]
+        <= top_zz_date
+    )
+    &
+    (
+        top_signal_df["xac_nhan_tao_dinh"]
+    )
+].sort_values("date")
 
-# lấy chuẩn bị đỉnh cuối cùng
-# trước đỉnh ZZ
+prepare_top_date = None
+confirm_top_date = None
 
 if not prepare_top_rows.empty:
 
     prepare_top_date = (
         prepare_top_rows
-        .iloc[-1]["date"]
+        .iloc[0]["date"]
     )
 
-# =========================
-# TẠO BẢNG CHU KỲ
-# =========================
+    confirm_after_prepare = (
+        confirm_top_rows[
+            confirm_top_rows["date"]
+            >= prepare_top_date
+        ]
+    )
+
+    if not confirm_after_prepare.empty:
+
+        confirm_top_date = (
+            confirm_after_prepare
+            .iloc[0]["date"]
+        )
 
 cycle_rows = []
 
@@ -816,10 +800,7 @@ cycle_rows.append({
         selected_confirm_date
         - pd.Timedelta(days=1)
     ),
-    "ly_do": (
-        "Xuất hiện tín hiệu "
-        "chuẩn bị tạo đáy"
-    )
+    "ly_do": "Xuất hiện tín hiệu chuẩn bị tạo đáy"
 })
 
 # -----------------
@@ -830,20 +811,10 @@ cycle_rows.append({
     "giai_doan": "Đáy",
     "ngay_bat_dau": selected_confirm_date,
     "ngay_ket_thuc": selected_confirm_date,
-    "ly_do": (
-        "Xác nhận tạo đáy"
-    )
+    "ly_do": "Xác nhận tạo đáy"
 })
 
-# -----------------
-# TRONG SÓNG
-# -----------------
-
-if (
-    prepare_top_date is not None
-    and
-    prepare_top_date > selected_confirm_date
-):
+if prepare_top_date is not None:
 
     cycle_rows.append({
         "giai_doan": "Trong sóng",
@@ -856,60 +827,40 @@ if (
             - pd.Timedelta(days=1)
         ),
         "ly_do": (
-            "Sau đáy và chưa xuất hiện "
-            "tín hiệu chuẩn bị đỉnh"
+            "Từ đáy tới khi "
+            "xuất hiện chuẩn bị đỉnh"
         )
     })
 
-    # -----------------
-    # LẬP ĐỈNH
-    # -----------------
+if (
+    prepare_top_date is not None
+    and
+    confirm_top_date is not None
+):
 
     cycle_rows.append({
         "giai_doan": "Lập đỉnh",
         "ngay_bat_dau": prepare_top_date,
         "ngay_ket_thuc": (
-            top_zz_date
+            confirm_top_date
             - pd.Timedelta(days=1)
         ),
         "ly_do": (
-            "Đã xuất hiện tín hiệu "
-            "chuẩn bị đỉnh"
+            "Xuất hiện tín hiệu "
+            "chuẩn bị tạo đỉnh"
         )
     })
 
-else:
+if confirm_top_date is not None:
 
     cycle_rows.append({
-        "giai_doan": "Trong sóng",
-        "ngay_bat_dau": (
-            selected_confirm_date
-            + pd.Timedelta(days=1)
-        ),
-        "ngay_ket_thuc": (
-            top_zz_date
-            - pd.Timedelta(days=1)
-        ),
+        "giai_doan": "Đỉnh",
+        "ngay_bat_dau": confirm_top_date,
+        "ngay_ket_thuc": confirm_top_date,
         "ly_do": (
-            "Từ đáy tới đỉnh ZigZag "
-            "chưa xuất hiện chuẩn bị đỉnh"
+            "Xác nhận tạo đỉnh"
         )
     })
-
-# -----------------
-# ĐỈNH
-# -----------------
-
-cycle_rows.append({
-    "giai_doan": "Đỉnh",
-    "ngay_bat_dau": top_zz_date,
-    "ngay_ket_thuc": top_zz_date,
-    "ly_do": (
-        f"Đỉnh ZigZag tăng "
-        f"{future_tops.iloc[0]['pct_gain']:.1%} "
-        f"so với đáy"
-    )
-})
 
 cycle_df = pd.DataFrame(
     cycle_rows
@@ -920,33 +871,6 @@ cycle_df["so_ngay"] = (
     -
     cycle_df["ngay_bat_dau"]
 ).dt.days + 1
-
-# =========================
-# DEBUG
-# =========================
-
-st.write(
-    "Đáy ZZ:",
-    bottom_row["date"],
-    "| Giá:",
-    round(bottom_price, 2)
-)
-
-st.write(
-    "Đỉnh ZZ:",
-    top_zz_date,
-    "| Giá:",
-    round(top_zz_price, 2)
-)
-
-st.write(
-    "Chuẩn bị đỉnh:",
-    prepare_top_date
-)
-
-# =========================
-# HIỂN THỊ
-# =========================
 
 st.subheader(
     "Chu kỳ sóng của đáy được chọn"
