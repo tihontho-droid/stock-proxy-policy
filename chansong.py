@@ -698,7 +698,31 @@ else:
                 use_container_width=True,
                 hide_index=True
             )
+# lấy bottom trước confirm
+bottom_candidates = vnindex_zz[
+    (vnindex_zz["type"] == 2)
+    & (vnindex_zz["date"] <= selected_confirm_date)
+].sort_values("date")
 
+bottom_row = bottom_candidates.iloc[-1]
+bottom_date = bottom_row["date"]
+bottom_price = bottom_row["price"]
+
+# tìm top SAU bottom (không phải sau confirm)
+future_tops = vnindex_zz[
+    (vnindex_zz["type"] == 1)
+    & (vnindex_zz["date"] > bottom_date)
+].copy()
+
+future_tops["pct_gain"] = (
+    (future_tops["price"] - bottom_price) / bottom_price
+)
+
+future_tops = future_tops.sort_values("date")
+
+future_tops = future_tops[
+    future_tops["pct_gain"] >= 0.30
+]
 # =========================
 # TÌM ĐỈNH ZZ +30%
 # =========================
