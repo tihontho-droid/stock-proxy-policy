@@ -699,6 +699,8 @@ else:
                 hide_index=True
             )
 
+st.write(vnindex_zz["type"].value_counts())
+
 # =========================
 # TÌM ĐỈNH ZZ +30%
 # =========================
