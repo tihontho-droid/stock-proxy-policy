@@ -700,186 +700,163 @@ else:
             )
 
 # =========================
-# TÌM ĐỈNH ZZ TIẾP THEO
+# PARAM
 # =========================
+
+selected_confirm_date = pd.to_datetime("2025-04-09")
 
 vnindex_zz = (
     zigzag_all[
         (zigzag_all["ticker"] == "VNINDEX")
-        &
-        (zigzag_all["percent"] == 5)
-    ]
-    .copy()
+        & (zigzag_all["percent"] == 5)
+    ].copy()
 )
 
-vnindex_zz["date"] = pd.to_datetime(
-    vnindex_zz["date"]
-)
+vnindex_zz["date"] = pd.to_datetime(vnindex_zz["date"])
+vnindex_zz = vnindex_zz.sort_values("date")
 
-future_tops = vnindex_zz[
-    (vnindex_zz["date"] > selected_confirm_date)
-    &
-    (vnindex_zz["type"] == 1)
-]
+# =========================
+# 1. LẤY ĐÁY
+# =========================
 
-if future_tops.empty:
+bottom_candidates = vnindex_zz[
+    (vnindex_zz["type"] == 2)
+    & (vnindex_zz["date"] <= selected_confirm_date)
+].sort_values("date")
 
-    st.warning(
-        "Không tìm thấy đỉnh ZigZag tiếp theo."
-    )
+if bottom_candidates.empty:
+    st.warning("Không tìm thấy đáy.")
     st.stop()
 
-top_zz_date = future_tops.iloc[0]["date"]
+bottom_row = bottom_candidates.iloc[-1]
+bottom_date = bottom_row["date"]
+bottom_price = bottom_row["price"]
+
+# =========================
+# 2. LẤY ĐỈNH +30% SAU ĐÁY
+# =========================
+
+future_tops = vnindex_zz[
+    (vnindex_zz["type"] == 1)
+    & (vnindex_zz["date"] > bottom_date)
+].copy()
+
+future_tops["pct_gain"] = (
+    (future_tops["price"] - bottom_price)
+    / bottom_price
+)
+
+future_tops = future_tops.sort_values("date")
+future_tops = future_tops[future_tops["pct_gain"] >= 0.30]
+
+if future_tops.empty:
+    st.warning("Không có đỉnh +30% từ đáy này.")
+    st.stop()
+
+top_row = future_tops.iloc[0]
+top_zz_date = top_row["date"]
+
+# =========================
+# 3. PREPARE / CONFIRM TOP SIGNAL
+# =========================
 
 prepare_top_rows = top_signal_df[
-    (
-        top_signal_df["date"]
-        >= selected_confirm_date
-    )
-    &
-    (
-        top_signal_df["date"]
-        <= top_zz_date
-    )
-    &
-    (
-        top_signal_df["chuan_bi_tao_dinh"]
-    )
+    (top_signal_df["date"] >= bottom_date)
+    & (top_signal_df["date"] <= top_zz_date)
+    & (top_signal_df["chuan_bi_tao_dinh"] == True)
 ].sort_values("date")
 
 confirm_top_rows = top_signal_df[
-    (
-        top_signal_df["date"]
-        >= selected_confirm_date
-    )
-    &
-    (
-        top_signal_df["date"]
-        <= top_zz_date
-    )
-    &
-    (
-        top_signal_df["xac_nhan_tao_dinh"]
-    )
+    (top_signal_df["date"] >= bottom_date)
+    & (top_signal_df["date"] <= top_zz_date)
+    & (top_signal_df["xac_nhan_tao_dinh"] == True)
 ].sort_values("date")
 
 prepare_top_date = None
 confirm_top_date = None
 
 if not prepare_top_rows.empty:
+    prepare_top_date = prepare_top_rows.iloc[-1]["date"]
 
-    prepare_top_date = (
-        prepare_top_rows
-        .iloc[0]["date"]
-    )
-
-    confirm_after_prepare = (
-        confirm_top_rows[
-            confirm_top_rows["date"]
-            >= prepare_top_date
-        ]
-    )
+    confirm_after_prepare = confirm_top_rows[
+        confirm_top_rows["date"] >= prepare_top_date
+    ]
 
     if not confirm_after_prepare.empty:
+        confirm_top_date = confirm_after_prepare.iloc[0]["date"]
 
-        confirm_top_date = (
-            confirm_after_prepare
-            .iloc[0]["date"]
-        )
+# =========================
+# 4. BUILD CYCLE TABLE
+# =========================
 
 cycle_rows = []
 
-# -----------------
-# CẬN ĐÁY
-# -----------------
-
+# ---- CẬN ĐÁY ----
 cycle_rows.append({
     "giai_doan": "Cận đáy",
-    "ngay_bat_dau": selected_prepare_date,
-    "ngay_ket_thuc": (
-        selected_confirm_date
-        - pd.Timedelta(days=1)
-    ),
-    "ly_do": "Xuất hiện tín hiệu chuẩn bị tạo đáy"
+    "ngay_bat_dau": None,
+    "ngay_ket_thuc": bottom_date - pd.Timedelta(days=1),
+    "ly_do": "Chuẩn bị hình thành đáy"
 })
 
-# -----------------
-# ĐÁY
-# -----------------
-
+# ---- ĐÁY ----
 cycle_rows.append({
     "giai_doan": "Đáy",
-    "ngay_bat_dau": selected_confirm_date,
-    "ngay_ket_thuc": selected_confirm_date,
-    "ly_do": "Xác nhận tạo đáy"
+    "ngay_bat_dau": bottom_date,
+    "ngay_ket_thuc": bottom_date,
+    "ly_do": "Xác nhận tạo đáy ZigZag"
 })
 
+# ---- TRONG SÓNG ----
 if prepare_top_date is not None:
 
     cycle_rows.append({
         "giai_doan": "Trong sóng",
-        "ngay_bat_dau": (
-            selected_confirm_date
-            + pd.Timedelta(days=1)
-        ),
-        "ngay_ket_thuc": (
-            prepare_top_date
-            - pd.Timedelta(days=1)
-        ),
-        "ly_do": (
-            "Từ đáy tới khi "
-            "xuất hiện chuẩn bị đỉnh"
-        )
+        "ngay_bat_dau": bottom_date + pd.Timedelta(days=1),
+        "ngay_ket_thuc": prepare_top_date - pd.Timedelta(days=1),
+        "ly_do": "Sóng tăng sau đáy"
     })
 
-if (
-    prepare_top_date is not None
-    and
-    confirm_top_date is not None
-):
+    # ---- LẬP ĐỈNH ----
+    if confirm_top_date is not None:
+
+        cycle_rows.append({
+            "giai_doan": "Lập đỉnh",
+            "ngay_bat_dau": prepare_top_date,
+            "ngay_ket_thuc": confirm_top_date - pd.Timedelta(days=1),
+            "ly_do": "Có tín hiệu chuẩn bị đỉnh"
+        })
+
+    # ---- ĐỈNH ----
+    cycle_rows.append({
+        "giai_doan": "Đỉnh",
+        "ngay_bat_dau": top_zz_date,
+        "ngay_ket_thuc": top_zz_date,
+        "ly_do": "Đỉnh ZigZag >= 30% sau đáy"
+    })
+
+else:
 
     cycle_rows.append({
-        "giai_doan": "Lập đỉnh",
-        "ngay_bat_dau": prepare_top_date,
-        "ngay_ket_thuc": (
-            confirm_top_date
-            - pd.Timedelta(days=1)
-        ),
-        "ly_do": (
-            "Xuất hiện tín hiệu "
-            "chuẩn bị tạo đỉnh"
-        )
+        "giai_doan": "Trong sóng",
+        "ngay_bat_dau": bottom_date + pd.Timedelta(days=1),
+        "ngay_ket_thuc": top_zz_date,
+        "ly_do": "Chưa có tín hiệu đỉnh"
     })
 
-cycle_rows.append({
-    "giai_doan": "Đỉnh",
-    "ngay_bat_dau": top_zz_date,
-    "ngay_ket_thuc": top_zz_date,
-    "ly_do": (
-        "Đỉnh ZigZag đầu tiên "
-        "sau đáy tăng tối thiểu 30%"
-    )
-})
+# =========================
+# 5. DATAFRAME
+# =========================
 
-cycle_df = pd.DataFrame(
-    cycle_rows
-)
+cycle_df = pd.DataFrame(cycle_rows)
 
 cycle_df["so_ngay"] = (
-    cycle_df["ngay_ket_thuc"]
-    -
-    cycle_df["ngay_bat_dau"]
+    cycle_df["ngay_ket_thuc"] - cycle_df["ngay_bat_dau"]
 ).dt.days + 1
 
-st.subheader(
-    "Chu kỳ sóng của đáy được chọn"
-)
+st.dataframe(cycle_df, use_container_width=True, hide_index=True)
 
-st.dataframe(
-    cycle_df,
-    use_container_width=True,
-    hide_index=True
-)
+
 # =========================
 # CỔ PHIẾU TẠO ĐÁY QUANH VNINDEX
 # =========================
