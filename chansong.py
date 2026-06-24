@@ -851,16 +851,15 @@ if (
         )
     })
 
-if confirm_top_date is not None:
-
-    cycle_rows.append({
-        "giai_doan": "Đỉnh",
-        "ngay_bat_dau": confirm_top_date,
-        "ngay_ket_thuc": confirm_top_date,
-        "ly_do": (
-            "Xác nhận tạo đỉnh"
-        )
-    })
+cycle_rows.append({
+    "giai_doan": "Đỉnh",
+    "ngay_bat_dau": top_zz_date,
+    "ngay_ket_thuc": top_zz_date,
+    "ly_do": (
+        "Đỉnh ZigZag đầu tiên "
+        "sau đáy tăng tối thiểu 30%"
+    )
+})
 
 cycle_df = pd.DataFrame(
     cycle_rows
