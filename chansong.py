@@ -1048,3 +1048,190 @@ if ticker_input:
             key=f"stock_chart_{ticker_input}"
         )
 
+# =========================
+# TẠO CHU KỲ THỊ TRƯỜNG
+# =========================
+
+vnindex_zz = (
+    all_zigzag_point[
+        all_zigzag_point["ticker"] == "VNINDEX"
+    ]
+    .copy()
+)
+
+vnindex_zz["date"] = pd.to_datetime(
+    vnindex_zz["date"]
+)
+
+cycle_rows = []
+
+for _, row in bottom_events_df.iterrows():
+
+    bottom_date = row["confirm_date"]
+
+    # ------------------------------------------------
+    # TÌM ĐỈNH ZZ ĐẦU TIÊN SAU ĐÁY
+    # ------------------------------------------------
+
+    future_tops = vnindex_zz[
+        (vnindex_zz["date"] > bottom_date)
+        &
+        (
+            vnindex_zz["type"] == 2
+            # sửa lại theo file của em
+        )
+    ].sort_values("date")
+
+    if future_tops.empty:
+        continue
+
+    top_date = future_tops.iloc[0]["date"]
+
+    total_days = (
+        top_date - bottom_date
+    ).days
+
+    if total_days <= 0:
+        continue
+
+    # ------------------------------------------------
+    # CHIA GIAI ĐOẠN
+    # ------------------------------------------------
+
+    chan_song_end = (
+        bottom_date
+        + pd.Timedelta(
+            days=int(total_days * 0.20)
+        )
+    )
+
+    qua_day_end = (
+        bottom_date
+        + pd.Timedelta(
+            days=int(total_days * 0.80)
+        )
+    )
+
+    cycle_rows.append({
+        "bottom_date": bottom_date,
+        "top_date": top_date,
+        "chan_song_start": bottom_date,
+        "chan_song_end": chan_song_end,
+        "qua_day_start": chan_song_end,
+        "qua_day_end": qua_day_end,
+        "lap_dinh_start": qua_day_end,
+        "lap_dinh_end": top_date
+    })
+
+cycle_df = pd.DataFrame(cycle_rows)
+
+# =========================
+# DROPDOWN CHỌN CHU KỲ
+# =========================
+
+cycle_df["dropdown_text"] = (
+    "Chân sóng - "
+    +
+    cycle_df["bottom_date"]
+    .dt.strftime("%Y-%m-%d")
+)
+
+selected_cycle = st.selectbox(
+    "Chọn chu kỳ thị trường",
+    cycle_df["dropdown_text"]
+)
+
+cycle_row = cycle_df[
+    cycle_df["dropdown_text"]
+    == selected_cycle
+].iloc[0]
+
+# =========================
+# CHU KỲ CỦA ĐÁY ĐƯỢC CHỌN
+# =========================
+
+vnindex_zz = (
+    all_zigzag_point[
+        (all_zigzag_point["ticker"] == "VNINDEX")
+        &
+        (all_zigzag_point["percent"] == 30)
+    ]
+    .copy()
+)
+
+vnindex_zz["date"] = pd.to_datetime(
+    vnindex_zz["date"]
+)
+
+future_tops = (
+    vnindex_zz[
+        (vnindex_zz["date"] > selected_confirm_date)
+        &
+        (vnindex_zz["type"] == 1)
+    ]
+    .sort_values("date")
+)
+
+if not future_tops.empty:
+
+    top_date = future_tops.iloc[0]["date"]
+
+    total_days = (
+        top_date - selected_confirm_date
+    ).days
+
+    chan_song_end = (
+        selected_confirm_date
+        +
+        pd.Timedelta(
+            days=int(total_days * 0.20)
+        )
+    )
+
+    qua_day_end = (
+        selected_confirm_date
+        +
+        pd.Timedelta(
+            days=int(total_days * 0.80)
+        )
+    )
+
+    st.markdown(
+        f"""
+        <div style="
+            background:#F8FAFC;
+            border:1px solid #E5E7EB;
+            border-radius:14px;
+            padding:16px;
+            margin-bottom:12px;
+        ">
+
+        <h4 style="margin-top:0;">
+            Chu kỳ của đáy
+        </h4>
+
+        <p>
+        🟢 <b>Chân sóng</b><br>
+        {selected_confirm_date.strftime('%Y-%m-%d')}
+        →
+        {chan_song_end.strftime('%Y-%m-%d')}
+        </p>
+
+        <p>
+        🔵 <b>Qua đáy</b><br>
+        {chan_song_end.strftime('%Y-%m-%d')}
+        →
+        {qua_day_end.strftime('%Y-%m-%d')}
+        </p>
+
+        <p>
+        🔴 <b>Lập đỉnh</b><br>
+        {qua_day_end.strftime('%Y-%m-%d')}
+        →
+        {top_date.strftime('%Y-%m-%d')}
+        </p>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
