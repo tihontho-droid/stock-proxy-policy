@@ -838,14 +838,7 @@ cycle_rows.append({
     "ngay_ket_thuc": confirm_top_date,
     "ly_do": "Xác nhận tạo đỉnh (kết thúc chu kỳ)"
 })
-else:
 
-    cycle_rows.append({
-        "giai_doan": "Trong sóng",
-        "ngay_bat_dau": bottom_date + pd.Timedelta(days=1),
-        "ngay_ket_thuc": top_zz_date,
-        "ly_do": "Chưa có tín hiệu đỉnh"
-    })
 
 # =========================
 # 5. DATAFRAME
