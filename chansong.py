@@ -808,33 +808,36 @@ cycle_rows.append({
 })
 
 # ---- TRONG SÓNG ----
-if prepare_top_date is not None:
+cycle_rows.append({
+    "giai_doan": "Trong sóng",
+    "ngay_bat_dau": bottom_date + pd.Timedelta(days=1),
+    "ngay_ket_thuc": prepare_top_date - pd.Timedelta(days=1),
+    "ly_do": "Sóng tăng sau đáy"
+})
 
-    cycle_rows.append({
-        "giai_doan": "Trong sóng",
-        "ngay_bat_dau": bottom_date + pd.Timedelta(days=1),
-        "ngay_ket_thuc": prepare_top_date - pd.Timedelta(days=1),
-        "ly_do": "Sóng tăng sau đáy"
-    })
+# ---- CHUẨN BỊ ĐỈNH ----
+cycle_rows.append({
+    "giai_doan": "Chuẩn bị đỉnh",
+    "ngay_bat_dau": prepare_top_date,
+    "ngay_ket_thuc": lap_dinh_date - pd.Timedelta(days=1),
+    "ly_do": "Xuất hiện tín hiệu cảnh báo đỉnh"
+})
 
-    # ---- LẬP ĐỈNH ----
-    if confirm_top_date is not None:
+# ---- LẬP ĐỈNH ----
+cycle_rows.append({
+    "giai_doan": "Lập đỉnh",
+    "ngay_bat_dau": lap_dinh_date,
+    "ngay_ket_thuc": confirm_top_date - pd.Timedelta(days=1),
+    "ly_do": "Xác nhận áp lực tạo đỉnh"
+})
 
-        cycle_rows.append({
-            "giai_doan": "Lập đỉnh",
-            "ngay_bat_dau": prepare_top_date,
-            "ngay_ket_thuc": confirm_top_date - pd.Timedelta(days=1),
-            "ly_do": "Có tín hiệu chuẩn bị đỉnh"
-        })
-
-    # ---- ĐỈNH ----
-    cycle_rows.append({
-        "giai_doan": "Đỉnh",
-        "ngay_bat_dau": top_zz_date,
-        "ngay_ket_thuc": top_zz_date,
-        "ly_do": "Đỉnh ZigZag >= 30% sau đáy"
-    })
-
+# ---- ĐỈNH (END) ----
+cycle_rows.append({
+    "giai_doan": "Đỉnh",
+    "ngay_bat_dau": confirm_top_date,
+    "ngay_ket_thuc": confirm_top_date,
+    "ly_do": "Xác nhận tạo đỉnh (kết thúc chu kỳ)"
+})
 else:
 
     cycle_rows.append({
