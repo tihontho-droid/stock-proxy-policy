@@ -785,6 +785,17 @@ if not prepare_top_rows.empty:
     if not confirm_after_prepare.empty:
         confirm_top_date = confirm_after_prepare.iloc[0]["date"]
 
+lap_dinh_date = None
+
+lap_dinh_rows = top_signal_df[
+    (top_signal_df["date"] >= prepare_top_date)
+    & (top_signal_df["date"] <= top_zz_date)
+    & (top_signal_df["xac_nhan_tao_dinh"] == True)
+].sort_values("date")
+
+if not lap_dinh_rows.empty:
+    lap_dinh_date = lap_dinh_rows.iloc[0]["date"]
+ 
 # =========================
 # 4. BUILD CYCLE TABLE
 # =========================
