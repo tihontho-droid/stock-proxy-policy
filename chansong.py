@@ -698,6 +698,38 @@ else:
                 use_container_width=True,
                 hide_index=True
             )
+
+# =========================
+# TÌM ĐỈNH ZZ TIẾP THEO
+# =========================
+
+vnindex_zz = (
+    zigzag_all[
+        (zigzag_all["ticker"] == "VNINDEX")
+        &
+        (zigzag_all["percent"] == 5)
+    ]
+    .copy()
+)
+
+vnindex_zz["date"] = pd.to_datetime(
+    vnindex_zz["date"]
+)
+
+future_tops = vnindex_zz[
+    (vnindex_zz["date"] > selected_confirm_date)
+    &
+    (vnindex_zz["type"] == 1)
+]
+
+if future_tops.empty:
+
+    st.warning(
+        "Không tìm thấy đỉnh ZigZag tiếp theo."
+    )
+    st.stop()
+
+top_zz_date = future_tops.iloc[0]["date"]
 # =========================
 # TÌM ĐỈNH ZZ +30%
 # =========================
