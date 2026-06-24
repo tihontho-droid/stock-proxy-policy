@@ -105,6 +105,15 @@ def load_ticker_branch():
     df["ticker"] = df["ticker"].astype(str).str.upper()
     return df
 
+@st.cache_data
+def load_top_signal():
+    df = pd.read_parquet("top_signal_df.parquet")
+    df["date"] = pd.to_datetime(df["date"])
+
+    return df
+
+top_signal_df = load_top_signal()
+
 # =========================
 # LOAD DATA
 # =========================
@@ -690,6 +699,189 @@ else:
                 hide_index=True
             )
 
+
+# =========================
+# TÌM ĐỈNH ZZ TIẾP THEO
+# =========================
+
+vnindex_zz = (
+    zigzag_all[
+        (zigzag_all["ticker"] == "VNINDEX")
+        &
+        (zigzag_all["percent"] == 5)
+    ]
+    .copy()
+)
+
+vnindex_zz["date"] = pd.to_datetime(
+    vnindex_zz["date"]
+)
+
+future_tops = vnindex_zz[
+    (vnindex_zz["date"] > selected_confirm_date)
+    &
+    (vnindex_zz["type"] == 1)
+]
+
+if future_tops.empty:
+
+    st.warning(
+        "Không tìm thấy đỉnh ZigZag tiếp theo."
+    )
+    st.stop()
+
+top_zz_date = future_tops.iloc[0]["date"]
+
+prepare_top_rows = top_signal_df[
+    (
+        top_signal_df["date"]
+        >= selected_confirm_date
+    )
+    &
+    (
+        top_signal_df["date"]
+        <= top_zz_date
+    )
+    &
+    (
+        top_signal_df["chuan_bi_tao_dinh"]
+    )
+].sort_values("date")
+
+confirm_top_rows = top_signal_df[
+    (
+        top_signal_df["date"]
+        >= selected_confirm_date
+    )
+    &
+    (
+        top_signal_df["date"]
+        <= top_zz_date
+    )
+    &
+    (
+        top_signal_df["xac_nhan_tao_dinh"]
+    )
+].sort_values("date")
+
+prepare_top_date = None
+confirm_top_date = None
+
+if not prepare_top_rows.empty:
+
+    prepare_top_date = (
+        prepare_top_rows
+        .iloc[0]["date"]
+    )
+
+    confirm_after_prepare = (
+        confirm_top_rows[
+            confirm_top_rows["date"]
+            >= prepare_top_date
+        ]
+    )
+
+    if not confirm_after_prepare.empty:
+
+        confirm_top_date = (
+            confirm_after_prepare
+            .iloc[0]["date"]
+        )
+
+cycle_rows = []
+
+# -----------------
+# CẬN ĐÁY
+# -----------------
+
+cycle_rows.append({
+    "giai_doan": "Cận đáy",
+    "ngay_bat_dau": selected_prepare_date,
+    "ngay_ket_thuc": (
+        selected_confirm_date
+        - pd.Timedelta(days=1)
+    ),
+    "ly_do": "Xuất hiện tín hiệu chuẩn bị tạo đáy"
+})
+
+# -----------------
+# ĐÁY
+# -----------------
+
+cycle_rows.append({
+    "giai_doan": "Đáy",
+    "ngay_bat_dau": selected_confirm_date,
+    "ngay_ket_thuc": selected_confirm_date,
+    "ly_do": "Xác nhận tạo đáy"
+})
+
+if prepare_top_date is not None:
+
+    cycle_rows.append({
+        "giai_doan": "Trong sóng",
+        "ngay_bat_dau": (
+            selected_confirm_date
+            + pd.Timedelta(days=1)
+        ),
+        "ngay_ket_thuc": (
+            prepare_top_date
+            - pd.Timedelta(days=1)
+        ),
+        "ly_do": (
+            "Từ đáy tới khi "
+            "xuất hiện chuẩn bị đỉnh"
+        )
+    })
+
+if (
+    prepare_top_date is not None
+    and
+    confirm_top_date is not None
+):
+
+    cycle_rows.append({
+        "giai_doan": "Lập đỉnh",
+        "ngay_bat_dau": prepare_top_date,
+        "ngay_ket_thuc": (
+            confirm_top_date
+            - pd.Timedelta(days=1)
+        ),
+        "ly_do": (
+            "Xuất hiện tín hiệu "
+            "chuẩn bị tạo đỉnh"
+        )
+    })
+
+if confirm_top_date is not None:
+
+    cycle_rows.append({
+        "giai_doan": "Đỉnh",
+        "ngay_bat_dau": confirm_top_date,
+        "ngay_ket_thuc": confirm_top_date,
+        "ly_do": (
+            "Xác nhận tạo đỉnh"
+        )
+    })
+
+cycle_df = pd.DataFrame(
+    cycle_rows
+)
+
+cycle_df["so_ngay"] = (
+    cycle_df["ngay_ket_thuc"]
+    -
+    cycle_df["ngay_bat_dau"]
+).dt.days + 1
+
+st.subheader(
+    "Chu kỳ sóng của đáy được chọn"
+)
+
+st.dataframe(
+    cycle_df,
+    use_container_width=True,
+    hide_index=True
+)
 # =========================
 # CỔ PHIẾU TẠO ĐÁY QUANH VNINDEX
 # =========================
