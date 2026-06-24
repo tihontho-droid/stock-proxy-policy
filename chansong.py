@@ -719,59 +719,36 @@ vnindex_zz["date"] = pd.to_datetime(
 # TÌM CHUẨN BỊ / XÁC NHẬN ĐỈNH
 # =========================
 
+mask_time = (
+    (top_signal_df["date"] >= selected_confirm_date)
+    & (top_signal_df["date"] <= top_zz_date)
+)
+
 prepare_top_rows = top_signal_df[
-    (
-        top_signal_df["date"]
-        >= selected_confirm_date
-    )
-    &
-    (
-        top_signal_df["date"] <= top_zz_date
-    )
-    &
-    (
-        top_signal_df["chuan_bi_tao_dinh"]
-    )
+    mask_time & (top_signal_df["chuan_bi_tao_dinh"] == True)
 ].sort_values("date")
 
 confirm_top_rows = top_signal_df[
-    (
-        top_signal_df["date"]
-        >= selected_confirm_date
-    )
-    &
-    (
-        top_signal_df["date"] <= top_zz_date
-    )
-    &
-    (
-        top_signal_df["xac_nhan_tao_dinh"]
-    )
+    mask_time & (top_signal_df["xac_nhan_tao_dinh"] == True)
 ].sort_values("date")
 
 prepare_top_date = None
 confirm_top_date = None
 
+# =========================
+# LẤY LẦN CUỐI CHUẨN BỊ
+# =========================
 if not prepare_top_rows.empty:
 
-    prepare_top_date = (
-        prepare_top_rows
-        .iloc[-1]["date"]
-    )
+    prepare_top_date = prepare_top_rows.iloc[-1]["date"]
 
-    confirm_after_prepare = (
-        confirm_top_rows[
-            confirm_top_rows["date"]
-            >= prepare_top_date
-        ]
-    )
+    # chỉ lấy confirm SAU prepare
+    confirm_after_prepare = confirm_top_rows[
+        confirm_top_rows["date"] >= prepare_top_date
+    ].sort_values("date")
 
     if not confirm_after_prepare.empty:
-
-        confirm_top_date = (
-            confirm_after_prepare
-            .iloc[0]["date"]
-        )
+        confirm_top_date = confirm_after_prepare.iloc[0]["date"]
 
 # =========================
 # TẠO BẢNG CHU KỲ
