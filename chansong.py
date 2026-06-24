@@ -698,6 +698,22 @@ else:
                 use_container_width=True,
                 hide_index=True
             )
+# =========================
+# TÌM ĐỈNH ZZ +30%
+# =========================
+
+vnindex_zz = (
+    zigzag_all[
+        (zigzag_all["ticker"] == "VNINDEX")
+        &
+        (zigzag_all["percent"] == 5)
+    ]
+    .copy()
+)
+
+vnindex_zz["date"] = pd.to_datetime(
+    vnindex_zz["date"]
+)
 
 # =========================
 # TÌM CHUẨN BỊ / XÁC NHẬN ĐỈNH
