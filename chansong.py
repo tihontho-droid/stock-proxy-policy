@@ -700,37 +700,6 @@ else:
             )
 
 # =========================
-# TÌM ĐỈNH ZZ TIẾP THEO
-# =========================
-
-vnindex_zz = (
-    zigzag_all[
-        (zigzag_all["ticker"] == "VNINDEX")
-        &
-        (zigzag_all["percent"] == 5)
-    ]
-    .copy()
-)
-
-vnindex_zz["date"] = pd.to_datetime(
-    vnindex_zz["date"]
-)
-
-future_tops = vnindex_zz[
-    (vnindex_zz["date"] > selected_confirm_date)
-    &
-    (vnindex_zz["type"] == 1)
-]
-
-if future_tops.empty:
-
-    st.warning(
-        "Không tìm thấy đỉnh ZigZag tiếp theo."
-    )
-    st.stop()
-
-top_zz_date = future_tops.iloc[0]["date"]
-# =========================
 # TÌM ĐỈNH ZZ +30%
 # =========================
 
@@ -747,40 +716,88 @@ vnindex_zz["date"] = pd.to_datetime(
     vnindex_zz["date"]
 )
 
-# =========================
-# TÌM CHUẨN BỊ / XÁC NHẬN ĐỈNH
-# =========================
+# tìm đáy ZZ gần nhất trước ngày xác nhận đáy
 
-mask_time = (
-    (top_signal_df["date"] >= selected_confirm_date)
-    & (top_signal_df["date"] <= top_zz_date)
-)
-
-prepare_top_rows = top_signal_df[
-    mask_time & (top_signal_df["chuan_bi_tao_dinh"] == True)
+bottom_candidates = vnindex_zz[
+    (vnindex_zz["type"] == 2)
+    &
+    (vnindex_zz["date"] <= selected_confirm_date)
 ].sort_values("date")
 
-confirm_top_rows = top_signal_df[
-    mask_time & (top_signal_df["xac_nhan_tao_dinh"] == True)
+if bottom_candidates.empty:
+
+    st.warning(
+        "Không tìm thấy đáy ZigZag."
+    )
+    st.stop()
+
+bottom_row = bottom_candidates.iloc[-1]
+
+bottom_price = bottom_row["price"]
+
+# tìm đỉnh ZZ đầu tiên tăng >=30%
+
+future_tops = vnindex_zz[
+    (vnindex_zz["date"] > selected_confirm_date)
+    &
+    (vnindex_zz["type"] == 1)
+].copy()
+
+future_tops["pct_gain"] = (
+    (future_tops["price"] - bottom_price)
+    / bottom_price
+)
+
+future_tops = future_tops[
+    future_tops["pct_gain"] >= 0.30
+]
+
+if future_tops.empty:
+
+    st.warning(
+        "Không tìm thấy đỉnh ZigZag tăng trên 30%."
+    )
+    st.stop()
+
+top_row = future_tops.iloc[0]
+
+top_zz_date = pd.to_datetime(
+    top_row["date"]
+)
+
+top_zz_price = top_row["price"]
+
+# =========================
+# TÌM CHUẨN BỊ ĐỈNH
+# =========================
+
+prepare_top_rows = top_signal_df[
+    (
+        top_signal_df["date"]
+        >= selected_confirm_date
+    )
+    &
+    (
+        top_signal_df["date"]
+        <= top_zz_date
+    )
+    &
+    (
+        top_signal_df["chuan_bi_tao_dinh"]
+    )
 ].sort_values("date")
 
 prepare_top_date = None
-confirm_top_date = None
 
-# =========================
-# LẤY LẦN CUỐI CHUẨN BỊ
-# =========================
+# lấy chuẩn bị đỉnh cuối cùng
+# trước đỉnh ZZ
+
 if not prepare_top_rows.empty:
 
-    prepare_top_date = prepare_top_rows.iloc[-1]["date"]
-
-    # chỉ lấy confirm SAU prepare
-    confirm_after_prepare = confirm_top_rows[
-        confirm_top_rows["date"] >= prepare_top_date
-    ].sort_values("date")
-
-    if not confirm_after_prepare.empty:
-        confirm_top_date = confirm_after_prepare.iloc[0]["date"]
+    prepare_top_date = (
+        prepare_top_rows
+        .iloc[-1]["date"]
+    )
 
 # =========================
 # TẠO BẢNG CHU KỲ
