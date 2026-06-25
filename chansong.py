@@ -721,7 +721,9 @@ vnindex_zz = (
     .sort_values("date")
     .reset_index(drop=True)
 )
-
+bottom_date = pd.to_datetime(
+    selected_confirm_date
+)
 # =========================
 # TÌM ĐỈNH ZZ >= 30%
 # =========================
