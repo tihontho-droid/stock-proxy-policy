@@ -699,6 +699,125 @@ else:
                 hide_index=True
             )
 
+# =========================
+# TÌM ĐỈNH ZZ >= 30%
+# =========================
+
+tops_after_bottom = vnindex_zz[
+    (vnindex_zz["type"] == 1)
+    &
+    (vnindex_zz["date"] > bottom_date)
+].copy()
+
+tops_after_bottom["pct_gain"] = (
+    (tops_after_bottom["price"] - bottom_price)
+    / bottom_price
+)
+
+tops_after_bottom = tops_after_bottom.sort_values("date")
+
+valid_tops = tops_after_bottom[
+    tops_after_bottom["pct_gain"] >= 0.30
+]
+
+if valid_tops.empty:
+    st.warning(
+        "Không tìm thấy đỉnh ZigZag tăng >=30%"
+    )
+    st.stop()
+
+wave_top = valid_tops.iloc[0]
+
+wave_top_date = wave_top["date"]
+
+# =========================
+# TÌM XÁC NHẬN ĐỈNH
+# =========================
+
+confirm_top = top_signal_df[
+    (top_signal_df["date"] > wave_top_date)
+    &
+    (top_signal_df["xac_nhan_tao_dinh"] == True)
+].sort_values("date")
+
+confirm_top_date = None
+
+if not confirm_top.empty:
+
+    confirm_top_date = (
+        confirm_top.iloc[0]["date"]
+    )
+
+# =========================
+# TẠO BẢNG CHU KỲ
+# =========================
+
+cycle_rows = []
+
+# ---- CẬN ĐÁY ----
+
+cycle_rows.append({
+    "giai_doan": "Cận đáy",
+    "ngay_bat_dau": prepare_bottom_date,
+    "ngay_ket_thuc": bottom_date - pd.Timedelta(days=1),
+    "ly_do": "Xuất hiện tín hiệu chuẩn bị tạo đáy"
+})
+
+# ---- ĐÁY ----
+
+cycle_rows.append({
+    "giai_doan": "Đáy",
+    "ngay_bat_dau": bottom_date,
+    "ngay_ket_thuc": bottom_date,
+    "ly_do": "Xác nhận tạo đáy"
+})
+
+# ---- TRONG SÓNG ----
+
+cycle_rows.append({
+    "giai_doan": "Trong sóng",
+    "ngay_bat_dau": bottom_date + pd.Timedelta(days=1),
+    "ngay_ket_thuc": wave_top_date,
+    "ly_do": "Từ đáy đến đỉnh ZigZag đầu tiên tăng >=30%"
+})
+
+# ---- LẬP ĐỈNH ----
+
+if confirm_top_date is not None:
+
+    cycle_rows.append({
+        "giai_doan": "Lập đỉnh",
+        "ngay_bat_dau": wave_top_date + pd.Timedelta(days=1),
+        "ngay_ket_thuc": confirm_top_date - pd.Timedelta(days=1),
+        "ly_do": "Sau đỉnh ZZ >=30% và trước khi xác nhận đỉnh"
+    })
+
+    # ---- ĐỈNH ----
+
+    cycle_rows.append({
+        "giai_doan": "Đỉnh",
+        "ngay_bat_dau": confirm_top_date,
+        "ngay_ket_thuc": confirm_top_date,
+        "ly_do": "Xác nhận tạo đỉnh"
+    })
+
+# =========================
+# DATAFRAME
+# =========================
+
+cycle_df = pd.DataFrame(cycle_rows)
+
+cycle_df["so_ngay"] = (
+    cycle_df["ngay_ket_thuc"]
+    -
+    cycle_df["ngay_bat_dau"]
+).dt.days + 1
+
+st.dataframe(
+    cycle_df,
+    use_container_width=True,
+    hide_index=True
+)
 
 # =========================
 # CỔ PHIẾU TẠO ĐÁY QUANH VNINDEX
@@ -1058,10 +1177,3 @@ if ticker_input:
             key=f"stock_chart_{ticker_input}"
         )
 
-st.subheader("Bottom Signal Data")
-
-st.dataframe(
-    bottom_signal_df,
-    use_container_width=True,
-    hide_index=True
-)
