@@ -699,160 +699,6 @@ else:
                 hide_index=True
             )
 
-# =========================
-# PARAM
-# =========================
-
-selected_confirm_date = pd.to_datetime("2025-04-09")
-
-vnindex_zz = (
-    zigzag_all[
-        (zigzag_all["ticker"] == "VNINDEX")
-        & (zigzag_all["percent"] == 5)
-    ].copy()
-)
-
-vnindex_zz["date"] = pd.to_datetime(vnindex_zz["date"])
-vnindex_zz = vnindex_zz.sort_values("date")
-
-# =========================
-# 1. LẤY ĐÁY
-# =========================
-
-bottom_rows = vnindex_zz[
-    (vnindex_zz["type"] == 2)
-    & (vnindex_zz["date"] <= selected_confirm_date)
-].sort_values("date")
-
-if bottom_rows.empty:
-    st.warning("Không tìm thấy đáy.")
-    st.stop()
-
-bottom = bottom_rows.iloc[-1]
-bottom_date = bottom["date"]
-bottom_price = bottom["price"]
-
-# =========================
-# 2. LẤY ĐỈNH +30% SAU ĐÁY
-# =========================
-
-tops_after_bottom = vnindex_zz[
-    (vnindex_zz["type"] == 1)
-    & (vnindex_zz["date"] > bottom_date)
-].copy()
-
-tops_after_bottom["pct_gain"] = (
-    (tops_after_bottom["price"] - bottom_price)
-    / bottom_price
-)
-
-tops_after_bottom = tops_after_bottom.sort_values("date")
-
-valid_tops = tops_after_bottom[
-    tops_after_bottom["pct_gain"] >= 0.30
-]
-
-if valid_tops.empty:
-    st.warning("Không có đỉnh +30% từ đáy.")
-    st.stop()
-
-top = valid_tops.iloc[0]
-top_date = top["date"]
-
-# =========================
-# 3. SIGNAL ĐỈNH
-# =========================
-
-prepare_top = top_signal_df[
-    (top_signal_df["date"] >= bottom_date)
-    & (top_signal_df["date"] <= top_date)
-    & (top_signal_df["chuan_bi_tao_dinh"] == True)
-].sort_values("date")
-
-confirm_top = top_signal_df[
-    (top_signal_df["date"] >= bottom_date)
-    & (top_signal_df["date"] <= top_date)
-    & (top_signal_df["xac_nhan_tao_dinh"] == True)
-].sort_values("date")
-
-prepare_top_date = prepare_top.iloc[-1]["date"] if not prepare_top.empty else None
-confirm_top_date = None
-
-if prepare_top_date is not None:
-    confirm_after = confirm_top[
-        confirm_top["date"] >= prepare_top_date
-    ]
-    if not confirm_after.empty:
-        confirm_top_date = confirm_after.iloc[0]["date"]
-
-# =========================
-# 4. CYCLE TABLE
-# =========================
-
-cycle_rows = []
-
-# ---- CẬN ĐÁY ----
-cycle_rows.append({
-    "giai_doan": "Cận đáy",
-    "ngay_bat_dau": None,
-    "ngay_ket_thuc": bottom_date - pd.Timedelta(days=1),
-    "ly_do": "Chuẩn bị hình thành đáy"
-})
-
-# ---- ĐÁY ----
-cycle_rows.append({
-    "giai_doan": "Đáy",
-    "ngay_bat_dau": bottom_date,
-    "ngay_ket_thuc": bottom_date,
-    "ly_do": "Xác nhận tạo đáy"
-})
-
-# ---- TRONG SÓNG ----
-if prepare_top_date is not None:
-    cycle_rows.append({
-        "giai_doan": "Trong sóng",
-        "ngay_bat_dau": bottom_date + pd.Timedelta(days=1),
-        "ngay_ket_thuc": prepare_top_date - pd.Timedelta(days=1),
-        "ly_do": "Sóng tăng sau đáy"
-    })
-
-    # ---- CHUẨN BỊ ĐỈNH ----
-    if confirm_top_date is not None:
-        cycle_rows.append({
-            "giai_doan": "Chuẩn bị đỉnh",
-            "ngay_bat_dau": prepare_top_date,
-            "ngay_ket_thuc": confirm_top_date - pd.Timedelta(days=1),
-            "ly_do": "Xuất hiện tín hiệu cảnh báo đỉnh"
-        })
-
-    # ---- LẬP ĐỈNH ----
-    if confirm_top_date is not None:
-        cycle_rows.append({
-            "giai_doan": "Lập đỉnh",
-            "ngay_bat_dau": confirm_top_date,
-            "ngay_ket_thuc": top_date - pd.Timedelta(days=1),
-            "ly_do": "Xác nhận hình thành đỉnh"
-        })
-
-# ---- ĐỈNH (END CYCLE) ----
-cycle_rows.append({
-    "giai_doan": "Đỉnh",
-    "ngay_bat_dau": top_date,
-    "ngay_ket_thuc": top_date,
-    "ly_do": "Đỉnh ZigZag >= 30% (kết thúc chu kỳ)"
-})
-
-# =========================
-# 5. DATAFRAME
-# =========================
-
-cycle_df = pd.DataFrame(cycle_rows)
-
-cycle_df["so_ngay"] = (
-    cycle_df["ngay_ket_thuc"] - cycle_df["ngay_bat_dau"]
-).dt.days + 1
-
-st.dataframe(cycle_df, use_container_width=True, hide_index=True)
 
 # =========================
 # CỔ PHIẾU TẠO ĐÁY QUANH VNINDEX
@@ -1212,3 +1058,10 @@ if ticker_input:
             key=f"stock_chart_{ticker_input}"
         )
 
+st.subheader("Bottom Signal Data")
+
+st.dataframe(
+    bottom_signal_df,
+    use_container_width=True,
+    hide_index=True
+)
