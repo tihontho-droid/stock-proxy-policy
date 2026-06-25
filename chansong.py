@@ -700,6 +700,29 @@ else:
             )
 
 # =========================
+# DATA VNINDEX ZZ
+# =========================
+
+vnindex_zz = (
+    zigzag_all[
+        (zigzag_all["ticker"] == "VNINDEX")
+        &
+        (zigzag_all["percent"] == 5)
+    ]
+    .copy()
+)
+
+vnindex_zz["date"] = pd.to_datetime(
+    vnindex_zz["date"]
+)
+
+vnindex_zz = (
+    vnindex_zz
+    .sort_values("date")
+    .reset_index(drop=True)
+)
+
+# =========================
 # TÌM ĐỈNH ZZ >= 30%
 # =========================
 
