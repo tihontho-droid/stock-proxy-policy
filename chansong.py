@@ -699,6 +699,19 @@ else:
                 hide_index=True
             )
 
+
+# =========================
+# CHU KỲ SÓNG
+# =========================
+
+prepare_bottom_date = pd.to_datetime(
+    selected_prepare_date
+)
+
+bottom_date = pd.to_datetime(
+    selected_confirm_date
+)
+
 # =========================
 # DATA VNINDEX ZZ
 # =========================
@@ -721,9 +734,29 @@ vnindex_zz = (
     .sort_values("date")
     .reset_index(drop=True)
 )
-bottom_date = pd.to_datetime(
-    selected_confirm_date
-)
+
+# =========================
+# TÌM ĐÁY ZZ
+# =========================
+
+bottom_rows = vnindex_zz[
+    (vnindex_zz["type"] == 2)
+    &
+    (vnindex_zz["date"] <= bottom_date)
+]
+
+if bottom_rows.empty:
+
+    st.warning(
+        "Không tìm thấy đáy ZigZag."
+    )
+
+    st.stop()
+
+bottom_row = bottom_rows.iloc[-1]
+
+bottom_price = bottom_row["price"]
+
 # =========================
 # TÌM ĐỈNH ZZ >= 30%
 # =========================
@@ -736,22 +769,23 @@ tops_after_bottom = vnindex_zz[
 
 tops_after_bottom["pct_gain"] = (
     (tops_after_bottom["price"] - bottom_price)
-    / bottom_price
+    /
+    bottom_price
 )
 
-tops_after_bottom = tops_after_bottom.sort_values("date")
-
-valid_tops = tops_after_bottom[
+wave_tops = tops_after_bottom[
     tops_after_bottom["pct_gain"] >= 0.30
 ]
 
-if valid_tops.empty:
+if wave_tops.empty:
+
     st.warning(
-        "Không tìm thấy đỉnh ZigZag tăng >=30%"
+        "Không có đỉnh ZigZag tăng >= 30%."
     )
+
     st.stop()
 
-wave_top = valid_tops.iloc[0]
+wave_top = wave_tops.iloc[0]
 
 wave_top_date = wave_top["date"]
 
@@ -759,7 +793,7 @@ wave_top_date = wave_top["date"]
 # TÌM XÁC NHẬN ĐỈNH
 # =========================
 
-confirm_top = top_signal_df[
+confirm_top_rows = top_signal_df[
     (top_signal_df["date"] > wave_top_date)
     &
     (top_signal_df["xac_nhan_tao_dinh"] == True)
@@ -767,10 +801,10 @@ confirm_top = top_signal_df[
 
 confirm_top_date = None
 
-if not confirm_top.empty:
+if not confirm_top_rows.empty:
 
     confirm_top_date = (
-        confirm_top.iloc[0]["date"]
+        confirm_top_rows.iloc[0]["date"]
     )
 
 # =========================
@@ -782,28 +816,59 @@ cycle_rows = []
 # ---- CẬN ĐÁY ----
 
 cycle_rows.append({
+
     "giai_doan": "Cận đáy",
+
     "ngay_bat_dau": prepare_bottom_date,
-    "ngay_ket_thuc": bottom_date - pd.Timedelta(days=1),
-    "ly_do": "Xuất hiện tín hiệu chuẩn bị tạo đáy"
+
+    "ngay_ket_thuc": (
+        bottom_date
+        -
+        pd.Timedelta(days=1)
+    ),
+
+    "ly_do": (
+        "Xuất hiện tín hiệu "
+        "chuẩn bị tạo đáy"
+    )
+
 })
 
 # ---- ĐÁY ----
 
 cycle_rows.append({
+
     "giai_doan": "Đáy",
+
     "ngay_bat_dau": bottom_date,
+
     "ngay_ket_thuc": bottom_date,
-    "ly_do": "Xác nhận tạo đáy"
+
+    "ly_do": (
+        "Xác nhận tạo đáy"
+    )
+
 })
 
 # ---- TRONG SÓNG ----
 
 cycle_rows.append({
+
     "giai_doan": "Trong sóng",
-    "ngay_bat_dau": bottom_date + pd.Timedelta(days=1),
+
+    "ngay_bat_dau": (
+        bottom_date
+        +
+        pd.Timedelta(days=1)
+    ),
+
     "ngay_ket_thuc": wave_top_date,
-    "ly_do": "Từ đáy đến đỉnh ZigZag đầu tiên tăng >=30%"
+
+    "ly_do": (
+        "Đỉnh ZigZag đầu tiên "
+        "tăng >= 30% từ đáy"
+    )
+
 })
 
 # ---- LẬP ĐỈNH ----
@@ -811,26 +876,52 @@ cycle_rows.append({
 if confirm_top_date is not None:
 
     cycle_rows.append({
+
         "giai_doan": "Lập đỉnh",
-        "ngay_bat_dau": wave_top_date + pd.Timedelta(days=1),
-        "ngay_ket_thuc": confirm_top_date - pd.Timedelta(days=1),
-        "ly_do": "Sau đỉnh ZZ >=30% và trước khi xác nhận đỉnh"
+
+        "ngay_bat_dau": (
+            wave_top_date
+            +
+            pd.Timedelta(days=1)
+        ),
+
+        "ngay_ket_thuc": (
+            confirm_top_date
+            -
+            pd.Timedelta(days=1)
+        ),
+
+        "ly_do": (
+            "Sau đỉnh ZigZag >=30%, "
+            "xuất hiện các tín hiệu "
+            "chuẩn bị tạo đỉnh"
+        )
+
     })
 
     # ---- ĐỈNH ----
 
     cycle_rows.append({
+
         "giai_doan": "Đỉnh",
+
         "ngay_bat_dau": confirm_top_date,
+
         "ngay_ket_thuc": confirm_top_date,
-        "ly_do": "Xác nhận tạo đỉnh"
+
+        "ly_do": (
+            "Xác nhận tạo đỉnh"
+        )
+
     })
 
 # =========================
 # DATAFRAME
 # =========================
 
-cycle_df = pd.DataFrame(cycle_rows)
+cycle_df = pd.DataFrame(
+    cycle_rows
+)
 
 cycle_df["so_ngay"] = (
     cycle_df["ngay_ket_thuc"]
