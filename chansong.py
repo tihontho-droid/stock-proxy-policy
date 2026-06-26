@@ -1120,7 +1120,7 @@ return_pct = selected_row["return_pct"]
 
 if cycle_type == "up_cycle":
 
-    # Ngày chuẩn bị tạo đáy chính là ngày bắt đầu chu kỳ
+    # Ngày chuẩn bị tạo đáy
     prepare_date = cycle_start
 
     prepare_match = bottom_signal_df[
@@ -1136,15 +1136,6 @@ if cycle_type == "up_cycle":
         .sort_values("date")
         .head(1)
     )
-    st.success(
-        f"""
-    **Chu kỳ được chọn:** {cycle_type_display}
-    
-    **Cận đáy:** {prepare_date.strftime("%Y-%m-%d")}
-    
-    **Đáy:** {confirm_date.strftime("%Y-%m-%d")}
-    """
-    )
 
     if not prepare_match.empty and not confirm_match.empty:
 
@@ -1152,6 +1143,16 @@ if cycle_type == "up_cycle":
         confirm_row = confirm_match.iloc[0]
 
         confirm_date = confirm_row["date"]
+
+        st.markdown(
+            f"""
+**Chu kỳ được chọn:** {cycle_type_display}
+
+**Cận đáy:** {prepare_date.strftime("%Y-%m-%d")}
+
+**Đáy:** {confirm_date.strftime("%Y-%m-%d")}
+"""
+        )
 
         col1, col2 = st.columns(2)
 
