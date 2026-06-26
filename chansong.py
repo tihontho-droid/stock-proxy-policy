@@ -1186,22 +1186,27 @@ if cycle_type == "up_cycle":
 
         st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
 
+import streamlit as st
+import pandas as pd
+import streamlit.components.v1 as components
+import json
+
 # =========================
-# VẼ VNINDEX + ZIGZAG THEO CHU KỲ
+# PREP DATA
 # =========================
 
-import plotly.graph_objects as go
-
-# Lấy data VNINDEX
 vnindex_df = df_vnindex_price.copy()
 vnindex_df["date"] = pd.to_datetime(vnindex_df["date"])
 
-# Lấy zigzag VNINDEX
 zz_df = df_vnindex_zigzag.copy()
 zz_df["date"] = pd.to_datetime(zz_df["date"])
 
+market_cycle_df["start_date"] = pd.to_datetime(market_cycle_df["start_date"])
+market_cycle_df["end_date"] = pd.to_datetime(market_cycle_df["end_date"])
+
+
 # =========================
-# GẮN MÀU THEO CHU KỲ
+# MAP CYCLE COLOR
 # =========================
 
 def get_cycle_color(cycle_type):
@@ -1209,82 +1214,128 @@ def get_cycle_color(cycle_type):
         return "green"
     elif cycle_type == "down_cycle":
         return "red"
-    else:
-        return "blue"
+    return "blue"
 
-# lọc zigzag trong đúng chu kỳ đã chọn
-zz_cycle = zz_df[
-    (zz_df["date"] >= cycle_start) &
-    (zz_df["date"] <= cycle_end)
-].copy()
 
-# giả sử zigzag_all có cột cycle_type (nếu chưa có thì cần merge)
-# nếu chưa có thì em cần map cycle theo date (mình xử lý bên dưới)
-
-# =========================
-# TẠO FIG VNINDEX
-# =========================
-
-fig = go.Figure()
-
-# 1. VNINDEX price line (đen xám nhẹ)
-fig.add_trace(go.Scatter(
-    x=vnindex_df["date"],
-    y=vnindex_df["close"],
-    mode="lines",
-    name="VNINDEX",
-    line=dict(color="gray", width=1)
-))
-
-# =========================
-# 2. ZIGZAG THEO CHU KỲ (COLOR LOGIC)
-# =========================
-
-# Nếu zigzag chưa có cycle_type → map theo date
-# dùng market_cycle_df để gán cycle cho từng điểm zz
-
-def map_cycle_color(date):
+def get_cycle_by_date(date):
     row = market_cycle_df[
         (market_cycle_df["start_date"] <= date) &
         (market_cycle_df["end_date"] >= date)
     ]
-    
     if row.empty:
-        return "blue"
-    
-    ctype = row.iloc[0]["cycle_type"]
-    return get_cycle_color(ctype)
+        return "sideways"
+    return row.iloc[0]["cycle_type"]
 
-
-# vẽ zigzag theo từng đoạn (để đổi màu đúng)
-for i in range(len(zz_cycle) - 1):
-
-    x0 = zz_cycle.iloc[i]["date"]
-    x1 = zz_cycle.iloc[i + 1]["date"]
-    y0 = zz_cycle.iloc[i]["price"]
-    y1 = zz_cycle.iloc[i + 1]["price"]
-
-    color = map_cycle_color(x0)
-
-    fig.add_trace(go.Scatter(
-        x=[x0, x1],
-        y=[y0, y1],
-        mode="lines",
-        line=dict(color=color, width=2),
-        showlegend=False
-    ))
 
 # =========================
-# LAYOUT
+# PREP CANDLE DATA (JS FORMAT)
 # =========================
 
-fig.update_layout(
-    title="VNINDEX + ZigZag theo chu kỳ thị trường",
-    xaxis_title="Date",
-    yaxis_title="Price",
-    height=650,
-    template="plotly_white",
-    hovermode="x unified"
-)
+candles = []
+for _, r in vnindex_df.iterrows():
+    candles.append({
+        "time": int(r["date"].timestamp()),
+        "open": float(r["open"]),
+        "high": float(r["high"]),
+        "low": float(r["low"]),
+        "close": float(r["close"])
+    })
 
-st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# PREP ZIGZAG SEGMENTS
+# =========================
+
+segments = []
+
+zz_df = zz_df.sort_values("date").reset_index(drop=True)
+
+for i in range(len(zz_df) - 1):
+
+    d0 = zz_df.iloc[i]["date"]
+    d1 = zz_df.iloc[i + 1]["date"]
+
+    y0 = float(zz_df.iloc[i]["price"])
+    y1 = float(zz_df.iloc[i + 1]["price"])
+
+    cycle_type = get_cycle_by_date(d0)
+    color = get_cycle_color(cycle_type)
+
+    segments.append({
+        "x0": int(d0.timestamp()),
+        "y0": y0,
+        "x1": int(d1.timestamp()),
+        "y1": y1,
+        "color": color
+    })
+
+
+# =========================
+# LIGHTWEIGHT CHART HTML
+# =========================
+
+html_code = f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+
+<body style="margin:0;background-color:white;">
+
+<div id="chart" style="height:700px;"></div>
+
+<script>
+const chart = LightweightCharts.createChart(document.getElementById('chart'), {{
+    layout: {{
+        background: {{ color: 'white' }},
+        textColor: 'black'
+    }},
+    grid: {{
+        vertLines: {{ color: '#eee' }},
+        horzLines: {{ color: '#eee' }}
+    }},
+    timeScale: {{
+        timeVisible: true,
+        secondsVisible: false
+    }}
+}});
+
+
+// =========================
+// CANDLE SERIES
+// =========================
+const candleSeries = chart.addCandlestickSeries();
+
+candleSeries.setData({json.dumps(candles)});
+
+
+// =========================
+// ZIGZAG LINES
+// =========================
+const segments = {json.dumps(segments)};
+
+segments.forEach(s => {{
+    const lineSeries = chart.addLineSeries({{
+        color: s.color,
+        lineWidth: 2
+    }});
+
+    lineSeries.setData([
+        {{ time: s.x0, value: s.y0 }},
+        {{ time: s.x1, value: s.y1 }}
+    ]);
+}});
+
+</script>
+
+</body>
+</html>
+"""
+
+
+# =========================
+# RENDER STREAMLIT
+# =========================
+
+components.html(html_code, height=750, scrolling=True)
