@@ -1185,6 +1185,84 @@ if cycle_type == "up_cycle":
     else:
 
         st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
+     
+# =========================
+# DOWN CYCLE
+# =========================
+
+elif cycle_type == "down_cycle":
+
+    # Ngày chuẩn bị tạo đỉnh
+    prepare_date = cycle_start
+
+    prepare_match = top_signal_df[
+        top_signal_df["date"] == prepare_date
+    ]
+
+    confirm_match = (
+        top_signal_df[
+            (top_signal_df["date"] >= prepare_date)
+            &
+            (top_signal_df["xac_nhan_tao_dinh"] == True)
+        ]
+        .sort_values("date")
+        .head(1)
+    )
+
+    if not prepare_match.empty and not confirm_match.empty:
+
+        prepare_row = prepare_match.iloc[0]
+        confirm_row = confirm_match.iloc[0]
+
+        confirm_date = confirm_row["date"]
+
+        col1, col2 = st.columns(2)
+
+        # =========================
+        # CẬN ĐỈNH
+        # =========================
+        with col1:
+
+            fig_prepare = make_pie(
+                prepare_row,
+                f"Cận đỉnh - {prepare_date.strftime('%Y-%m-%d')}"
+            )
+
+            st.plotly_chart(
+                fig_prepare,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
+
+            st.markdown(
+                legend_html,
+                unsafe_allow_html=True
+            )
+
+        # =========================
+        # XÁC NHẬN ĐỈNH
+        # =========================
+        with col2:
+
+            fig_confirm = make_pie(
+                confirm_row,
+                f"Đỉnh - {confirm_date.strftime('%Y-%m-%d')}"
+            )
+
+            st.plotly_chart(
+                fig_confirm,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
+
+            st.markdown(
+                legend_html,
+                unsafe_allow_html=True
+            )
+
+    else:
+
+        st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đỉnh cho chu kỳ này.")
 
 # =========================
 # DATA
