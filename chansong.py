@@ -1205,7 +1205,7 @@ if df_vnindex_price.empty:
 
 
 # =========================
-# CHUẨN BỊ NẾN
+# CHUẨN BỊ CANDLES
 # =========================
 
 candles = []
@@ -1221,26 +1221,29 @@ for _, r in df_vnindex_price.iterrows():
 
 
 # =========================
-# MAP COLOR
+# COLOR MAP
 # =========================
 
 def get_cycle_color(cycle_type):
 
     if cycle_type == "up_cycle":
         return "#00C853"
-
     elif cycle_type == "down_cycle":
         return "#D50000"
-
     else:
         return "#2962FF"
 
 
 # =========================
-# REGIME LINES
+# REGIME VECTORS + CONNECTORS
 # =========================
 
 regime_lines = []
+connectors = []
+
+prev_end_time = None
+prev_end_value = None
+
 
 for _, r in market_cycle_df.iterrows():
 
@@ -1262,19 +1265,22 @@ for _, r in market_cycle_df.iterrows():
     end_t = end.strftime("%Y-%m-%d")
 
     # =========================
-    # UPTREND
-    # low(start) → high(end)
+    # REGIME VECTOR
     # =========================
+
     if ctype == "up_cycle":
 
-        start_low = float(df_slice.iloc[0]["low"])
-        end_high = float(df_slice.iloc[-1]["high"])
+        start_val = float(df_slice["low"].iloc[0])
+        end_val = float(df_slice["high"].iloc[-1])
+
+        curr_end_time = end_t
+        curr_end_value = end_val
 
         regime_lines.append({
             "type": "Line",
             "data": [
-                {"time": start_t, "value": start_low},
-                {"time": end_t, "value": end_high}
+                {"time": start_t, "value": start_val},
+                {"time": end_t, "value": end_val}
             ],
             "options": {
                 "color": color,
@@ -1283,20 +1289,19 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
-    # =========================
-    # DOWNTREND
-    # high(start) → low(end)
-    # =========================
     elif ctype == "down_cycle":
 
-        start_high = float(df_slice.iloc[0]["high"])
-        end_low = float(df_slice.iloc[-1]["low"])
+        start_val = float(df_slice["high"].iloc[0])
+        end_val = float(df_slice["low"].iloc[-1])
+
+        curr_end_time = end_t
+        curr_end_value = end_val
 
         regime_lines.append({
             "type": "Line",
             "data": [
-                {"time": start_t, "value": start_high},
-                {"time": end_t, "value": end_low}
+                {"time": start_t, "value": start_val},
+                {"time": end_t, "value": end_val}
             ],
             "options": {
                 "color": color,
@@ -1305,13 +1310,13 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
-    # =========================
-    # SIDEWAYS (giữ channel)
-    # =========================
     else:
 
         upper = float(df_slice["high"].max())
         lower = float(df_slice["low"].min())
+
+        curr_end_time = end_t
+        curr_end_value = float(df_slice["close"].iloc[-1])
 
         # upper
         regime_lines.append({
@@ -1339,9 +1344,38 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
+    # =========================
+    # CONNECTOR GAP HANDLING
+    # =========================
+
+    if prev_end_time is not None:
+
+        connectors.append({
+            "type": "Line",
+            "data": [
+                {
+                    "time": prev_end_time,
+                    "value": prev_end_value
+                },
+                {
+                    "time": start_t,
+                    "value": float(df_slice["open"].iloc[0])
+                }
+            ],
+            "options": {
+                "color": "#999999",
+                "lineWidth": 1,
+                "lineStyle": 2,
+                "priceLineVisible": False
+            }
+        })
+
+    prev_end_time = curr_end_time
+    prev_end_value = curr_end_value
+
 
 # =========================
-# CHART
+# CHART CONFIG
 # =========================
 
 chart = {
@@ -1356,7 +1390,8 @@ chart = {
             "horzLines": {"color": "#eeeeee"}
         },
         "timeScale": {
-            "timeVisible": True
+            "timeVisible": True,
+            "secondsVisible": False
         },
         "crosshair": {
             "mode": 1
@@ -1368,7 +1403,8 @@ chart = {
             "type": "Candlestick",
             "data": candles
         },
-        *regime_lines
+        *regime_lines,
+        *connectors
     ]
 }
 
@@ -1379,5 +1415,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_regime_vector_chart"
+    key="vnindex_regime_connected_full"
 )
