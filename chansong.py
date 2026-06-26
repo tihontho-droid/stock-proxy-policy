@@ -1188,6 +1188,7 @@ if cycle_type == "up_cycle":
 
 
 
+
 # =========================
 # DATA
 # =========================
@@ -1227,16 +1228,12 @@ def get_cycle_color(cycle_type):
 
     if cycle_type == "up_cycle":
         return "#00C853"
-
-    elif cycle_type == "down_cycle":
-        return "#D50000"
-
     else:
         return "#2962FF"
 
 
 # =========================
-# REGIME LINES
+# REGIME LINES (REMOVE DOWNTREND VECTOR)
 # =========================
 
 regime_lines = []
@@ -1259,7 +1256,7 @@ for _, r in market_cycle_df.iterrows():
     end_t = end.strftime("%Y-%m-%d")
 
     # =========================
-    # UPTREND
+    # UPTREND ONLY
     # =========================
     if ctype == "up_cycle":
 
@@ -1279,29 +1276,9 @@ for _, r in market_cycle_df.iterrows():
         })
 
     # =========================
-    # DOWNTREND (KHÔNG VẼ SIDEWAYS NỮA)
+    # SIDEWAYS ONLY
     # =========================
-    elif ctype == "down_cycle":
-
-        start_val = float(df_slice["high"].iloc[0])
-        end_val = float(df_slice["low"].iloc[-1])
-
-        regime_lines.append({
-            "type": "Line",
-            "data": [
-                {"time": start_t, "value": start_val},
-                {"time": end_t, "value": end_val}
-            ],
-            "options": {
-                "color": "#D50000",
-                "lineWidth": 2
-            }
-        })
-
-    # =========================
-    # SIDEWAYS (CHỈ KHI EXPLICIT)
-    # =========================
-    elif ctype == "sideways":
+    else:
 
         upper = float(df_slice["high"].max())
         lower = float(df_slice["low"].min())
@@ -1332,7 +1309,7 @@ for _, r in market_cycle_df.iterrows():
 
 
 # =========================
-# TRANSITION (DOWN → UP)
+# TRANSITION (DOWN → UP) ONLY
 # =========================
 
 transitions = []
@@ -1371,9 +1348,9 @@ for i in range(len(cycles) - 1):
                 }
             ],
             "options": {
-                "color": "#D50000",
+                "color": "#D50000",   # 🔴 RED LINE
                 "lineWidth": 2,
-                "lineStyle": 0,
+                "lineStyle": 2,
                 "priceLineVisible": False
             }
         })
@@ -1420,5 +1397,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_regime_fixed"
+    key="vnindex_regime_final_red_transition"
 )
