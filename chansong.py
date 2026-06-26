@@ -1391,7 +1391,7 @@ for i in range(len(cycles) - 1):
             "options": {
                 "color": "#D50000",   # 🔴 RED LINE
                 "lineWidth": 2,
-                "lineStyle": ,
+                "lineStyle": 0,
                 "priceLineVisible": False
             }
         })
