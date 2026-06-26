@@ -1323,9 +1323,7 @@ for _, r in market_cycle_df.iterrows():
     end = pd.to_datetime(r["end_date"])
     ctype = r["cycle_type"]
 
-    # =========================
-    # FIX: lấy data an toàn (có cả future cycle)
-    # =========================
+    # lấy data từ start trở đi (hỗ trợ cả future cycle)
     df_slice = df_vnindex_price[
         df_vnindex_price["date"] >= start
     ].copy()
@@ -1381,12 +1379,12 @@ for _, r in market_cycle_df.iterrows():
     # =========================
     # SIDEWAYS
     # =========================
-    elif ctype == "sideway" or ctype == "sideways":
+    elif ctype in ["sideway", "sideways"]:
 
         upper = float(df_slice["high"].quantile(0.95))
         lower = float(df_slice["low"].quantile(0.05))
 
-        # lọc nhiễu
+        # lọc noise
         if lower <= 0:
             continue
 
@@ -1396,6 +1394,7 @@ for _, r in market_cycle_df.iterrows():
 
         mid = (upper + lower) / 2
 
+        # upper band
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1408,6 +1407,7 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
+        # lower band
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1420,6 +1420,7 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
+        # midline
         regime_lines.append({
             "type": "Line",
             "data": [
