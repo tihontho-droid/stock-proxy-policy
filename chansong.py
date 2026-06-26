@@ -1067,3 +1067,49 @@ if ticker_input:
             key=f"stock_chart_{ticker_input}"
         )
 
+# =========================
+# DROPDOWN CHỌN CHU KỲ THỊ TRƯỜNG
+# =========================
+
+st.subheader("Chu kỳ sóng thị trường")
+
+market_cycle_show = (
+    market_cycle_df
+    .sort_values("start_date", ascending=False)
+    .reset_index(drop=True)
+)
+
+market_cycle_show["dropdown_text"] = (
+    market_cycle_show["start_date"].dt.strftime("%Y-%m-%d")
+    + " → "
+    + market_cycle_show["end_date"].dt.strftime("%Y-%m-%d")
+)
+
+selected_cycle = st.selectbox(
+    "Chọn chu kỳ",
+    market_cycle_show["dropdown_text"]
+)
+
+cycle_row = market_cycle_show[
+    market_cycle_show["dropdown_text"] == selected_cycle
+].iloc[0]
+
+cycle_start = cycle_row["start_date"]
+cycle_end = cycle_row["end_date"]
+
+st.markdown(
+    f"""
+    <div style="
+        background:#F7F8FC;
+        padding:14px 18px;
+        border-radius:16px;
+        border:1px solid #ECEEF5;
+        margin-bottom:12px;
+    ">
+        <b>Chu kỳ được chọn</b><br>
+        Bắt đầu: <b>{cycle_start.strftime('%Y-%m-%d')}</b><br>
+        Kết thúc: <b>{cycle_end.strftime('%Y-%m-%d')}</b>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
