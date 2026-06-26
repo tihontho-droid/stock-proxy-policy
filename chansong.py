@@ -1185,3 +1185,106 @@ if cycle_type == "up_cycle":
     else:
 
         st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
+
+# =========================
+# VẼ VNINDEX + ZIGZAG THEO CHU KỲ
+# =========================
+
+import plotly.graph_objects as go
+
+# Lấy data VNINDEX
+vnindex_df = df_vnindex_price.copy()
+vnindex_df["date"] = pd.to_datetime(vnindex_df["date"])
+
+# Lấy zigzag VNINDEX
+zz_df = df_vnindex_zigzag.copy()
+zz_df["date"] = pd.to_datetime(zz_df["date"])
+
+# =========================
+# GẮN MÀU THEO CHU KỲ
+# =========================
+
+def get_cycle_color(cycle_type):
+    if cycle_type == "up_cycle":
+        return "green"
+    elif cycle_type == "down_cycle":
+        return "red"
+    else:
+        return "blue"
+
+# lọc zigzag trong đúng chu kỳ đã chọn
+zz_cycle = zz_df[
+    (zz_df["date"] >= cycle_start) &
+    (zz_df["date"] <= cycle_end)
+].copy()
+
+# giả sử zigzag_all có cột cycle_type (nếu chưa có thì cần merge)
+# nếu chưa có thì em cần map cycle theo date (mình xử lý bên dưới)
+
+# =========================
+# TẠO FIG VNINDEX
+# =========================
+
+fig = go.Figure()
+
+# 1. VNINDEX price line (đen xám nhẹ)
+fig.add_trace(go.Scatter(
+    x=vnindex_df["date"],
+    y=vnindex_df["close"],
+    mode="lines",
+    name="VNINDEX",
+    line=dict(color="gray", width=1)
+))
+
+# =========================
+# 2. ZIGZAG THEO CHU KỲ (COLOR LOGIC)
+# =========================
+
+# Nếu zigzag chưa có cycle_type → map theo date
+# dùng market_cycle_df để gán cycle cho từng điểm zz
+
+def map_cycle_color(date):
+    row = market_cycle_df[
+        (market_cycle_df["start_date"] <= date) &
+        (market_cycle_df["end_date"] >= date)
+    ]
+    
+    if row.empty:
+        return "blue"
+    
+    ctype = row.iloc[0]["cycle_type"]
+    return get_cycle_color(ctype)
+
+
+# vẽ zigzag theo từng đoạn (để đổi màu đúng)
+for i in range(len(zz_cycle) - 1):
+
+    x0 = zz_cycle.iloc[i]["date"]
+    x1 = zz_cycle.iloc[i + 1]["date"]
+    y0 = zz_cycle.iloc[i]["price"]
+    y1 = zz_cycle.iloc[i + 1]["price"]
+
+    color = map_cycle_color(x0)
+
+    fig.add_trace(go.Scatter(
+        x=[x0, x1],
+        y=[y0, y1],
+        mode="lines",
+        line=dict(color=color, width=2),
+        showlegend=False
+    ))
+
+# =========================
+# LAYOUT
+# =========================
+
+fig.update_layout(
+    title="VNINDEX + ZigZag theo chu kỳ thị trường",
+    xaxis_title="Date",
+    yaxis_title="Price",
+    height=650,
+    template="plotly_white",
+    hovermode="x unified"
+)
+
+st.plotly_chart(fig, use_container_width=True)
