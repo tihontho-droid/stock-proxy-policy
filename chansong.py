@@ -1187,8 +1187,6 @@ if cycle_type == "up_cycle":
         st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
 
 
-
-
 # =========================
 # DATA
 # =========================
@@ -1219,17 +1217,6 @@ for _, r in df_vnindex_price.iterrows():
         "close": float(r["close"])
     })
 
-
-# =========================
-# COLOR
-# =========================
-
-def get_cycle_color(cycle_type):
-
-    if cycle_type == "up_cycle":
-        return "#00C853"
-    else:
-        return "#2962FF"
 
 # =========================
 # REGIME LINES
@@ -1274,30 +1261,57 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
+        # =========================
+        # LABEL UPTREND (START / END PRICE)
+        # =========================
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": start_val}
+            ],
+            "options": {
+                "color": "#00C853",
+                "lineWidth": 0,
+                "priceLineVisible": False,
+                "lastValueVisible": False
+            }
+        })
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": end_t, "value": end_val}
+            ],
+            "options": {
+                "color": "#D50000",
+                "lineWidth": 0,
+                "priceLineVisible": False,
+                "lastValueVisible": False
+            }
+        })
+
+        # NOTE:
+        # LightweightCharts không hỗ trợ text trực tiếp trong series line
+        # => ta dùng "fake anchor line" để attach tooltip-style label
+
     # =========================
-    # SIDEWAYS (FIXED LOGIC)
+    # SIDEWAYS
     # =========================
     elif ctype == "sideways":
 
-        # ===== robust range (tránh spike cực đoan)
         upper = float(df_slice["high"].quantile(0.95))
         lower = float(df_slice["low"].quantile(0.05))
 
-        # ===== safety check: phải là range thật sự
         if lower <= 0:
             continue
 
         range_pct = (upper - lower) / lower
 
-        # nếu không đủ “sideways quality” thì skip
         if range_pct > 0.12:
             continue
 
         mid = (upper + lower) / 2
 
-        # =========================
-        # RESISTANCE
-        # =========================
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1310,9 +1324,6 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
-        # =========================
-        # SUPPORT
-        # =========================
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1325,9 +1336,6 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
-        # =========================
-        # MIDLINE
-        # =========================
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1342,15 +1350,12 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
-    # =========================
-    # SAFETY (KHÔNG VẼ NHẦM)
-    # =========================
     else:
         continue
 
 
 # =========================
-# TRANSITION (DOWN → UP) ONLY
+# TRANSITION (DOWN → UP)
 # =========================
 
 transitions = []
@@ -1379,17 +1384,11 @@ for i in range(len(cycles) - 1):
         transitions.append({
             "type": "Line",
             "data": [
-                {
-                    "time": curr_start.strftime("%Y-%m-%d"),
-                    "value": start_high
-                },
-                {
-                    "time": nxt_start.strftime("%Y-%m-%d"),
-                    "value": end_low
-                }
+                {"time": curr_start.strftime("%Y-%m-%d"), "value": start_high},
+                {"time": nxt_start.strftime("%Y-%m-%d"), "value": end_low}
             ],
             "options": {
-                "color": "#D50000",   # 🔴 RED LINE
+                "color": "#D50000",
                 "lineWidth": 2,
                 "lineStyle": 0,
                 "priceLineVisible": False
@@ -1440,3 +1439,4 @@ renderLightweightCharts(
     [chart],
     key="vnindex_regime_final_red_transition"
 )
+
