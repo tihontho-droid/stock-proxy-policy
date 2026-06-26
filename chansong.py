@@ -114,6 +114,15 @@ def load_top_signal():
 
 top_signal_df = load_top_signal()
 
+@st.cache_data
+def load_market_cycle():
+    df = pd.read_csv("market_cycle.csv")
+
+    df["start_date"] = pd.to_datetime(df["start_date"])
+    df["end_date"] = pd.to_datetime(df["end_date"])
+
+    return df
+
 # =========================
 # LOAD DATA
 # =========================
@@ -129,6 +138,7 @@ bottom_signal_df = load_bottom_signal()
 sector_all_df = load_sector()
 stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
+market_cycle_df = load_market_cycle()
 
 # =========================
 # FILTER UNIVERSE (IMPORTANT)
