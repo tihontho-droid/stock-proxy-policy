@@ -139,7 +139,17 @@ sector_all_df = load_sector()
 stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
 market_cycle_df = load_market_cycle()
+new_cycle = pd.DataFrame([{
+    "start_date": pd.to_datetime("2026-01-14"),
+    "end_date": pd.to_datetime("2026-03-23"),
+    "start_price": None,
+    "end_price": None,
+    "cycle_type": "down_cycle",
+    "return_point": None,
+    "return_pct": None
+}])
 
+market_cycle_df = pd.concat([market_cycle_df, new_cycle], ignore_index=True)
 # =========================
 # FILTER UNIVERSE (IMPORTANT)
 # =========================
@@ -1309,16 +1319,18 @@ regime_lines = []
 
 for _, r in market_cycle_df.iterrows():
 
-    start = r["start_date"]
-    end = r["end_date"]
+    start = pd.to_datetime(r["start_date"])
+    end = pd.to_datetime(r["end_date"])
     ctype = r["cycle_type"]
 
+    # =========================
+    # FIX: lấy data an toàn (có cả future cycle)
+    # =========================
     df_slice = df_vnindex_price[
-        (df_vnindex_price["date"] >= start) &
-        (df_vnindex_price["date"] <= end)
-    ].dropna()
+        df_vnindex_price["date"] >= start
+    ].copy()
 
-    if df_slice.empty or len(df_slice) < 3:
+    if df_slice.empty:
         continue
 
     start_t = start.strftime("%Y-%m-%d")
@@ -1340,62 +1352,90 @@ for _, r in market_cycle_df.iterrows():
             ],
             "options": {
                 "color": "#00C853",
-                "lineWidth": 2
-            }
-        })
-
-        # =========================
-        # LABEL TRÊN CHART (FIXED)
-        # =========================
-
-        up_markers.append({
-            "time": start_t,
-            "position": "belowBar",
-            "shape": "text",
-            "color": "#00C853",
-            "text": f"Đáy {r['start_price']:.2f}"
-        })
-
-        up_markers.append({
-            "time": end_t,
-            "position": "aboveBar",
-            "shape": "text",
-            "color": "#D50000",
-            "text": f"Đỉnh {r['end_price']:.2f}"
-        })
-
-
-    # =========================
-    # SIDEWAYS
-    # =========================
-    elif ctype == "sideways":
-    
-        df_slice = df_slice.dropna()
-    
-        if df_slice.empty:
-            continue
-    
-        start_t = pd.to_datetime(start).strftime("%Y-%m-%d")
-        end_t = pd.to_datetime(end).strftime("%Y-%m-%d")
-    
-        mid_start = float(df_slice.iloc[0]["close"])
-        mid_end = float(df_slice.iloc[-1]["close"])
-    
-        if pd.isna(mid_start) or pd.isna(mid_end):
-            continue
-    
-        regime_lines.append({
-            "type": "Line",
-            "data": [
-                {"time": start_t, "value": mid_start},
-                {"time": end_t, "value": mid_end}
-            ],
-            "options": {
-                "color": "#2962FF",
                 "lineWidth": 2,
                 "priceLineVisible": False
             }
         })
+
+    # =========================
+    # DOWNTREND
+    # =========================
+    elif ctype == "down_cycle":
+
+        start_val = float(df_slice["high"].iloc[0])
+        end_val = float(df_slice["low"].iloc[-1])
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": start_val},
+                {"time": end_t, "value": end_val}
+            ],
+            "options": {
+                "color": "#D50000",
+                "lineWidth": 2,
+                "priceLineVisible": False
+            }
+        })
+
+    # =========================
+    # SIDEWAYS
+    # =========================
+    elif ctype == "sideway" or ctype == "sideways":
+
+        upper = float(df_slice["high"].quantile(0.95))
+        lower = float(df_slice["low"].quantile(0.05))
+
+        # lọc nhiễu
+        if lower <= 0:
+            continue
+
+        range_pct = (upper - lower) / lower
+        if range_pct > 0.15:
+            continue
+
+        mid = (upper + lower) / 2
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": upper},
+                {"time": end_t, "value": upper}
+            ],
+            "options": {
+                "color": "#2962FF",
+                "lineWidth": 1
+            }
+        })
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": lower},
+                {"time": end_t, "value": lower}
+            ],
+            "options": {
+                "color": "#2962FF",
+                "lineWidth": 1
+            }
+        })
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": mid},
+                {"time": end_t, "value": mid}
+            ],
+            "options": {
+                "color": "#90CAF9",
+                "lineWidth": 1,
+                "lineStyle": 2,
+                "priceLineVisible": False
+            }
+        })
+
+    else:
+        continue
 # =========================
 # TRANSITION (DOWN → UP)
 # =========================
