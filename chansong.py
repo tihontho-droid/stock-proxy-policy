@@ -1439,4 +1439,3 @@ renderLightweightCharts(
     [chart],
     key="vnindex_regime_final_red_transition"
 )
-
