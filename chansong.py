@@ -1186,6 +1186,7 @@ if cycle_type == "up_cycle":
 
         st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
 
+
 # =========================
 # LẤY DATA VNINDEX
 # =========================
@@ -1198,19 +1199,19 @@ df_vnindex_price = (
 
 df_vnindex_zigzag = (
     zigzag_all[
-        (zigzag_all["ticker"] == "VNINDEX")
-        & (zigzag_all["percent"] == 5)
+        (zigzag_all["ticker"] == "VNINDEX") &
+        (zigzag_all["percent"] == 5)
     ]
     .sort_values("date")
     .reset_index(drop=True)
 )
 
 if df_vnindex_price.empty:
-    st.error("Không tìm thấy dữ liệu VNINDEX trong all_price_data.csv")
+    st.error("Không tìm thấy dữ liệu VNINDEX")
     st.stop()
 
 if df_vnindex_zigzag.empty:
-    st.error("Không tìm thấy ZigZag VNINDEX percent = 5")
+    st.error("Không tìm thấy ZigZag VNINDEX")
     st.stop()
 
 
@@ -1220,39 +1221,39 @@ if df_vnindex_zigzag.empty:
 
 candles = []
 
-for _, row in df_vnindex_price.iterrows():
+for _, r in df_vnindex_price.iterrows():
     candles.append({
-        "time": row["date"].strftime("%Y-%m-%d"),
-        "open": float(row["open"]),
-        "high": float(row["high"]),
-        "low": float(row["low"]),
-        "close": float(row["close"])
+        "time": r["date"].strftime("%Y-%m-%d"),
+        "open": float(r["open"]),
+        "high": float(r["high"]),
+        "low": float(r["low"]),
+        "close": float(r["close"])
     })
 
 
 # =========================
-# MARKERS + ZIGZAG POINTS
+# MARKERS (ĐỈNH / ĐÁY)
 # =========================
 
 markers = []
 
-for _, row in df_vnindex_zigzag.iterrows():
+for _, r in df_vnindex_zigzag.iterrows():
 
-    time_str = row["date"].strftime("%Y-%m-%d")
-    price_text = f"{row['price']:.2f}"
+    t = r["date"].strftime("%Y-%m-%d")
+    price_text = f"{r['price']:.2f}"
 
-    if row["type"] == 1:
+    if r["type"] == 1:
         markers.append({
-            "time": time_str,
+            "time": t,
             "position": "aboveBar",
             "shape": "arrowDown",
             "color": "red",
             "text": f"Đỉnh {price_text}"
         })
 
-    elif row["type"] == 2:
+    elif r["type"] == 2:
         markers.append({
-            "time": time_str,
+            "time": t,
             "position": "belowBar",
             "shape": "arrowUp",
             "color": "green",
@@ -1264,27 +1265,33 @@ for _, row in df_vnindex_zigzag.iterrows():
 # MAP CYCLE COLOR
 # =========================
 
-def get_cycle_color(cycle_type):
-    if cycle_type == "up_cycle":
-        return "#00C853"   # green
-    elif cycle_type == "down_cycle":
-        return "#D50000"   # red
-    else:
-        return "#2962FF"   # blue
+def get_cycle_type(date):
 
-
-def get_cycle_by_date(date):
     row = market_cycle_df[
         (market_cycle_df["start_date"] <= date) &
         (market_cycle_df["end_date"] >= date)
     ]
+
     if row.empty:
         return "sideways"
+
     return row.iloc[0]["cycle_type"]
 
 
+def get_cycle_color(cycle_type):
+
+    if cycle_type == "up_cycle":
+        return "#00C853"   # green
+
+    elif cycle_type == "down_cycle":
+        return "#D50000"   # red
+
+    else:
+        return "#2962FF"   # blue
+
+
 # =========================
-# ZIGZAG SEGMENTS (COLOR BY CYCLE)
+# ZIGZAG REGIME SEGMENTS
 # =========================
 
 zz = df_vnindex_zigzag.sort_values("date").reset_index(drop=True)
@@ -1296,7 +1303,8 @@ for i in range(len(zz) - 1):
     r1 = zz.iloc[i]
     r2 = zz.iloc[i + 1]
 
-    cycle_type = get_cycle_by_date(r1["date"])
+    # REGIME BASED ON START_DATE → END_DATE
+    cycle_type = get_cycle_type(r1["date"])
     color = get_cycle_color(cycle_type)
 
     zigzag_segments.append({
@@ -1357,6 +1365,7 @@ chart = {
             "mode": 1
         }
     },
+
     "series": [
         candlestick_series,
         *zigzag_segments
@@ -1370,5 +1379,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_candle_zigzag_cycle_full"
+    key="vnindex_regime_cycle_chart"
 )
