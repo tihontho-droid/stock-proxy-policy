@@ -1186,7 +1186,6 @@ if cycle_type == "up_cycle":
 
         st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
 
-
 # =========================
 # DATA
 # =========================
@@ -1217,6 +1216,12 @@ for _, r in df_vnindex_price.iterrows():
         "close": float(r["close"])
     })
 
+
+# =========================
+# UP TREND MARKERS (NEW)
+# =========================
+
+up_markers = []
 
 # =========================
 # REGIME LINES
@@ -1262,37 +1267,25 @@ for _, r in market_cycle_df.iterrows():
         })
 
         # =========================
-        # LABEL UPTREND (START / END PRICE)
+        # LABEL TRÊN CHART (FIXED)
         # =========================
-        regime_lines.append({
-            "type": "Line",
-            "data": [
-                {"time": start_t, "value": start_val}
-            ],
-            "options": {
-                "color": "#00C853",
-                "lineWidth": 0,
-                "priceLineVisible": False,
-                "lastValueVisible": False
-            }
+
+        up_markers.append({
+            "time": start_t,
+            "position": "belowBar",
+            "shape": "text",
+            "color": "#00C853",
+            "text": f"Đáy {r['start_price']:.2f}"
         })
 
-        regime_lines.append({
-            "type": "Line",
-            "data": [
-                {"time": end_t, "value": end_val}
-            ],
-            "options": {
-                "color": "#D50000",
-                "lineWidth": 0,
-                "priceLineVisible": False,
-                "lastValueVisible": False
-            }
+        up_markers.append({
+            "time": end_t,
+            "position": "aboveBar",
+            "shape": "text",
+            "color": "#D50000",
+            "text": f"Đỉnh {r['end_price']:.2f}"
         })
 
-        # NOTE:
-        # LightweightCharts không hỗ trợ text trực tiếp trong series line
-        # => ta dùng "fake anchor line" để attach tooltip-style label
 
     # =========================
     # SIDEWAYS
@@ -1423,7 +1416,8 @@ chart = {
     "series": [
         {
             "type": "Candlestick",
-            "data": candles
+            "data": candles,
+            "markers": up_markers
         },
         *regime_lines,
         *transitions
@@ -1437,5 +1431,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_regime_final_red_transition"
+    key="vnindex_regime_final_clean_markers"
 )
