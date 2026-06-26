@@ -1188,63 +1188,65 @@ if cycle_type == "up_cycle":
 
 
 
+
 # =========================
-# LẤY DATA
+# LẤY DATA VNINDEX
 # =========================
 
 df_vnindex_price = (
-    vnindex.sort_values("date").reset_index(drop=True)
+    vnindex
+    .sort_values("date")
+    .reset_index(drop=True)
 )
 
 if df_vnindex_price.empty:
-    st.error("No data")
+    st.error("Không tìm thấy dữ liệu VNINDEX")
     st.stop()
 
 
-candles = [
-    {
+# =========================
+# CHUẨN BỊ NẾN
+# =========================
+
+candles = []
+
+for _, r in df_vnindex_price.iterrows():
+    candles.append({
         "time": r["date"].strftime("%Y-%m-%d"),
         "open": float(r["open"]),
         "high": float(r["high"]),
         "low": float(r["low"]),
         "close": float(r["close"])
-    }
-    for _, r in df_vnindex_price.iterrows()
-]
+    })
 
 
 # =========================
 # COLOR MAP
 # =========================
 
-def get_color(t):
-    if t == "up_cycle":
+def get_cycle_color(cycle_type):
+
+    if cycle_type == "up_cycle":
         return "#00C853"
-    elif t == "down_cycle":
+
+    elif cycle_type == "down_cycle":
         return "#D50000"
-    return "#2962FF"
+
+    else:
+        return "#2962FF"
 
 
 # =========================
-# SORT CYCLE
-# =========================
-
-mc = market_cycle_df.sort_values("start_date").reset_index(drop=True)
-
-
-# =========================
-# REGIME LINES
+# REGIME VECTORS
 # =========================
 
 regime_lines = []
 
-for i in range(len(mc)):
+for _, r in market_cycle_df.iterrows():
 
-    row = mc.iloc[i]
-
-    start = row["start_date"]
-    end = row["end_date"]
-    ctype = row["cycle_type"]
+    start = r["start_date"]
+    end = r["end_date"]
+    ctype = r["cycle_type"]
 
     df_slice = df_vnindex_price[
         (df_vnindex_price["date"] >= start) &
@@ -1254,26 +1256,14 @@ for i in range(len(mc)):
     if df_slice.empty:
         continue
 
-    color = get_color(ctype)
+    color = get_cycle_color(ctype)
 
     start_t = start.strftime("%Y-%m-%d")
-
-    # =========================
-    # NEXT CYCLE START
-    # =========================
-
-    if i < len(mc) - 1:
-        next_start = mc.iloc[i + 1]["start_date"]
-        next_start_t = next_start.strftime("%Y-%m-%d")
-    else:
-        next_start = end
-        next_start_t = end.strftime("%Y-%m-%d")
-
+    end_t = end.strftime("%Y-%m-%d")
 
     # =========================
     # UPTREND
     # =========================
-
     if ctype == "up_cycle":
 
         start_val = float(df_slice["low"].iloc[0])
@@ -1283,7 +1273,7 @@ for i in range(len(mc)):
             "type": "Line",
             "data": [
                 {"time": start_t, "value": start_val},
-                {"time": next_start_t, "value": end_val}
+                {"time": end_t, "value": end_val}
             ],
             "options": {
                 "color": color,
@@ -1291,22 +1281,19 @@ for i in range(len(mc)):
             }
         })
 
-
     # =========================
-    # DOWNTREND (IMPORTANT CHANGE)
+    # DOWNTREND
     # =========================
-
     elif ctype == "down_cycle":
 
         start_val = float(df_slice["high"].iloc[0])
+        end_val = float(df_slice["low"].iloc[-1])
 
-        # 🔥 KEY CHANGE:
-        # connect to NEXT UP START DATE
         regime_lines.append({
             "type": "Line",
             "data": [
                 {"time": start_t, "value": start_val},
-                {"time": next_start_t, "value": start_val}
+                {"time": end_t, "value": end_val}
             ],
             "options": {
                 "color": color,
@@ -1314,11 +1301,9 @@ for i in range(len(mc)):
             }
         })
 
-
     # =========================
     # SIDEWAYS
     # =========================
-
     else:
 
         upper = float(df_slice["high"].max())
@@ -1328,23 +1313,77 @@ for i in range(len(mc)):
             "type": "Line",
             "data": [
                 {"time": start_t, "value": upper},
-                {"time": next_start_t, "value": upper}
+                {"time": end_t, "value": upper}
             ],
-            "options": {"color": color, "lineWidth": 1}
+            "options": {
+                "color": color,
+                "lineWidth": 1
+            }
         })
 
         regime_lines.append({
             "type": "Line",
             "data": [
                 {"time": start_t, "value": lower},
-                {"time": next_start_t, "value": lower}
+                {"time": end_t, "value": lower}
             ],
-            "options": {"color": color, "lineWidth": 1}
+            "options": {
+                "color": color,
+                "lineWidth": 1
+            }
         })
 
 
 # =========================
-# CHART
+# TRANSITION LINE (DOWN → UP)
+# =========================
+
+transitions = []
+
+cycles = market_cycle_df.sort_values("start_date").reset_index(drop=True)
+
+for i in range(len(cycles) - 1):
+
+    curr = cycles.iloc[i]
+    nxt = cycles.iloc[i + 1]
+
+    if curr["cycle_type"] == "down_cycle" and nxt["cycle_type"] == "up_cycle":
+
+        curr_start = curr["start_date"]
+        nxt_start = nxt["start_date"]
+
+        df_curr = df_vnindex_price[df_vnindex_price["date"] == curr_start]
+        df_next = df_vnindex_price[df_vnindex_price["date"] == nxt_start]
+
+        if df_curr.empty or df_next.empty:
+            continue
+
+        start_high = float(df_curr["high"].iloc[0])
+        end_low = float(df_next["low"].iloc[0])
+
+        transitions.append({
+            "type": "Line",
+            "data": [
+                {
+                    "time": curr_start.strftime("%Y-%m-%d"),
+                    "value": start_high
+                },
+                {
+                    "time": nxt_start.strftime("%Y-%m-%d"),
+                    "value": end_low
+                }
+            ],
+            "options": {
+                "color": "#FF9800",
+                "lineWidth": 2,
+                "lineStyle": 2,
+                "priceLineVisible": False
+            }
+        })
+
+
+# =========================
+# CHART CONFIG
 # =========================
 
 chart = {
@@ -1354,21 +1393,35 @@ chart = {
             "background": {"type": "solid", "color": "#ffffff"},
             "textColor": "#000000"
         },
-        "timeScale": {"timeVisible": True},
-        "crosshair": {"mode": 1}
+        "grid": {
+            "vertLines": {"color": "#eeeeee"},
+            "horzLines": {"color": "#eeeeee"}
+        },
+        "timeScale": {
+            "timeVisible": True,
+            "secondsVisible": False
+        },
+        "crosshair": {
+            "mode": 1
+        }
     },
+
     "series": [
         {
             "type": "Candlestick",
             "data": candles
         },
-        *regime_lines
+        *regime_lines,
+        *transitions
     ]
 }
 
 
+# =========================
+# RENDER
+# =========================
+
 renderLightweightCharts(
     [chart],
-    key="vnindex_regime_transition_connected"
+    key="vnindex_regime_transition_final"
 )
-
