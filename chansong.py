@@ -1147,28 +1147,25 @@ if cycle_type == "up_cycle":
         st.markdown(
             f"""
             <div style="
-                background-color:#f8f9fa;
-                border:1px solid #dee2e6;
-                border-radius:10px;
-                padding:16px;
-                margin-bottom:20px;
+                background:#F7F8FC;
+                padding:14px 18px;
+                border-radius:16px;
+                margin-bottom:12px;
+                border:1px solid #ECEEF5;
             ">
-                <div style="font-size:18px;font-weight:bold;margin-bottom:10px;">
+                <div style="font-size:18px; font-weight:700;">
                     Chu kỳ được chọn: {cycle_type_display}
                 </div>
-        
-                <div style="font-size:15px;margin-bottom:6px;">
-                    <b>Cận đáy:</b> {prepare_date.strftime('%Y-%m-%d')}
+                <div style="font-size:14px; color:#666; margin-top:4px;">
+                    Cận đáy: {prepare_date.strftime('%Y-%m-%d')}
                 </div>
-        
-                <div style="font-size:15px;">
-                    <b>Đáy:</b> {confirm_date.strftime('%Y-%m-%d')}
+                <div style="font-size:14px; color:#666; margin-top:2px;">
+                    Đáy: {confirm_date.strftime('%Y-%m-%d')}
                 </div>
             </div>
             """,
             unsafe_allow_html=True
         )
-
         col1, col2 = st.columns(2)
 
         with col1:
