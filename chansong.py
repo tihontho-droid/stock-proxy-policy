@@ -1221,19 +1221,21 @@ for _, r in df_vnindex_price.iterrows():
 
 
 # =========================
-# COLOR
+# REGIME COLOR (optional)
 # =========================
 
-def get_cycle_color(cycle_type):
+def get_cycle_color(ctype):
 
-    if cycle_type == "up_cycle":
+    if ctype == "up_cycle":
         return "#00C853"
+    elif ctype == "down_cycle":
+        return "#D50000"
     else:
         return "#2962FF"
 
 
 # =========================
-# REGIME LINES (REMOVE DOWNTREND VECTOR)
+# REGIME LINES (3 STATES FIXED)
 # =========================
 
 regime_lines = []
@@ -1256,7 +1258,7 @@ for _, r in market_cycle_df.iterrows():
     end_t = end.strftime("%Y-%m-%d")
 
     # =========================
-    # UPTREND ONLY
+    # UPTREND
     # =========================
     if ctype == "up_cycle":
 
@@ -1276,9 +1278,29 @@ for _, r in market_cycle_df.iterrows():
         })
 
     # =========================
-    # SIDEWAYS ONLY
+    # DOWNTREND (FIXED - NO MORE SIDEWAYS BUG)
     # =========================
-    else:
+    elif ctype == "down_cycle":
+
+        start_val = float(df_slice["high"].iloc[0])
+        end_val = float(df_slice["low"].iloc[-1])
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": start_val},
+                {"time": end_t, "value": end_val}
+            ],
+            "options": {
+                "color": "#D50000",
+                "lineWidth": 2
+            }
+        })
+
+    # =========================
+    # SIDEWAYS (CHANNEL ONLY)
+    # =========================
+    elif ctype == "sideways":
 
         upper = float(df_slice["high"].max())
         lower = float(df_slice["low"].min())
@@ -1309,7 +1331,7 @@ for _, r in market_cycle_df.iterrows():
 
 
 # =========================
-# TRANSITION (DOWN → UP) ONLY
+# TRANSITION (DOWN → UP)
 # =========================
 
 transitions = []
@@ -1348,7 +1370,7 @@ for i in range(len(cycles) - 1):
                 }
             ],
             "options": {
-                "color": "#D50000",   # 🔴 RED LINE
+                "color": "#D50000",
                 "lineWidth": 2,
                 "lineStyle": 2,
                 "priceLineVisible": False
@@ -1397,5 +1419,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_regime_final_red_transition"
+    key="vnindex_regime_3state_final"
 )
