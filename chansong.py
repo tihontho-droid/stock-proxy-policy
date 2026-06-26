@@ -1274,14 +1274,25 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
-    # =========================
-    # SIDEWAYS ONLY (FIX: else → elif)
-    # =========================
     elif ctype == "sideways":
-
-        upper = float(df_slice["high"].max())
-        lower = float(df_slice["low"].min())
-
+    
+        # =========================
+        # 1. LỌC RANGE ỔN ĐỊNH (TRÁNH SPIKE)
+        # =========================
+        upper = float(df_slice["high"].quantile(0.95))
+        lower = float(df_slice["low"].quantile(0.05))
+    
+        # bỏ case range quá rộng (không phải sideways thật)
+        range_pct = (upper - lower) / lower
+    
+        if range_pct > 0.15:
+            continue  # không vẽ sideways giả
+    
+        mid = (upper + lower) / 2
+    
+        # =========================
+        # 2. RESISTANCE (UPPER)
+        # =========================
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1293,7 +1304,10 @@ for _, r in market_cycle_df.iterrows():
                 "lineWidth": 1
             }
         })
-
+    
+        # =========================
+        # 3. SUPPORT (LOWER)
+        # =========================
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1303,6 +1317,22 @@ for _, r in market_cycle_df.iterrows():
             "options": {
                 "color": "#2962FF",
                 "lineWidth": 1
+            }
+        })
+    
+        # =========================
+        # 4. MIDLINE (GIÁ TRỊ TRUNG TÂM)
+        # =========================
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": mid},
+                {"time": end_t, "value": mid}
+            ],
+            "options": {
+                "color": "#90CAF9",
+                "lineWidth": 1,
+                "lineStyle": 2  # dashed nhẹ
             }
         })
 
@@ -1349,7 +1379,7 @@ for i in range(len(cycles) - 1):
             "options": {
                 "color": "#D50000",   # 🔴 RED LINE
                 "lineWidth": 2,
-                "lineStyle": 2,
+                "lineStyle": ,
                 "priceLineVisible": False
             }
         })
