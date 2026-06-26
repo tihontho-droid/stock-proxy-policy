@@ -1280,10 +1280,11 @@ for _, r in market_cycle_df.iterrows():
     # SIDEWAYS ONLY
     # =========================
     else:
-
+    
         upper = float(df_slice["high"].max())
         lower = float(df_slice["low"].min())
-
+    
+        # upper
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1291,11 +1292,12 @@ for _, r in market_cycle_df.iterrows():
                 {"time": end_t, "value": upper}
             ],
             "options": {
-                "color": "#2962FF",
+                "color": color,
                 "lineWidth": 1
             }
         })
-
+    
+        # lower
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1303,7 +1305,7 @@ for _, r in market_cycle_df.iterrows():
                 {"time": end_t, "value": lower}
             ],
             "options": {
-                "color": "#2962FF",
+                "color": color,
                 "lineWidth": 1
             }
         })
