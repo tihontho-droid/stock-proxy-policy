@@ -1111,58 +1111,74 @@ end_price = selected_row["end_price"]
 return_point = selected_row["return_point"]
 return_pct = selected_row["return_pct"]
 
+# =========================
+# UP CYCLE
+# =========================
+
 if cycle_type == "up_cycle":
 
-    confirm_date = cycle_start
+    # Ngày chuẩn bị tạo đáy chính là ngày bắt đầu chu kỳ
+    prepare_date = cycle_start
 
-    prepare_row = (
+    prepare_match = bottom_signal_df[
+        bottom_signal_df["date"] == prepare_date
+    ]
+
+    confirm_match = (
         bottom_signal_df[
-            (bottom_signal_df["date"] <= confirm_date)
+            (bottom_signal_df["date"] >= prepare_date)
             &
-            (bottom_signal_df["chuan_bi_tao_day"] == True)
+            (bottom_signal_df["xac_nhan_tao_day"] == True)
         ]
         .sort_values("date")
-        .iloc[-1]
+        .head(1)
     )
 
-    confirm_row = bottom_signal_df[
-        bottom_signal_df["date"] == confirm_date
-    ].iloc[0]
+    if not prepare_match.empty and not confirm_match.empty:
 
-col1, col2 = st.columns(2)
+        prepare_row = prepare_match.iloc[0]
+        confirm_row = confirm_match.iloc[0]
 
-with col1:
+        confirm_date = confirm_row["date"]
 
-    fig_prepare = make_pie(
-        prepare_row,
-        f"Cận đáy - {prepare_row['date'].strftime('%Y-%m-%d')}"
-    )
+        col1, col2 = st.columns(2)
 
-    st.plotly_chart(
-        fig_prepare,
-        use_container_width=True,
-        config={"displayModeBar": False}
-    )
+        with col1:
 
-    st.markdown(
-        legend_html,
-        unsafe_allow_html=True
-    )
+            fig_prepare = make_pie(
+                prepare_row,
+                f"Cận đáy - {prepare_date.strftime('%Y-%m-%d')}"
+            )
 
-with col2:
+            st.plotly_chart(
+                fig_prepare,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
 
-    fig_confirm = make_pie(
-        confirm_row,
-        f"Đáy - {confirm_date.strftime('%Y-%m-%d')}"
-    )
+            st.markdown(
+                legend_html,
+                unsafe_allow_html=True
+            )
 
-    st.plotly_chart(
-        fig_confirm,
-        use_container_width=True,
-        config={"displayModeBar": False}
-    )
+        with col2:
 
-    st.markdown(
-        legend_html,
-        unsafe_allow_html=True
-    )
+            fig_confirm = make_pie(
+                confirm_row,
+                f"Đáy - {confirm_date.strftime('%Y-%m-%d')}"
+            )
+
+            st.plotly_chart(
+                fig_confirm,
+                use_container_width=True,
+                config={"displayModeBar": False}
+            )
+
+            st.markdown(
+                legend_html,
+                unsafe_allow_html=True
+            )
+
+    else:
+
+        st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
