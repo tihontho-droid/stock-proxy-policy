@@ -1441,7 +1441,8 @@ for i in range(len(cycles) - 1):
 # =========================
 # CHART
 # =========================
-
+st.write("Diễn biến thị trường trong từng chu kỳ (Uptrend - Downtrend - Sideways)")
+st.write("Chú thích: Các đoạn không thuộc Uptrend hoặc Downtrend được hiểu là Sideways")
 chart = {
     "chart": {
         "height": 600,
