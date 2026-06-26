@@ -1111,38 +1111,58 @@ end_price = selected_row["end_price"]
 return_point = selected_row["return_point"]
 return_pct = selected_row["return_pct"]
 
-st.markdown(
-    f"""
-    <div style="
-        background:#F7F8FC;
-        padding:14px 18px;
-        border-radius:16px;
-        border:1px solid #ECEEF5;
-        margin-bottom:12px;
-    ">
-        <div style="font-size:18px;font-weight:700;">
-            {selected_row['cycle_name']}
-        </div>
+if cycle_type == "up_cycle":
 
-        <div style="margin-top:8px;">
-            <b>Thời gian:</b>
-            {cycle_start.strftime('%Y-%m-%d')}
-            →
-            {cycle_end.strftime('%Y-%m-%d')}
-        </div>
+    confirm_date = cycle_start
 
-        <div>
-            <b>Điểm đầu:</b> {start_price:.2f}
-        </div>
+    prepare_row = (
+        bottom_signal_df[
+            (bottom_signal_df["date"] <= confirm_date)
+            &
+            (bottom_signal_df["chuan_bi_tao_day"] == True)
+        ]
+        .sort_values("date")
+        .iloc[-1]
+    )
 
-        <div>
-            <b>Điểm cuối:</b> {end_price:.2f}
-        </div>
+    confirm_row = bottom_signal_df[
+        bottom_signal_df["date"] == confirm_date
+    ].iloc[0]
 
-        <div>
-            <b>Biến động:</b> {return_point:.2f} điểm ({return_pct:.2f}%)
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+col1, col2 = st.columns(2)
+
+with col1:
+
+    fig_prepare = make_pie(
+        prepare_row,
+        f"Cận đáy - {prepare_row['date'].strftime('%Y-%m-%d')}"
+    )
+
+    st.plotly_chart(
+        fig_prepare,
+        use_container_width=True,
+        config={"displayModeBar": False}
+    )
+
+    st.markdown(
+        legend_html,
+        unsafe_allow_html=True
+    )
+
+with col2:
+
+    fig_confirm = make_pie(
+        confirm_row,
+        f"Đáy - {confirm_date.strftime('%Y-%m-%d')}"
+    )
+
+    st.plotly_chart(
+        fig_confirm,
+        use_container_width=True,
+        config={"displayModeBar": False}
+    )
+
+    st.markdown(
+        legend_html,
+        unsafe_allow_html=True
+    )
