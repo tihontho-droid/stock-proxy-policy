@@ -1136,6 +1136,15 @@ if cycle_type == "up_cycle":
         .sort_values("date")
         .head(1)
     )
+    st.success(
+        f"""
+    **Chu kỳ được chọn:** {cycle_type_display}
+    
+    **Cận đáy:** {prepare_date.strftime("%Y-%m-%d")}
+    
+    **Đáy:** {confirm_date.strftime("%Y-%m-%d")}
+    """
+    )
 
     if not prepare_match.empty and not confirm_match.empty:
 
