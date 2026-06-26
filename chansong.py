@@ -1068,48 +1068,62 @@ if ticker_input:
         )
 
 # =========================
-# DROPDOWN CHỌN CHU KỲ THỊ TRƯỜNG
+# GỘP CHU KỲ
 # =========================
-
-st.subheader("Chu kỳ sóng thị trường")
 
 market_cycle_show = (
     market_cycle_df
-    .sort_values("start_date", ascending=False)
+    .sort_values("start_date")
     .reset_index(drop=True)
 )
 
-market_cycle_show["dropdown_text"] = (
-    market_cycle_show["start_date"].dt.strftime("%Y-%m-%d")
-    + " → "
-    + market_cycle_show["end_date"].dt.strftime("%Y-%m-%d")
-)
+cycle_rows = []
 
-selected_cycle = st.selectbox(
-    "Chọn chu kỳ",
-    market_cycle_show["dropdown_text"]
-)
+i = 0
 
-cycle_row = market_cycle_show[
-    market_cycle_show["dropdown_text"] == selected_cycle
-].iloc[0]
+while i < len(market_cycle_show):
 
-cycle_start = cycle_row["start_date"]
-cycle_end = cycle_row["end_date"]
+    row = market_cycle_show.iloc[i]
 
-st.markdown(
-    f"""
-    <div style="
-        background:#F7F8FC;
-        padding:14px 18px;
-        border-radius:16px;
-        border:1px solid #ECEEF5;
-        margin-bottom:12px;
-    ">
-        <b>Chu kỳ được chọn</b><br>
-        Bắt đầu: <b>{cycle_start.strftime('%Y-%m-%d')}</b><br>
-        Kết thúc: <b>{cycle_end.strftime('%Y-%m-%d')}</b>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    # Sideways là 1 chu kỳ riêng
+    if row["cycle"] == "sideways":
+
+        cycle_rows.append({
+            "cycle_type": "Sideways",
+            "start_date": row["start_date"],
+            "end_date": row["end_date"]
+        })
+
+        i += 1
+        continue
+
+    # Up + Down gộp thành 1 chu kỳ
+    if (
+        row["cycle"] == "up_cycle"
+        and
+        i + 1 < len(market_cycle_show)
+        and
+        market_cycle_show.iloc[i + 1]["cycle"] == "down_cycle"
+    ):
+
+        next_row = market_cycle_show.iloc[i + 1]
+
+        cycle_rows.append({
+            "cycle_type": "Sóng tăng + giảm",
+            "start_date": row["start_date"],
+            "end_date": next_row["end_date"]
+        })
+
+        i += 2
+        continue
+
+    # Trường hợp bất thường
+    cycle_rows.append({
+        "cycle_type": row["cycle"],
+        "start_date": row["start_date"],
+        "end_date": row["end_date"]
+    })
+
+    i += 1
+
+cycle_dropdown = pd.DataFrame(cycle_rows)
