@@ -1291,61 +1291,37 @@ for _, r in market_cycle_df.iterrows():
     # SIDEWAYS
     # =========================
     elif ctype == "sideways":
-
+    
+        df_slice = df_slice.dropna()
+    
         upper = float(df_slice["high"].quantile(0.95))
         lower = float(df_slice["low"].quantile(0.05))
-
+    
         if lower <= 0:
             continue
-
+    
         range_pct = (upper - lower) / lower
-
+    
+        # lọc sideways giả
         if range_pct > 0.12:
             continue
-
-        mid = (upper + lower) / 2
-
+    
+        # lấy giá trung tâm để vẽ line (ổn định hơn upper/lower)
+        mid_start = float(df_slice.iloc[0]["close"])
+        mid_end = float(df_slice.iloc[-1]["close"])
+    
         regime_lines.append({
             "type": "Line",
             "data": [
-                {"time": start_t, "value": upper},
-                {"time": end_t, "value": upper}
+                {"time": start_t, "value": mid_start},
+                {"time": end_t, "value": mid_end}
             ],
             "options": {
-                "color": "#2962FF",
-                "lineWidth": 1
-            }
-        })
-
-        regime_lines.append({
-            "type": "Line",
-            "data": [
-                {"time": start_t, "value": lower},
-                {"time": end_t, "value": lower}
-            ],
-            "options": {
-                "color": "#2962FF",
-                "lineWidth": 1
-            }
-        })
-
-        regime_lines.append({
-            "type": "Line",
-            "data": [
-                {"time": start_t, "value": mid},
-                {"time": end_t, "value": mid}
-            ],
-            "options": {
-                "color": "#90CAF9",
-                "lineWidth": 1,
-                "lineStyle": 2,
+                "color": "#2962FF",   # xanh dương
+                "lineWidth": 2,
                 "priceLineVisible": False
             }
         })
-
-    else:
-        continue
-
 
 # =========================
 # TRANSITION (DOWN → UP)
