@@ -1189,8 +1189,9 @@ if cycle_type == "up_cycle":
 
 
 
+
 # =========================
-# LẤY DATA VNINDEX
+# DATA
 # =========================
 
 df_vnindex_price = (
@@ -1205,7 +1206,7 @@ if df_vnindex_price.empty:
 
 
 # =========================
-# CHUẨN BỊ NẾN
+# CANDLES
 # =========================
 
 candles = []
@@ -1221,23 +1222,19 @@ for _, r in df_vnindex_price.iterrows():
 
 
 # =========================
-# COLOR MAP
+# COLOR
 # =========================
 
 def get_cycle_color(cycle_type):
 
     if cycle_type == "up_cycle":
         return "#00C853"
-
-    elif cycle_type == "down_cycle":
-        return "#D50000"
-
     else:
         return "#2962FF"
 
 
 # =========================
-# REGIME VECTORS
+# REGIME LINES (REMOVE DOWNTREND VECTOR)
 # =========================
 
 regime_lines = []
@@ -1256,13 +1253,11 @@ for _, r in market_cycle_df.iterrows():
     if df_slice.empty:
         continue
 
-    color = get_cycle_color(ctype)
-
     start_t = start.strftime("%Y-%m-%d")
     end_t = end.strftime("%Y-%m-%d")
 
     # =========================
-    # UPTREND
+    # UPTREND ONLY
     # =========================
     if ctype == "up_cycle":
 
@@ -1276,33 +1271,13 @@ for _, r in market_cycle_df.iterrows():
                 {"time": end_t, "value": end_val}
             ],
             "options": {
-                "color": color,
+                "color": "#00C853",
                 "lineWidth": 2
             }
         })
 
     # =========================
-    # DOWNTREND
-    # =========================
-    elif ctype == "down_cycle":
-
-        start_val = float(df_slice["high"].iloc[0])
-        end_val = float(df_slice["low"].iloc[-1])
-
-        regime_lines.append({
-            "type": "Line",
-            "data": [
-                {"time": start_t, "value": start_val},
-                {"time": end_t, "value": end_val}
-            ],
-            "options": {
-                "color": color,
-                "lineWidth": 2
-            }
-        })
-
-    # =========================
-    # SIDEWAYS
+    # SIDEWAYS ONLY
     # =========================
     else:
 
@@ -1316,7 +1291,7 @@ for _, r in market_cycle_df.iterrows():
                 {"time": end_t, "value": upper}
             ],
             "options": {
-                "color": color,
+                "color": "#2962FF",
                 "lineWidth": 1
             }
         })
@@ -1328,14 +1303,14 @@ for _, r in market_cycle_df.iterrows():
                 {"time": end_t, "value": lower}
             ],
             "options": {
-                "color": color,
+                "color": "#2962FF",
                 "lineWidth": 1
             }
         })
 
 
 # =========================
-# TRANSITION LINE (DOWN → UP)
+# TRANSITION (DOWN → UP) ONLY
 # =========================
 
 transitions = []
@@ -1374,7 +1349,7 @@ for i in range(len(cycles) - 1):
                 }
             ],
             "options": {
-                "color": "#FF9800",
+                "color": "#D50000",   # 🔴 RED LINE
                 "lineWidth": 2,
                 "lineStyle": 2,
                 "priceLineVisible": False
@@ -1383,7 +1358,7 @@ for i in range(len(cycles) - 1):
 
 
 # =========================
-# CHART CONFIG
+# CHART
 # =========================
 
 chart = {
@@ -1423,5 +1398,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_regime_transition_final"
+    key="vnindex_regime_final_red_transition"
 )
