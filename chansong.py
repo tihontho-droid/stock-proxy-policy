@@ -1166,6 +1166,133 @@ if cycle_type == "up_cycle":
             """,
             unsafe_allow_html=True
         )
+        # =========================
+        # BIỂU ĐỒ VNINDEX CHU KỲ
+        # =========================
+        
+        st.subheader("VNINDEX")
+        
+        padding_days = 30
+        
+        show_start = cycle_start - pd.Timedelta(days=padding_days)
+        show_end = cycle_end + pd.Timedelta(days=padding_days)
+        
+        # -------------------------
+        # Candlestick
+        # -------------------------
+        
+        price_show = (
+            df_vnindex_price[
+                (df_vnindex_price["date"] >= show_start)
+                &
+                (df_vnindex_price["date"] <= show_end)
+            ]
+            .copy()
+        )
+        
+        candles = []
+        
+        for _, r in price_show.iterrows():
+        
+            candles.append({
+                "time": r["date"].strftime("%Y-%m-%d"),
+                "open": float(r["open"]),
+                "high": float(r["high"]),
+                "low": float(r["low"]),
+                "close": float(r["close"])
+            })
+        
+        # -------------------------
+        # ZigZag của chu kỳ
+        # -------------------------
+        
+        zz_cycle = (
+            vnindex_zz[
+                (vnindex_zz["date"] >= cycle_start)
+                &
+                (vnindex_zz["date"] <= cycle_end)
+            ]
+            .sort_values("date")
+        )
+        
+        zz_data = []
+        
+        for _, r in zz_cycle.iterrows():
+        
+            zz_data.append({
+                "time": r["date"].strftime("%Y-%m-%d"),
+                "value": float(r["close"])
+            })
+        
+        # -------------------------
+        # Màu theo chu kỳ
+        # -------------------------
+        
+        if cycle_type == "up_cycle":
+            zz_color = "#00C853"
+        
+        elif cycle_type == "down_cycle":
+            zz_color = "#E53935"
+        
+        else:
+            zz_color = "#1E88E5"
+        
+        # -------------------------
+        # Chart
+        # -------------------------
+        
+        chart_cycle = {
+            "chart": {
+                "layout": {
+                    "background": {
+                        "type": "solid",
+                        "color": "white"
+                    },
+                    "textColor": "#333"
+                },
+                "height": 520,
+                "rightPriceScale": {
+                    "borderVisible": False
+                },
+                "timeScale": {
+                    "borderVisible": False,
+                    "timeVisible": True
+                },
+                "grid": {
+                    "vertLines": {
+                        "visible": False
+                    },
+                    "horzLines": {
+                        "visible": False
+                    }
+                }
+            },
+            "series": [
+        
+                {
+                    "type": "Candlestick",
+                    "data": candles
+                },
+        
+                {
+                    "type": "Line",
+                    "data": zz_data,
+                    "options": {
+                        "color": zz_color,
+                        "lineWidth": 4,
+                        "crosshairMarkerVisible": True,
+                        "lastValueVisible": False,
+                        "priceLineVisible": False
+                    }
+                }
+        
+            ]
+        }
+        
+        renderLightweightCharts(
+            [chart_cycle],
+            key=f"cycle_chart_{cycle_start.strftime('%Y%m%d')}"
+        )
         col1, col2 = st.columns(2)
 
         with col1:
