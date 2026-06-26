@@ -1232,7 +1232,7 @@ def get_cycle_color(cycle_type):
         return "#2962FF"
 
 # =========================
-# REGIME LINES (REMOVE DOWNTREND VECTOR)
+# REGIME LINES
 # =========================
 
 regime_lines = []
@@ -1246,16 +1246,16 @@ for _, r in market_cycle_df.iterrows():
     df_slice = df_vnindex_price[
         (df_vnindex_price["date"] >= start) &
         (df_vnindex_price["date"] <= end)
-    ]
+    ].dropna()
 
-    if df_slice.empty:
+    if df_slice.empty or len(df_slice) < 3:
         continue
 
     start_t = start.strftime("%Y-%m-%d")
     end_t = end.strftime("%Y-%m-%d")
 
     # =========================
-    # UPTREND ONLY
+    # UPTREND
     # =========================
     if ctype == "up_cycle":
 
@@ -1274,24 +1274,29 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
+    # =========================
+    # SIDEWAYS (FIXED LOGIC)
+    # =========================
     elif ctype == "sideways":
-    
-        # =========================
-        # 1. LỌC RANGE ỔN ĐỊNH (TRÁNH SPIKE)
-        # =========================
+
+        # ===== robust range (tránh spike cực đoan)
         upper = float(df_slice["high"].quantile(0.95))
         lower = float(df_slice["low"].quantile(0.05))
-    
-        # bỏ case range quá rộng (không phải sideways thật)
+
+        # ===== safety check: phải là range thật sự
+        if lower <= 0:
+            continue
+
         range_pct = (upper - lower) / lower
-    
-        if range_pct > 0.15:
-            continue  # không vẽ sideways giả
-    
+
+        # nếu không đủ “sideways quality” thì skip
+        if range_pct > 0.12:
+            continue
+
         mid = (upper + lower) / 2
-    
+
         # =========================
-        # 2. RESISTANCE (UPPER)
+        # RESISTANCE
         # =========================
         regime_lines.append({
             "type": "Line",
@@ -1304,9 +1309,9 @@ for _, r in market_cycle_df.iterrows():
                 "lineWidth": 1
             }
         })
-    
+
         # =========================
-        # 3. SUPPORT (LOWER)
+        # SUPPORT
         # =========================
         regime_lines.append({
             "type": "Line",
@@ -1319,9 +1324,9 @@ for _, r in market_cycle_df.iterrows():
                 "lineWidth": 1
             }
         })
-    
+
         # =========================
-        # 4. MIDLINE (GIÁ TRỊ TRUNG TÂM)
+        # MIDLINE
         # =========================
         regime_lines.append({
             "type": "Line",
@@ -1332,9 +1337,16 @@ for _, r in market_cycle_df.iterrows():
             "options": {
                 "color": "#90CAF9",
                 "lineWidth": 1,
-                "lineStyle": 2  # dashed nhẹ
+                "lineStyle": 2,
+                "priceLineVisible": False
             }
         })
+
+    # =========================
+    # SAFETY (KHÔNG VẼ NHẦM)
+    # =========================
+    else:
+        continue
 
 
 # =========================
