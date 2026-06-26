@@ -1067,4 +1067,82 @@ if ticker_input:
             key=f"stock_chart_{ticker_input}"
         )
 
-st.write(market_cycle_df.columns.tolist())
+# =========================
+# DROPDOWN CHỌN CHU KỲ THỊ TRƯỜNG
+# =========================
+
+st.subheader("Chu kỳ sóng thị trường")
+
+cycle_dropdown = (
+    market_cycle_df
+    .sort_values("start_date", ascending=False)
+    .reset_index(drop=True)
+)
+
+# Hiển thị tên chu kỳ
+cycle_dropdown["cycle_name"] = cycle_dropdown["cycle_type"].replace({
+    "up_down_cycle": "Sóng tăng + giảm",
+    "up_cycle_down_cycle": "Sóng tăng + giảm",
+    "sideways": "Sideways"
+})
+
+cycle_dropdown["dropdown_text"] = (
+    cycle_dropdown["start_date"].dt.strftime("%Y-%m-%d")
+    + " → "
+    + cycle_dropdown["end_date"].dt.strftime("%Y-%m-%d")
+    + " | "
+    + cycle_dropdown["cycle_name"]
+)
+
+selected_cycle = st.selectbox(
+    "Chọn chu kỳ",
+    cycle_dropdown["dropdown_text"]
+)
+
+selected_row = cycle_dropdown[
+    cycle_dropdown["dropdown_text"] == selected_cycle
+].iloc[0]
+
+cycle_start = selected_row["start_date"]
+cycle_end = selected_row["end_date"]
+cycle_type = selected_row["cycle_type"]
+start_price = selected_row["start_price"]
+end_price = selected_row["end_price"]
+return_point = selected_row["return_point"]
+return_pct = selected_row["return_pct"]
+
+st.markdown(
+    f"""
+    <div style="
+        background:#F7F8FC;
+        padding:14px 18px;
+        border-radius:16px;
+        border:1px solid #ECEEF5;
+        margin-bottom:12px;
+    ">
+        <div style="font-size:18px;font-weight:700;">
+            {selected_row['cycle_name']}
+        </div>
+
+        <div style="margin-top:8px;">
+            <b>Thời gian:</b>
+            {cycle_start.strftime('%Y-%m-%d')}
+            →
+            {cycle_end.strftime('%Y-%m-%d')}
+        </div>
+
+        <div>
+            <b>Điểm đầu:</b> {start_price:.2f}
+        </div>
+
+        <div>
+            <b>Điểm cuối:</b> {end_price:.2f}
+        </div>
+
+        <div>
+            <b>Biến động:</b> {return_point:.2f} điểm ({return_pct:.2f}%)
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
