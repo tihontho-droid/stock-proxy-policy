@@ -1071,7 +1071,7 @@ if ticker_input:
 # DROPDOWN CHỌN CHU KỲ THỊ TRƯỜNG
 # =========================
 
-st.subheader("Chu kỳ sóng thị trường")
+st.subheader("Giai đoạn thị trường")
 
 cycle_dropdown = (
     market_cycle_df
@@ -1095,7 +1095,7 @@ cycle_dropdown["dropdown_text"] = (
 )
 
 selected_cycle = st.selectbox(
-    "Chọn chu kỳ",
+    "Chọn giai đoạn",
     cycle_dropdown["dropdown_text"]
 )
 
