@@ -1187,6 +1187,7 @@ if cycle_type == "up_cycle":
         st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
 
 
+
 # =========================
 # LẤY DATA VNINDEX
 # =========================
@@ -1197,21 +1198,8 @@ df_vnindex_price = (
     .reset_index(drop=True)
 )
 
-df_vnindex_zigzag = (
-    zigzag_all[
-        (zigzag_all["ticker"] == "VNINDEX") &
-        (zigzag_all["percent"] == 5)
-    ]
-    .sort_values("date")
-    .reset_index(drop=True)
-)
-
 if df_vnindex_price.empty:
     st.error("Không tìm thấy dữ liệu VNINDEX")
-    st.stop()
-
-if df_vnindex_zigzag.empty:
-    st.error("Không tìm thấy ZigZag VNINDEX")
     st.stop()
 
 
@@ -1232,51 +1220,8 @@ for _, r in df_vnindex_price.iterrows():
 
 
 # =========================
-# MARKERS (ĐỈNH / ĐÁY)
-# =========================
-
-markers = []
-
-for _, r in df_vnindex_zigzag.iterrows():
-
-    t = r["date"].strftime("%Y-%m-%d")
-    price_text = f"{r['price']:.2f}"
-
-    if r["type"] == 1:
-        markers.append({
-            "time": t,
-            "position": "aboveBar",
-            "shape": "arrowDown",
-            "color": "red",
-            "text": f"Đỉnh {price_text}"
-        })
-
-    elif r["type"] == 2:
-        markers.append({
-            "time": t,
-            "position": "belowBar",
-            "shape": "arrowUp",
-            "color": "green",
-            "text": f"Đáy {price_text}"
-        })
-
-
-# =========================
 # MAP CYCLE COLOR
 # =========================
-
-def get_cycle_type(date):
-
-    row = market_cycle_df[
-        (market_cycle_df["start_date"] <= date) &
-        (market_cycle_df["end_date"] >= date)
-    ]
-
-    if row.empty:
-        return "sideways"
-
-    return row.iloc[0]["cycle_type"]
-
 
 def get_cycle_color(cycle_type):
 
@@ -1291,51 +1236,96 @@ def get_cycle_color(cycle_type):
 
 
 # =========================
-# ZIGZAG REGIME SEGMENTS
+# PRICE CHANNEL THEO CYCLE
 # =========================
 
-zz = df_vnindex_zigzag.sort_values("date").reset_index(drop=True)
+channels = []
 
-zigzag_segments = []
+for _, r in market_cycle_df.iterrows():
 
-for i in range(len(zz) - 1):
+    start = r["start_date"]
+    end = r["end_date"]
+    ctype = r["cycle_type"]
 
-    r1 = zz.iloc[i]
-    r2 = zz.iloc[i + 1]
+    df_slice = df_vnindex_price[
+        (df_vnindex_price["date"] >= start) &
+        (df_vnindex_price["date"] <= end)
+    ]
 
-    # REGIME BASED ON START_DATE → END_DATE
-    cycle_type = get_cycle_type(r1["date"])
-    color = get_cycle_color(cycle_type)
+    if df_slice.empty:
+        continue
 
-    zigzag_segments.append({
+    color = get_cycle_color(ctype)
+
+    upper = float(df_slice["high"].max())
+    lower = float(df_slice["low"].min())
+
+    start_t = start.strftime("%Y-%m-%d")
+    end_t = end.strftime("%Y-%m-%d")
+
+    # =========================
+    # UPPER BAND
+    # =========================
+    channels.append({
         "type": "Line",
         "data": [
-            {
-                "time": r1["date"].strftime("%Y-%m-%d"),
-                "value": float(r1["price"])
-            },
-            {
-                "time": r2["date"].strftime("%Y-%m-%d"),
-                "value": float(r2["price"])
-            }
+            {"time": start_t, "value": upper},
+            {"time": end_t, "value": upper}
         ],
         "options": {
             "color": color,
-            "lineWidth": 2,
+            "lineWidth": 1,
             "priceLineVisible": False
         }
     })
 
+    # =========================
+    # LOWER BAND
+    # =========================
+    channels.append({
+        "type": "Line",
+        "data": [
+            {"time": start_t, "value": lower},
+            {"time": end_t, "value": lower}
+        ],
+        "options": {
+            "color": color,
+            "lineWidth": 1,
+            "priceLineVisible": False
+        }
+    })
 
-# =========================
-# CANDLE SERIES
-# =========================
+    # =========================
+    # CONNECT LEFT EDGE
+    # =========================
+    channels.append({
+        "type": "Line",
+        "data": [
+            {"time": start_t, "value": lower},
+            {"time": start_t, "value": upper}
+        ],
+        "options": {
+            "color": color,
+            "lineWidth": 0.5,
+            "priceLineVisible": False
+        }
+    })
 
-candlestick_series = {
-    "type": "Candlestick",
-    "data": candles,
-    "markers": markers
-}
+    # =========================
+    # CONNECT RIGHT EDGE
+    # =========================
+    channels.append({
+        "type": "Line",
+        "data": [
+            {"time": end_t, "value": lower},
+            {"time": end_t, "value": upper}
+        ],
+        "options": {
+            "color": color,
+            "lineWidth": 0.5,
+            "priceLineVisible": False
+        }
+    })
 
 
 # =========================
@@ -1344,7 +1334,7 @@ candlestick_series = {
 
 chart = {
     "chart": {
-        "height": 550,
+        "height": 600,
         "layout": {
             "background": {"type": "solid", "color": "#ffffff"},
             "textColor": "#000000"
@@ -1367,8 +1357,11 @@ chart = {
     },
 
     "series": [
-        candlestick_series,
-        *zigzag_segments
+        {
+            "type": "Candlestick",
+            "data": candles
+        },
+        *channels
     ]
 }
 
@@ -1379,5 +1372,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_regime_cycle_chart"
+    key="vnindex_cycle_channel_chart"
 )
