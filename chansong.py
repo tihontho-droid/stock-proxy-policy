@@ -1068,14 +1068,22 @@ if ticker_input:
         )
 
 # =========================
-# GỘP CHU KỲ
+# DROPDOWN CHỌN CHU KỲ THỊ TRƯỜNG
 # =========================
+
+st.subheader("Chu kỳ sóng thị trường")
 
 market_cycle_show = (
     market_cycle_df
     .sort_values("start_date")
     .reset_index(drop=True)
 )
+
+# =========================
+# GỘP CHU KỲ
+# up_cycle + down_cycle = 1 chu kỳ
+# sideways = 1 chu kỳ
+# =========================
 
 cycle_rows = []
 
@@ -1085,7 +1093,9 @@ while i < len(market_cycle_show):
 
     row = market_cycle_show.iloc[i]
 
-    # Sideways là 1 chu kỳ riêng
+    # -------------------------
+    # SIDEWAYS
+    # -------------------------
     if row["cycle"] == "sideways":
 
         cycle_rows.append({
@@ -1097,7 +1107,9 @@ while i < len(market_cycle_show):
         i += 1
         continue
 
-    # Up + Down gộp thành 1 chu kỳ
+    # -------------------------
+    # UP + DOWN
+    # -------------------------
     if (
         row["cycle"] == "up_cycle"
         and
@@ -1117,7 +1129,9 @@ while i < len(market_cycle_show):
         i += 2
         continue
 
-    # Trường hợp bất thường
+    # -------------------------
+    # TRƯỜNG HỢP BẤT THƯỜNG
+    # -------------------------
     cycle_rows.append({
         "cycle_type": row["cycle"],
         "start_date": row["start_date"],
@@ -1127,6 +1141,13 @@ while i < len(market_cycle_show):
     i += 1
 
 cycle_dropdown = pd.DataFrame(cycle_rows)
+
+# Hiển thị chu kỳ mới nhất lên đầu
+cycle_dropdown = (
+    cycle_dropdown
+    .sort_values("start_date", ascending=False)
+    .reset_index(drop=True)
+)
 
 cycle_dropdown["dropdown_text"] = (
     cycle_dropdown["start_date"].dt.strftime("%Y-%m-%d")
@@ -1148,3 +1169,24 @@ selected_row = cycle_dropdown[
 cycle_start = selected_row["start_date"]
 cycle_end = selected_row["end_date"]
 cycle_type = selected_row["cycle_type"]
+
+st.markdown(
+    f"""
+    <div style="
+        background:#F7F8FC;
+        padding:14px 18px;
+        border-radius:16px;
+        border:1px solid #ECEEF5;
+        margin-bottom:12px;
+    ">
+        <div style="font-size:18px;font-weight:700;">
+            {cycle_type}
+        </div>
+        <div style="margin-top:6px;">
+            <b>Bắt đầu:</b> {cycle_start.strftime('%Y-%m-%d')}<br>
+            <b>Kết thúc:</b> {cycle_end.strftime('%Y-%m-%d')}
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
