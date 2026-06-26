@@ -1188,8 +1188,6 @@ if cycle_type == "up_cycle":
 
 
 
-
-
 # =========================
 # DATA
 # =========================
@@ -1222,19 +1220,7 @@ for _, r in df_vnindex_price.iterrows():
 
 
 # =========================
-# COLOR
-# =========================
-
-def get_cycle_color(cycle_type):
-
-    if cycle_type == "up_cycle":
-        return "#00C853"
-    else:
-        return "#2962FF"
-
-
-# =========================
-# REGIME LINES (REMOVE DOWNTREND VECTOR)
+# REGIME LINES
 # =========================
 
 regime_lines = []
@@ -1257,7 +1243,7 @@ for _, r in market_cycle_df.iterrows():
     end_t = end.strftime("%Y-%m-%d")
 
     # =========================
-    # UPTREND ONLY
+    # UPTREND
     # =========================
     if ctype == "up_cycle":
 
@@ -1272,14 +1258,36 @@ for _, r in market_cycle_df.iterrows():
             ],
             "options": {
                 "color": "#00C853",
-                "lineWidth": 2
+                "lineWidth": 2,
+                "priceLineVisible": False
             }
         })
 
     # =========================
-    # SIDEWAYS ONLY
+    # DOWNTREND (GIỮ NGUYÊN - KHÔNG ẢNH HƯỞNG SIDEWAYS)
     # =========================
-    else:
+    elif ctype == "down_cycle":
+
+        start_high = float(df_slice["high"].iloc[0])
+        end_low = float(df_slice["low"].iloc[-1])
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": start_high},
+                {"time": end_t, "value": end_low}
+            ],
+            "options": {
+                "color": "#D50000",
+                "lineWidth": 2,
+                "priceLineVisible": False
+            }
+        })
+
+    # =========================
+    # SIDEWAYS (CHỈ KHI LABEL ĐÚNG)
+    # =========================
+    elif ctype == "sideways":
 
         upper = float(df_slice["high"].max())
         lower = float(df_slice["low"].min())
@@ -1308,9 +1316,17 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
+    # =========================
+    # UNKNOWN LABEL SAFETY (QUAN TRỌNG)
+    # =========================
+    else:
+        # ❌ KHÔNG VẼ SIDEWAYS NỮA
+        # chỉ skip để tránh leak lỗi
+        continue
+
 
 # =========================
-# TRANSITION (DOWN → UP) ONLY
+# TRANSITION (DOWN → UP)
 # =========================
 
 transitions = []
@@ -1339,17 +1355,11 @@ for i in range(len(cycles) - 1):
         transitions.append({
             "type": "Line",
             "data": [
-                {
-                    "time": curr_start.strftime("%Y-%m-%d"),
-                    "value": start_high
-                },
-                {
-                    "time": nxt_start.strftime("%Y-%m-%d"),
-                    "value": end_low
-                }
+                {"time": curr_start.strftime("%Y-%m-%d"), "value": start_high},
+                {"time": nxt_start.strftime("%Y-%m-%d"), "value": end_low}
             ],
             "options": {
-                "color": "#D50000",   # 🔴 RED LINE
+                "color": "#D50000",
                 "lineWidth": 2,
                 "lineStyle": 2,
                 "priceLineVisible": False
@@ -1398,5 +1408,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_regime_final_red_transition"
+    key="vnindex_regime_final_fixed"
 )
