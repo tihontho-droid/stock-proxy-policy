@@ -1188,6 +1188,7 @@ if cycle_type == "up_cycle":
 
 
 
+
 # =========================
 # LẤY DATA VNINDEX
 # =========================
@@ -1220,26 +1221,26 @@ for _, r in df_vnindex_price.iterrows():
 
 
 # =========================
-# MAP CYCLE COLOR
+# MAP COLOR
 # =========================
 
 def get_cycle_color(cycle_type):
 
     if cycle_type == "up_cycle":
-        return "#00C853"   # green
+        return "#00C853"
 
     elif cycle_type == "down_cycle":
-        return "#D50000"   # red
+        return "#D50000"
 
     else:
-        return "#2962FF"   # blue
+        return "#2962FF"
 
 
 # =========================
-# PRICE CHANNEL THEO CYCLE
+# REGIME LINES
 # =========================
 
-channels = []
+regime_lines = []
 
 for _, r in market_cycle_df.iterrows():
 
@@ -1257,79 +1258,90 @@ for _, r in market_cycle_df.iterrows():
 
     color = get_cycle_color(ctype)
 
-    upper = float(df_slice["high"].max())
-    lower = float(df_slice["low"].min())
-
     start_t = start.strftime("%Y-%m-%d")
     end_t = end.strftime("%Y-%m-%d")
 
     # =========================
-    # UPPER BAND
+    # UPTREND
+    # low(start) → high(end)
     # =========================
-    channels.append({
-        "type": "Line",
-        "data": [
-            {"time": start_t, "value": upper},
-            {"time": end_t, "value": upper}
-        ],
-        "options": {
-            "color": color,
-            "lineWidth": 1,
-            "priceLineVisible": False
-        }
-    })
+    if ctype == "up_cycle":
+
+        start_low = float(df_slice.iloc[0]["low"])
+        end_high = float(df_slice.iloc[-1]["high"])
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": start_low},
+                {"time": end_t, "value": end_high}
+            ],
+            "options": {
+                "color": color,
+                "lineWidth": 2,
+                "priceLineVisible": False
+            }
+        })
 
     # =========================
-    # LOWER BAND
+    # DOWNTREND
+    # high(start) → low(end)
     # =========================
-    channels.append({
-        "type": "Line",
-        "data": [
-            {"time": start_t, "value": lower},
-            {"time": end_t, "value": lower}
-        ],
-        "options": {
-            "color": color,
-            "lineWidth": 1,
-            "priceLineVisible": False
-        }
-    })
+    elif ctype == "down_cycle":
+
+        start_high = float(df_slice.iloc[0]["high"])
+        end_low = float(df_slice.iloc[-1]["low"])
+
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": start_high},
+                {"time": end_t, "value": end_low}
+            ],
+            "options": {
+                "color": color,
+                "lineWidth": 2,
+                "priceLineVisible": False
+            }
+        })
 
     # =========================
-    # CONNECT LEFT EDGE
+    # SIDEWAYS (giữ channel)
     # =========================
-    channels.append({
-        "type": "Line",
-        "data": [
-            {"time": start_t, "value": lower},
-            {"time": start_t, "value": upper}
-        ],
-        "options": {
-            "color": color,
-            "lineWidth": 0.5,
-            "priceLineVisible": False
-        }
-    })
+    else:
 
-    # =========================
-    # CONNECT RIGHT EDGE
-    # =========================
-    channels.append({
-        "type": "Line",
-        "data": [
-            {"time": end_t, "value": lower},
-            {"time": end_t, "value": upper}
-        ],
-        "options": {
-            "color": color,
-            "lineWidth": 0.5,
-            "priceLineVisible": False
-        }
-    })
+        upper = float(df_slice["high"].max())
+        lower = float(df_slice["low"].min())
+
+        # upper
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": upper},
+                {"time": end_t, "value": upper}
+            ],
+            "options": {
+                "color": color,
+                "lineWidth": 1
+            }
+        })
+
+        # lower
+        regime_lines.append({
+            "type": "Line",
+            "data": [
+                {"time": start_t, "value": lower},
+                {"time": end_t, "value": lower}
+            ],
+            "options": {
+                "color": color,
+                "lineWidth": 1
+            }
+        })
 
 
 # =========================
-# CHART CONFIG
+# CHART
 # =========================
 
 chart = {
@@ -1343,13 +1355,8 @@ chart = {
             "vertLines": {"color": "#eeeeee"},
             "horzLines": {"color": "#eeeeee"}
         },
-        "rightPriceScale": {
-            "borderColor": "#cccccc"
-        },
         "timeScale": {
-            "borderColor": "#cccccc",
-            "timeVisible": True,
-            "secondsVisible": False
+            "timeVisible": True
         },
         "crosshair": {
             "mode": 1
@@ -1361,7 +1368,7 @@ chart = {
             "type": "Candlestick",
             "data": candles
         },
-        *channels
+        *regime_lines
     ]
 }
 
@@ -1372,5 +1379,5 @@ chart = {
 
 renderLightweightCharts(
     [chart],
-    key="vnindex_cycle_channel_chart"
+    key="vnindex_regime_vector_chart"
 )
