@@ -1186,23 +1186,78 @@ if cycle_type == "up_cycle":
 
         st.info("Không tìm thấy dữ liệu chuẩn bị/xác nhận tạo đáy cho chu kỳ này.")
 
-import streamlit as st
-import pandas as pd
-import streamlit.components.v1 as components
-import json
-
 # =========================
-# PREP DATA
+# LẤY DATA VNINDEX
 # =========================
 
-vnindex_df = df_vnindex_price.copy()
-vnindex_df["date"] = pd.to_datetime(vnindex_df["date"])
+df_vnindex_price = (
+    vnindex
+    .sort_values("date")
+    .reset_index(drop=True)
+)
 
-zz_df = df_vnindex_zigzag.copy()
-zz_df["date"] = pd.to_datetime(zz_df["date"])
+df_vnindex_zigzag = (
+    zigzag_all[
+        (zigzag_all["ticker"] == "VNINDEX")
+        & (zigzag_all["percent"] == 5)
+    ]
+    .sort_values("date")
+    .reset_index(drop=True)
+)
 
-market_cycle_df["start_date"] = pd.to_datetime(market_cycle_df["start_date"])
-market_cycle_df["end_date"] = pd.to_datetime(market_cycle_df["end_date"])
+if df_vnindex_price.empty:
+    st.error("Không tìm thấy dữ liệu VNINDEX trong all_price_data.csv")
+    st.stop()
+
+if df_vnindex_zigzag.empty:
+    st.error("Không tìm thấy ZigZag VNINDEX percent = 5")
+    st.stop()
+
+
+# =========================
+# CHUẨN BỊ NẾN
+# =========================
+
+candles = []
+
+for _, row in df_vnindex_price.iterrows():
+    candles.append({
+        "time": row["date"].strftime("%Y-%m-%d"),
+        "open": float(row["open"]),
+        "high": float(row["high"]),
+        "low": float(row["low"]),
+        "close": float(row["close"])
+    })
+
+
+# =========================
+# MARKERS + ZIGZAG POINTS
+# =========================
+
+markers = []
+
+for _, row in df_vnindex_zigzag.iterrows():
+
+    time_str = row["date"].strftime("%Y-%m-%d")
+    price_text = f"{row['price']:.2f}"
+
+    if row["type"] == 1:
+        markers.append({
+            "time": time_str,
+            "position": "aboveBar",
+            "shape": "arrowDown",
+            "color": "red",
+            "text": f"Đỉnh {price_text}"
+        })
+
+    elif row["type"] == 2:
+        markers.append({
+            "time": time_str,
+            "position": "belowBar",
+            "shape": "arrowUp",
+            "color": "green",
+            "text": f"Đáy {price_text}"
+        })
 
 
 # =========================
@@ -1211,10 +1266,11 @@ market_cycle_df["end_date"] = pd.to_datetime(market_cycle_df["end_date"])
 
 def get_cycle_color(cycle_type):
     if cycle_type == "up_cycle":
-        return "green"
+        return "#00C853"   # green
     elif cycle_type == "down_cycle":
-        return "red"
-    return "blue"
+        return "#D50000"   # red
+    else:
+        return "#2962FF"   # blue
 
 
 def get_cycle_by_date(date):
@@ -1228,114 +1284,91 @@ def get_cycle_by_date(date):
 
 
 # =========================
-# PREP CANDLE DATA (JS FORMAT)
+# ZIGZAG SEGMENTS (COLOR BY CYCLE)
 # =========================
 
-candles = []
-for _, r in vnindex_df.iterrows():
-    candles.append({
-        "time": int(r["date"].timestamp()),
-        "open": float(r["open"]),
-        "high": float(r["high"]),
-        "low": float(r["low"]),
-        "close": float(r["close"])
-    })
+zz = df_vnindex_zigzag.sort_values("date").reset_index(drop=True)
 
+zigzag_segments = []
 
-# =========================
-# PREP ZIGZAG SEGMENTS
-# =========================
+for i in range(len(zz) - 1):
 
-segments = []
+    r1 = zz.iloc[i]
+    r2 = zz.iloc[i + 1]
 
-zz_df = zz_df.sort_values("date").reset_index(drop=True)
-
-for i in range(len(zz_df) - 1):
-
-    d0 = zz_df.iloc[i]["date"]
-    d1 = zz_df.iloc[i + 1]["date"]
-
-    y0 = float(zz_df.iloc[i]["price"])
-    y1 = float(zz_df.iloc[i + 1]["price"])
-
-    cycle_type = get_cycle_by_date(d0)
+    cycle_type = get_cycle_by_date(r1["date"])
     color = get_cycle_color(cycle_type)
 
-    segments.append({
-        "x0": int(d0.timestamp()),
-        "y0": y0,
-        "x1": int(d1.timestamp()),
-        "y1": y1,
-        "color": color
+    zigzag_segments.append({
+        "type": "Line",
+        "data": [
+            {
+                "time": r1["date"].strftime("%Y-%m-%d"),
+                "value": float(r1["price"])
+            },
+            {
+                "time": r2["date"].strftime("%Y-%m-%d"),
+                "value": float(r2["price"])
+            }
+        ],
+        "options": {
+            "color": color,
+            "lineWidth": 2,
+            "priceLineVisible": False
+        }
     })
 
 
 # =========================
-# LIGHTWEIGHT CHART HTML
+# CANDLE SERIES
 # =========================
 
-html_code = f"""
-<!DOCTYPE html>
-<html>
-<head>
-  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-</head>
-
-<body style="margin:0;background-color:white;">
-
-<div id="chart" style="height:700px;"></div>
-
-<script>
-const chart = LightweightCharts.createChart(document.getElementById('chart'), {{
-    layout: {{
-        background: {{ color: 'white' }},
-        textColor: 'black'
-    }},
-    grid: {{
-        vertLines: {{ color: '#eee' }},
-        horzLines: {{ color: '#eee' }}
-    }},
-    timeScale: {{
-        timeVisible: true,
-        secondsVisible: false
-    }}
-}});
-
-
-// =========================
-// CANDLE SERIES
-// =========================
-const candleSeries = chart.addCandlestickSeries();
-
-candleSeries.setData({json.dumps(candles)});
-
-
-// =========================
-// ZIGZAG LINES
-// =========================
-const segments = {json.dumps(segments)};
-
-segments.forEach(s => {{
-    const lineSeries = chart.addLineSeries({{
-        color: s.color,
-        lineWidth: 2
-    }});
-
-    lineSeries.setData([
-        {{ time: s.x0, value: s.y0 }},
-        {{ time: s.x1, value: s.y1 }}
-    ]);
-}});
-
-</script>
-
-</body>
-</html>
-"""
+candlestick_series = {
+    "type": "Candlestick",
+    "data": candles,
+    "markers": markers
+}
 
 
 # =========================
-# RENDER STREAMLIT
+# CHART CONFIG
 # =========================
 
-components.html(html_code, height=750, scrolling=True)
+chart = {
+    "chart": {
+        "height": 550,
+        "layout": {
+            "background": {"type": "solid", "color": "#ffffff"},
+            "textColor": "#000000"
+        },
+        "grid": {
+            "vertLines": {"color": "#eeeeee"},
+            "horzLines": {"color": "#eeeeee"}
+        },
+        "rightPriceScale": {
+            "borderColor": "#cccccc"
+        },
+        "timeScale": {
+            "borderColor": "#cccccc",
+            "timeVisible": True,
+            "secondsVisible": False
+        },
+        "crosshair": {
+            "mode": 1
+        }
+    },
+    "series": [
+        candlestick_series,
+        *zigzag_segments
+    ]
+}
+
+
+# =========================
+# RENDER
+# =========================
+
+renderLightweightCharts(
+    [chart],
+    key="vnindex_candle_zigzag_cycle_full"
+)
