@@ -1113,33 +1113,6 @@ end_price = selected_row["end_price"]
 return_point = selected_row["return_point"]
 return_pct = selected_row["return_pct"]
 
-st.markdown(
-    f"""
-    <div style="
-        background:#F7F8FC;
-        padding:14px 18px;
-        border-radius:16px;
-        border:1px solid #ECEEF5;
-        margin-bottom:12px;
-    ">
-        <div style="font-size:18px;font-weight:700;">
-            {cycle_type_display}
-        </div>
-
-        <div style="margin-top:8px;">
-            <b>Thời gian:</b>
-            {cycle_start.strftime('%Y-%m-%d')}
-            →
-            {cycle_end.strftime('%Y-%m-%d')}
-        </div>
-
-        <div><b>Điểm đầu:</b> {start_price:.2f}</div>
-        <div><b>Điểm cuối:</b> {end_price:.2f}</div>
-        <div><b>Biến động:</b> {return_point:.2f} điểm ({return_pct:.2f}%)</div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
 
 # =========================
 # UP CYCLE
