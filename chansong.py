@@ -1096,7 +1096,7 @@ while i < len(market_cycle_show):
     # -------------------------
     # SIDEWAYS
     # -------------------------
-    if row["cycle"] == "sideways":
+    if row["cycle_type"] == "sideways":
 
         cycle_rows.append({
             "cycle_type": "Sideways",
@@ -1111,7 +1111,7 @@ while i < len(market_cycle_show):
     # UP + DOWN
     # -------------------------
     if (
-        row["cycle"] == "up_cycle"
+        row["cycle_type"] == "up_cycle"
         and
         i + 1 < len(market_cycle_show)
         and
@@ -1133,7 +1133,7 @@ while i < len(market_cycle_show):
     # TRƯỜNG HỢP BẤT THƯỜNG
     # -------------------------
     cycle_rows.append({
-        "cycle_type": row["cycle"],
+        "cycle_type": row["cycle_type"],
         "start_date": row["start_date"],
         "end_date": row["end_date"]
     })
