@@ -1238,6 +1238,7 @@ def get_cycle_color(ctype):
 # REGIME LINES (3 STATES FIXED)
 # =========================
 
+
 regime_lines = []
 
 for _, r in market_cycle_df.iterrows():
@@ -1278,18 +1279,18 @@ for _, r in market_cycle_df.iterrows():
         })
 
     # =========================
-    # DOWNTREND (FIXED - NO MORE SIDEWAYS BUG)
+    # DOWNTREND (giữ nguyên logic em)
     # =========================
     elif ctype == "down_cycle":
 
-        start_val = float(df_slice["high"].iloc[0])
-        end_val = float(df_slice["low"].iloc[-1])
+        start_high = float(df_slice.iloc[0]["high"])
+        end_low = float(df_slice.iloc[-1]["low"])
 
         regime_lines.append({
             "type": "Line",
             "data": [
-                {"time": start_t, "value": start_val},
-                {"time": end_t, "value": end_val}
+                {"time": start_t, "value": start_high},
+                {"time": end_t, "value": end_low}
             ],
             "options": {
                 "color": "#D50000",
@@ -1298,7 +1299,7 @@ for _, r in market_cycle_df.iterrows():
         })
 
     # =========================
-    # SIDEWAYS (CHANNEL ONLY)
+    # SIDEWAYS (chỉ khi label đúng)
     # =========================
     elif ctype == "sideways":
 
