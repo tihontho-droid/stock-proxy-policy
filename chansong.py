@@ -139,17 +139,7 @@ sector_all_df = load_sector()
 stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
 market_cycle_df = load_market_cycle()
-new_cycle = pd.DataFrame([{
-    "start_date": pd.to_datetime("2026-01-14"),
-    "end_date": pd.to_datetime("2026-03-23"),
-    "start_price": None,
-    "end_price": None,
-    "cycle_type": "down_cycle",
-    "return_point": None,
-    "return_pct": None
-}])
 
-market_cycle_df = pd.concat([market_cycle_df, new_cycle], ignore_index=True)
 # =========================
 # FILTER UNIVERSE (IMPORTANT)
 # =========================
@@ -1319,16 +1309,16 @@ regime_lines = []
 
 for _, r in market_cycle_df.iterrows():
 
-    start = pd.to_datetime(r["start_date"])
-    end = pd.to_datetime(r["end_date"])
+    start = r["start_date"]
+    end = r["end_date"]
     ctype = r["cycle_type"]
 
-    # lấy data từ start trở đi (hỗ trợ cả future cycle)
     df_slice = df_vnindex_price[
-        df_vnindex_price["date"] >= start
-    ].copy()
+        (df_vnindex_price["date"] >= start) &
+        (df_vnindex_price["date"] <= end)
+    ].dropna()
 
-    if df_slice.empty:
+    if df_slice.empty or len(df_slice) < 3:
         continue
 
     start_t = start.strftime("%Y-%m-%d")
@@ -1350,51 +1340,49 @@ for _, r in market_cycle_df.iterrows():
             ],
             "options": {
                 "color": "#00C853",
-                "lineWidth": 2,
-                "priceLineVisible": False
+                "lineWidth": 2
             }
         })
 
-    # =========================
-    # DOWNTREND
-    # =========================
-    elif ctype == "down_cycle":
+        # =========================
+        # LABEL TRÊN CHART (FIXED)
+        # =========================
 
-        start_val = float(df_slice["high"].iloc[0])
-        end_val = float(df_slice["low"].iloc[-1])
-
-        regime_lines.append({
-            "type": "Line",
-            "data": [
-                {"time": start_t, "value": start_val},
-                {"time": end_t, "value": end_val}
-            ],
-            "options": {
-                "color": "#D50000",
-                "lineWidth": 2,
-                "priceLineVisible": False
-            }
+        up_markers.append({
+            "time": start_t,
+            "position": "belowBar",
+            "shape": "text",
+            "color": "#00C853",
+            "text": f"Đáy {r['start_price']:.2f}"
         })
+
+        up_markers.append({
+            "time": end_t,
+            "position": "aboveBar",
+            "shape": "text",
+            "color": "#D50000",
+            "text": f"Đỉnh {r['end_price']:.2f}"
+        })
+
 
     # =========================
     # SIDEWAYS
     # =========================
-    elif ctype in ["sideway", "sideways"]:
+    elif ctype == "sideways":
 
         upper = float(df_slice["high"].quantile(0.95))
         lower = float(df_slice["low"].quantile(0.05))
 
-        # lọc noise
         if lower <= 0:
             continue
 
         range_pct = (upper - lower) / lower
-        if range_pct > 0.15:
+
+        if range_pct > 0.12:
             continue
 
         mid = (upper + lower) / 2
 
-        # upper band
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1407,7 +1395,6 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
-        # lower band
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1420,7 +1407,6 @@ for _, r in market_cycle_df.iterrows():
             }
         })
 
-        # midline
         regime_lines.append({
             "type": "Line",
             "data": [
@@ -1437,6 +1423,8 @@ for _, r in market_cycle_df.iterrows():
 
     else:
         continue
+
+
 # =========================
 # TRANSITION (DOWN → UP)
 # =========================
@@ -1482,9 +1470,7 @@ for i in range(len(cycles) - 1):
 # =========================
 # CHART
 # =========================
-st.write("")
-st.subheader("Diễn biến thị trường trong từng chu kỳ")
-st.write("Chú thích: Các đoạn không thuộc Uptrend hoặc Downtrend được hiểu là Sideways")
+
 chart = {
     "chart": {
         "height": 600,
