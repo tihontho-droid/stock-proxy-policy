@@ -1127,3 +1127,24 @@ while i < len(market_cycle_show):
     i += 1
 
 cycle_dropdown = pd.DataFrame(cycle_rows)
+
+cycle_dropdown["dropdown_text"] = (
+    cycle_dropdown["start_date"].dt.strftime("%Y-%m-%d")
+    + " → "
+    + cycle_dropdown["end_date"].dt.strftime("%Y-%m-%d")
+    + " | "
+    + cycle_dropdown["cycle_type"]
+)
+
+selected_cycle = st.selectbox(
+    "Chọn chu kỳ",
+    cycle_dropdown["dropdown_text"]
+)
+
+selected_row = cycle_dropdown[
+    cycle_dropdown["dropdown_text"] == selected_cycle
+].iloc[0]
+
+cycle_start = selected_row["start_date"]
+cycle_end = selected_row["end_date"]
+cycle_type = selected_row["cycle_type"]
