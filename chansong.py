@@ -1294,21 +1294,17 @@ for _, r in market_cycle_df.iterrows():
     
         df_slice = df_slice.dropna()
     
-        upper = float(df_slice["high"].quantile(0.95))
-        lower = float(df_slice["low"].quantile(0.05))
-    
-        if lower <= 0:
+        if df_slice.empty:
             continue
     
-        range_pct = (upper - lower) / lower
+        start_t = pd.to_datetime(start).strftime("%Y-%m-%d")
+        end_t = pd.to_datetime(end).strftime("%Y-%m-%d")
     
-        # lọc sideways giả
-        if range_pct > 0.12:
-            continue
-    
-        # lấy giá trung tâm để vẽ line (ổn định hơn upper/lower)
         mid_start = float(df_slice.iloc[0]["close"])
         mid_end = float(df_slice.iloc[-1]["close"])
+    
+        if pd.isna(mid_start) or pd.isna(mid_end):
+            continue
     
         regime_lines.append({
             "type": "Line",
@@ -1317,12 +1313,11 @@ for _, r in market_cycle_df.iterrows():
                 {"time": end_t, "value": mid_end}
             ],
             "options": {
-                "color": "#2962FF",   # xanh dương
+                "color": "#2962FF",
                 "lineWidth": 2,
                 "priceLineVisible": False
             }
         })
-
 # =========================
 # TRANSITION (DOWN → UP)
 # =========================
