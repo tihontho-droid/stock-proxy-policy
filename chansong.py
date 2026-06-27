@@ -1629,13 +1629,6 @@ else:
 import streamlit as st
 
 # =========================
-# INIT STATE
-# =========================
-if "time_range" not in st.session_state:
-    st.session_state["time_range"] = None
-
-
-# =========================
 # VNINDEX CHART (TOP)
 # =========================
 st.subheader("Diễn biến thị trường trong từng giai đoạn")
@@ -1685,10 +1678,13 @@ st.subheader("Sức mạnh dòng tiền SMDT theo ngành")
 
 sector_list = sorted(sector_all_df["nganh"].dropna().unique())
 
+# =========================
+# FIX DUPLICATE KEY (QUAN TRỌNG)
+# =========================
 selected_sector = st.selectbox(
     "Chọn ngành",
     sector_list,
-    key="sector_smdt"
+    key="sector_smdt_dropdown_v2"   # 🔥 FIX HERE
 )
 
 sector_plot = (
@@ -1699,12 +1695,9 @@ sector_plot = (
     .copy()
 )
 
-
-# =========================
-# CHECK DATA
-# =========================
 if sector_plot.empty:
     st.warning("Không có dữ liệu.")
+
 else:
 
     # =========================
@@ -1728,7 +1721,7 @@ else:
         })
 
     # =========================
-    # SMDT CHART (RSI STYLE PANEL)
+    # SMDT CHART (RSI STYLE)
     # =========================
     smdt_chart = {
         "chart": {
@@ -1773,9 +1766,6 @@ else:
         ]
     }
 
-    # =========================
-    # RENDER SMDT
-    # =========================
     renderLightweightCharts(
         [smdt_chart],
         key=f"smdt_panel_{selected_sector}"
