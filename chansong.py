@@ -1522,7 +1522,6 @@ renderLightweightCharts(
 
 st.subheader("Diễn biến SMDT ngành")
 
-# Danh sách ngành
 sector_list = sorted(
     sector_all_df["nganh"].dropna().unique()
 )
@@ -1533,7 +1532,6 @@ selected_sector = st.selectbox(
     key="sector_smdt"
 )
 
-# Lọc dữ liệu theo ngành
 sector_plot = (
     sector_all_df[
         sector_all_df["nganh"] == selected_sector
@@ -1548,80 +1546,94 @@ if sector_plot.empty:
 else:
 
     # =========================
-    # LINE DATA (SMDT)
+    # DATA SMDT
     # =========================
-    line_data = [
-        {
-            "time": row["date"].strftime("%Y-%m-%d"),
+    chart_data = []
+    threshold_data = []
+
+    for _, row in sector_plot.iterrows():
+
+        time_value = row["date"].strftime("%Y-%m-%d")
+
+        chart_data.append({
+            "time": time_value,
             "value": float(row["smdt"])
+        })
+
+        # đường ngang 70 dạng line series
+        threshold_data.append({
+            "time": time_value,
+            "value": 70
+        })
+
+    # =========================
+    # SERIES
+    # =========================
+    series = [
+        {
+            "type": "Line",
+            "data": chart_data,
+            "options": {
+                "color": "#1976D2",
+                "lineWidth": 3,
+                "priceLineVisible": True,
+                "lastValueVisible": True,
+                "crosshairMarkerVisible": True,
+                "crosshairMarkerRadius": 5
+            }
+        },
+        {
+            "type": "Line",
+            "data": threshold_data,
+            "options": {
+                "color": "#E53935",
+                "lineWidth": 2,
+                "lineStyle": 2,   # dashed
+                "priceLineVisible": False,
+                "lastValueVisible": False,
+                "crosshairMarkerVisible": False
+            }
         }
-        for _, row in sector_plot.iterrows()
     ]
 
     # =========================
-    # CHART CONFIG
+    # CHART OPTIONS
     # =========================
     chart = {
-        "chart": {
-            "height": 450,
-            "layout": {
-                "background": {
-                    "type": "solid",
-                    "color": "white"
-                },
-                "textColor": "#333333"
+        "height": 450,
+        "layout": {
+            "background": {
+                "type": "solid",
+                "color": "white"
             },
-            "grid": {
-                "vertLines": {"color": "#f0f0f0"},
-                "horzLines": {"color": "#f0f0f0"}
-            },
-            "rightPriceScale": {
-                "borderVisible": False
-            },
-            "timeScale": {
-                "borderVisible": False,
-                "timeVisible": True,
-                "secondsVisible": False
-            },
-            "crosshair": {
-                "mode": 1
-            }
+            "textColor": "#333333"
         },
-
-        "series": [
-            {
-                "type": "Line",
-                "data": line_data,
-                "options": {
-                    "color": "#1976D2",
-                    "lineWidth": 3,
-                    "priceLineVisible": True,
-                    "lastValueVisible": True,
-                    "crosshairMarkerVisible": True,
-                    "crosshairMarkerRadius": 5,
-
-                    # =========================
-                    # NGƯỠNG 70 (LINE ĐỨT KHÚC)
-                    # =========================
-                    "priceLines": [
-                        {
-                            "price": 70,
-                            "color": "#E53935",
-                            "lineWidth": 2,
-                            "lineStyle": 2,  # dashed
-                            "axisLabelVisible": True,
-                            "title": "Ngưỡng 70"
-                        }
-                    ]
-                }
-            }
-        ]
+        "grid": {
+            "vertLines": {"color": "#f0f0f0"},
+            "horzLines": {"color": "#f0f0f0"}
+        },
+        "rightPriceScale": {
+            "borderVisible": False
+        },
+        "timeScale": {
+            "borderVisible": False,
+            "timeVisible": True,
+            "secondsVisible": False
+        },
+        "crosshair": {
+            "mode": 1
+        }
     }
 
     # =========================
     # RENDER
     # =========================
     renderLightweightCharts(
-        [chart],
+        [
+            {
+                "chart": chart,
+                "series": series
+            }
+        ],
         key=f"smdt_line_{selected_sector}"
     )
