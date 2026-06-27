@@ -1469,13 +1469,13 @@ for i in range(len(cycles) - 1):
 
 
 # =========================
-# CHART
+# CHART VNINDEX (REGIME)
 # =========================
 st.write("")
 st.subheader("Diễn biến thị trường trong từng giai đoạn")
 st.write("Chú thích: Các đoạn không thuộc Uptrend hoặc Downtrend được hiểu là Sideways.")
 
-chart = {
+vnindex_chart = {
     "chart": {
         "height": 600,
         "layout": {
@@ -1490,9 +1490,7 @@ chart = {
             "timeVisible": True,
             "secondsVisible": False
         },
-        "crosshair": {
-            "mode": 1
-        }
+        "crosshair": {"mode": 1}
     },
 
     "series": [
@@ -1506,19 +1504,17 @@ chart = {
     ]
 }
 
-
-# =========================
-# RENDER
-# =========================
-
 renderLightweightCharts(
-    [chart],
+    [vnindex_chart],
     key="vnindex_regime_final_clean_markers"
 )
 
+
 # =========================
-# BIỂU ĐỒ SMDT THEO NGÀNH
+# SMDT + DROPDOWN NGÀNH
 # =========================
+st.write("")
+st.subheader("Sức mạnh dòng tiền SMDT theo ngành")
 
 sector_list = sorted(
     sector_all_df["nganh"].dropna().unique()
@@ -1540,34 +1536,32 @@ sector_plot = (
 
 if sector_plot.empty:
     st.warning("Không có dữ liệu.")
-
 else:
 
     # =========================
-    # DATA SMDT
+    # DATA
     # =========================
     chart_data = []
     threshold_data = []
 
     for _, row in sector_plot.iterrows():
 
-        time_value = row["date"].strftime("%Y-%m-%d")
+        t = row["date"].strftime("%Y-%m-%d")
 
         chart_data.append({
-            "time": time_value,
+            "time": t,
             "value": float(row["smdt"])
         })
 
-        # đường ngang 70 dạng line series
         threshold_data.append({
-            "time": time_value,
+            "time": t,
             "value": 70
         })
 
     # =========================
     # SERIES
     # =========================
-    series = [
+    smdt_series = [
         {
             "type": "Line",
             "data": chart_data,
@@ -1586,7 +1580,7 @@ else:
             "options": {
                 "color": "#E53935",
                 "lineWidth": 2,
-                "lineStyle": 2,   # dashed
+                "lineStyle": 2,  # dashed
                 "priceLineVisible": False,
                 "lastValueVisible": False,
                 "crosshairMarkerVisible": False
@@ -1595,9 +1589,9 @@ else:
     ]
 
     # =========================
-    # CHART OPTIONS
+    # CHART OPTIONS (SMALL)
     # =========================
-    chart = {
+    smdt_chart = {
         "height": 250,
         "layout": {
             "background": {
@@ -1618,19 +1612,14 @@ else:
             "timeVisible": True,
             "secondsVisible": False
         },
-        "crosshair": {
-            "mode": 1
-        }
+        "crosshair": {"mode": 1}
     }
 
-    # =========================
-    # RENDER
-    # =========================
     renderLightweightCharts(
         [
             {
-                "chart": chart,
-                "series": series
+                "chart": smdt_chart,
+                "series": smdt_series
             }
         ],
         key=f"smdt_line_{selected_sector}"
