@@ -1516,155 +1516,200 @@ renderLightweightCharts(
     key="vnindex_regime_final_clean_markers"
 )
 
+import plotly.graph_objects as go
+
 # =========================
 # TỔNG QUAN SÓNG NGÀNH
 # =========================
-
-import plotly.graph_objects as go
 
 st.subheader("Tổng quan sóng ngành")
 
 sector_cycle = (
     sector_all_df[
-        (sector_all_df["date"] >= cycle_start) &
+        (sector_all_df["date"] >= cycle_start)
+        &
         (sector_all_df["date"] <= cycle_end)
     ]
     .copy()
 )
 
 if sector_cycle.empty:
+
     st.info("Không có dữ liệu.")
-    st.stop()
 
-# --------------------------
-# Mapping icon
-# --------------------------
+else:
 
-icon_map = {
-    "Tiếp tục đổ vào": "🟢",
-    "Nhen nhóm đổ vào": "🟩",
-    "Đang thoát ra": "🟠",
-    "Tiếp tục thoát ra": "🔴"
-}
+    # ------------------------
+    # MÀU CASHFLOW
+    # ------------------------
 
-sector_cycle["signal"] = (
-    sector_cycle["cashflow"]
-    .map(icon_map)
-)
+    color_map = {
+        "Tiếp tục đổ vào": "#00C853",
+        "Nhen nhóm đổ vào": "#81C784",
+        "Đang thoát ra": "#FFA000",
+        "Tiếp tục thoát ra": "#E53935"
+    }
 
-# --------------------------
-# Pivot
-# --------------------------
+    # ------------------------
+    # PIVOT
+    # ------------------------
 
-matrix = (
-    sector_cycle
-    .pivot_table(
-        index="nganh",
-        columns="date",
-        values="signal",
-        aggfunc="last"
+    table = (
+        sector_cycle
+        .pivot_table(
+            index="nganh",
+            columns="date",
+            values="cashflow",
+            aggfunc="last"
+        )
     )
-)
 
-matrix = matrix.fillna("--")
+    table = table.sort_index()
 
-matrix.columns = [
-    d.strftime("%d/%m")
-    for d in matrix.columns
-]
+    dates = table.columns
+    sectors = table.index.tolist()
 
-# --------------------------
-# Sắp xếp ngành
-# --------------------------
+    fig = go.Figure()
 
-order = (
-    sector_cycle
-    .groupby("nganh")["flow_num"]
-    .sum()
-    .sort_values(ascending=False)
-    .index
-)
+    # =========================
+    # VẼ CHẤM
+    # =========================
 
-matrix = matrix.loc[order]
+    for y, sector in enumerate(sectors):
 
-# --------------------------
-# Plotly Table
-# --------------------------
+        for x, d in enumerate(dates):
 
-header = ["Ngành"] + matrix.columns.tolist()
+            value = table.loc[sector, d]
 
-cells = [matrix.index.tolist()]
+            if pd.isna(value):
 
-for col in matrix.columns:
-    cells.append(matrix[col].tolist())
+                fig.add_trace(
 
-fig = go.Figure(
-    data=[
-        go.Table(
+                    go.Scatter(
 
-            columnwidth=[180] + [40] * len(matrix.columns),
+                        x=[x],
 
-            header=dict(
+                        y=[y],
 
-                values=header,
+                        mode="text",
 
-                fill_color="#1976D2",
+                        text=["--"],
 
-                font=dict(
-                    color="white",
-                    size=13
-                ),
+                        textfont=dict(
+                            size=13,
+                            color="#999999"
+                        ),
 
-                align="center",
+                        hoverinfo="skip",
 
-                height=32
+                        showlegend=False
 
-            ),
+                    )
 
-            cells=dict(
-
-                values=cells,
-
-                fill_color="white",
-
-                align="center",
-
-                height=28,
-
-                font=dict(
-                    size=16
                 )
 
-            )
+            else:
 
-        )
-    ]
-)
+                fig.add_trace(
 
-fig.update_layout(
-    height=min(
-        900,
-        80 + len(matrix) * 30
-    ),
-    margin=dict(
-        l=10,
-        r=10,
-        t=10,
-        b=10
+                    go.Scatter(
+
+                        x=[x],
+
+                        y=[y],
+
+                        mode="markers",
+
+                        marker=dict(
+
+                            size=16,
+
+                            color=color_map.get(
+                                value,
+                                "#CCCCCC"
+                            )
+
+                        ),
+
+                        hovertemplate=
+                        f"<b>{sector}</b><br>"
+                        f"{d.strftime('%d/%m/%Y')}<br>"
+                        f"{value}"
+                        "<extra></extra>",
+
+                        showlegend=False
+
+                    )
+
+                )
+
+    # =========================
+    # AXIS
+    # =========================
+
+    fig.update_xaxes(
+
+        tickmode="array",
+
+        tickvals=list(range(len(dates))),
+
+        ticktext=[
+            d.strftime("%d/%m")
+            for d in dates
+        ],
+
+        side="top"
+
     )
-)
 
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
+    fig.update_yaxes(
 
-st.caption(
-"""
-🟢 Tiếp tục đổ vào  
-🟩 Nhen nhóm đổ vào  
-🟠 Đang thoát ra  
-🔴 Tiếp tục thoát ra  
--- Không tín hiệu
-"""
-)
+        tickmode="array",
+
+        tickvals=list(range(len(sectors))),
+
+        ticktext=sectors,
+
+        autorange="reversed"
+
+    )
+
+    fig.update_layout(
+
+        height=max(500, len(sectors) * 40),
+
+        margin=dict(
+            l=140,
+            r=20,
+            t=40,
+            b=20
+        ),
+
+        plot_bgcolor="white",
+
+        paper_bgcolor="white"
+
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# =========================
+# LEGEND
+# =========================
+
+c1, c2, c3, c4 = st.columns(4)
+
+with c1:
+    st.markdown("🟢 Tiếp tục đổ vào")
+
+with c2:
+    st.markdown("🟩 Nhen nhóm đổ vào")
+
+with c3:
+    st.markdown("🟠 Đang thoát ra")
+
+with c4:
+    st.markdown("🔴 Tiếp tục thoát ra")
