@@ -1516,63 +1516,185 @@ renderLightweightCharts(
 )
 
 # =========================
-# SECTOR FLOW HEATMAP
+# HEATMAP DÒNG TIỀN NGÀNH
 # =========================
 
 st.write("")
 st.subheader("Luân chuyển dòng tiền ngành")
 
+st.caption(
+    "Màu sắc thể hiện trạng thái dòng tiền của từng ngành trong giai đoạn thị trường được chọn."
+)
+
+# =========================
+# LỌC THEO CHU KỲ
+# =========================
+
 sector_cycle = (
     sector_all_df[
-        (sector_all_df["date"] >= cycle_start) &
+        (sector_all_df["date"] >= cycle_start)
+        &
         (sector_all_df["date"] <= cycle_end)
     ]
     .copy()
 )
 
-sector_cycle["score"] = (
-      sector_cycle["flow_vua_tich_cuc"].astype(int)
-    + sector_cycle["smdt_vua_vuot_70"].astype(int)
-    + sector_cycle["nganh_vua_dep"].astype(int)
-)
+if sector_cycle.empty:
 
-heatmap_df = (
-    sector_cycle
-    .pivot_table(
-        index="nganh",
-        columns="date",
-        values="score",
-        aggfunc="max"
+    st.info("Không có dữ liệu dòng tiền ngành trong giai đoạn này.")
+
+else:
+
+    # =========================
+    # MAP CASHFLOW
+    # =========================
+
+    flow_map = {
+        "Tiếp tục đổ vào": 2,
+        "Nhen nhóm đổ vào": 1,
+        "Đang thoát ra": -2,
+        "Tiếp tục thoát ra": -1
+    }
+
+    sector_cycle["flow_state"] = (
+        sector_cycle["cashflow"]
+        .map(flow_map)
+        .fillna(0)
     )
-    .fillna(0)
-)
 
-import plotly.express as px
+    # =========================
+    # SẮP XẾP NGÀNH
+    # =========================
 
-fig = px.imshow(
-    heatmap_df,
-    aspect="auto",
-    color_continuous_scale=[
-        [0.0, "#eeeeee"],
-        [0.33, "#FFD54F"],
-        [0.66, "#42A5F5"],
-        [1.0, "#00C853"]
-    ],
-    labels=dict(
-        x="Ngày",
-        y="Ngành",
-        color="Điểm tín hiệu"
+    sector_order = (
+        sector_cycle
+        .groupby("nganh")["flow_state"]
+        .sum()
+        .sort_values(ascending=False)
+        .index
     )
-)
 
-fig.update_layout(
-    height=650,
-    coloraxis_colorbar=dict(
-        title="Score"
+    # =========================
+    # PIVOT
+    # =========================
+
+    heatmap_df = (
+        sector_cycle
+        .pivot_table(
+            index="nganh",
+            columns="date",
+            values="flow_state",
+            aggfunc="last"
+        )
+        .fillna(0)
     )
-)
 
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
+    heatmap_df = heatmap_df.loc[sector_order]
+
+    # đổi format ngày cho đẹp
+    heatmap_df.columns = [
+        d.strftime("%Y-%m-%d")
+        for d in heatmap_df.columns
+    ]
+
+    # =========================
+    # VẼ HEATMAP
+    # =========================
+
+    import plotly.graph_objects as go
+
+    colorscale = [
+
+        [0.00, "#C62828"],   # đỏ
+        [0.25, "#FB8C00"],   # cam
+        [0.50, "#E0E0E0"],   # xám
+        [0.75, "#81C784"],   # xanh nhạt
+        [1.00, "#1B5E20"]    # xanh đậm
+
+    ]
+
+    fig = go.Figure(
+
+        data=go.Heatmap(
+
+            z=heatmap_df.values,
+
+            x=heatmap_df.columns,
+
+            y=heatmap_df.index,
+
+            zmin=-2,
+
+            zmax=2,
+
+            colorscale=colorscale,
+
+            colorbar=dict(
+
+                title="Cashflow",
+
+                tickvals=[-2, -1, 0, 1, 2],
+
+                ticktext=[
+                    "Đang thoát ra",
+                    "Tiếp tục thoát ra",
+                    "Không tín hiệu",
+                    "Nhen nhóm đổ vào",
+                    "Tiếp tục đổ vào"
+                ]
+
+            ),
+
+            hovertemplate=(
+                "<b>%{y}</b><br>"
+                "Ngày: %{x}<br>"
+                "Trạng thái: %{z}<extra></extra>"
+            )
+
+        )
+
+    )
+
+    fig.update_layout(
+
+        height=max(500, len(heatmap_df) * 35),
+
+        margin=dict(
+            l=20,
+            r=20,
+            t=40,
+            b=20
+        ),
+
+        xaxis_title="Ngày",
+
+        yaxis_title="Ngành",
+
+        yaxis=dict(
+            autorange="reversed"
+        )
+
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+    # =========================
+    # CHÚ THÍCH
+    # =========================
+
+    st.markdown(
+        """
+🟩 **Xanh đậm** : Tiếp tục đổ vào
+
+🟢 **Xanh nhạt** : Nhen nhóm đổ vào
+
+⬜ **Xám** : Không có tín hiệu
+
+🟠 **Cam** : Tiếp tục thoát ra
+
+🟥 **Đỏ** : Đang thoát ra
+"""
+    )
