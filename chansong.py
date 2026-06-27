@@ -1516,22 +1516,21 @@ renderLightweightCharts(
     key="vnindex_regime_final_clean_markers"
 )
 
-
 # =========================
-# SMDT THEO NGÀNH
+# SMDT NGÀNH
 # =========================
 
-st.subheader("Diễn biến SMDT theo ngành")
+st.subheader("Diễn biến SMDT ngành")
 
-# Danh sách ngành
-sector_list = sorted(sector_all_df["nganh"].dropna().unique())
+sector_list = sorted(
+    sector_all_df["nganh"].dropna().unique()
+)
 
 selected_sector = st.selectbox(
     "Chọn ngành",
     sector_list
 )
 
-# Lọc theo chu kỳ + ngành
 sector_plot = (
     sector_all_df[
         (sector_all_df["nganh"] == selected_sector)
@@ -1550,37 +1549,90 @@ if sector_plot.empty:
 
 else:
 
-    import plotly.express as px
-    
-    sector_plot["date_str"] = sector_plot["date"].dt.strftime("%d/%m")
-    
-    fig = px.line(
-        sector_plot,
-        x="date_str",
-        y="smdt",
-        markers=True
-    )
-    
-    fig.update_traces(
-        line=dict(width=3),
-        marker=dict(size=8)
-    )
-    
-    fig.update_layout(
-    
-        title=f"SMDT ngành {selected_sector}",
-    
-        xaxis_title="",
-    
-        yaxis_title="SMDT",
-    
-        hovermode="x unified",
-    
-        height=500
-    
-    )
-    
-    st.plotly_chart(
-        fig,
-        use_container_width=True
+    smdt_series = []
+
+    for _, row in sector_plot.iterrows():
+
+        smdt_series.append({
+
+            "time": row["date"].strftime("%Y-%m-%d"),
+
+            "value": float(row["smdt"])
+
+        })
+
+    chart = {
+
+        "chart": {
+
+            "height": 420,
+
+            "layout": {
+
+                "background": {
+                    "type": "solid",
+                    "color": "white"
+                },
+
+                "textColor": "#333"
+
+            },
+
+            "rightPriceScale": {
+
+                "borderVisible": False
+
+            },
+
+            "timeScale": {
+
+                "borderVisible": False,
+
+                "timeVisible": True,
+
+                "secondsVisible": False
+
+            },
+
+            "crosshair": {
+
+                "mode": 1
+
+            }
+
+        },
+
+        "series": [
+
+            {
+
+                "type": "Line",
+
+                "data": smdt_series,
+
+                "options": {
+
+                    "color": "#1976D2",
+
+                    "lineWidth": 3,
+
+                    "crosshairMarkerVisible": True,
+
+                    "crosshairMarkerRadius": 5,
+
+                    "lastValueVisible": True,
+
+                    "priceLineVisible": True
+
+                }
+
+            }
+
+        ]
+
+    }
+
+    renderLightweightCharts(
+        [chart],
+        key=f"smdt_{selected_sector}"
     )
