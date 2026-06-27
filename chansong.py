@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 from streamlit_lightweight_charts import renderLightweightCharts
  
 st.set_page_config(layout="wide")
@@ -1515,185 +1516,167 @@ renderLightweightCharts(
     key="vnindex_regime_final_clean_markers"
 )
 
-# =========================
-# TỔNG QUAN SÓNG NGÀNH
-# =========================
+# ============================================
+# DOT HEATMAP - SECTOR CASHFLOW
+# ============================================
 
-st.write("")
-st.subheader("Tổng quan sóng ngành")
+def plot_sector_dot_heatmap(
+    sector_df,
+    cycle_start,
+    cycle_end,
+):
 
-# -------------------------
-# Lọc theo chu kỳ
-# -------------------------
-
-sector_cycle = (
-    sector_all_df[
-        (sector_all_df["date"] >= cycle_start) &
-        (sector_all_df["date"] <= cycle_end)
-    ]
-    .copy()
-)
-
-if sector_cycle.empty:
-    st.info("Không có dữ liệu.")
-    st.stop()
-
-# -------------------------
-# Mapping icon
-# -------------------------
-
-icon_map = {
-    "Tiếp tục đổ vào": "🟢",
-    "Nhen nhóm đổ vào": "🟩",
-    "Đang thoát ra": "🟠",
-    "Tiếp tục thoát ra": "🔴"
-}
-
-sector_cycle["signal"] = (
-    sector_cycle["cashflow"]
-    .map(icon_map)
-    .fillna("--")
-)
-
-# -------------------------
-# Pivot
-# -------------------------
-
-table = (
-    sector_cycle
-    .pivot_table(
-        index="nganh",
-        columns="date",
-        values="signal",
-        aggfunc="last"
+    df = (
+        sector_df[
+            (sector_df["date"] >= cycle_start)
+            &
+            (sector_df["date"] <= cycle_end)
+        ]
+        .copy()
     )
-)
 
-table = table.fillna("--")
+    if df.empty:
+        return go.Figure()
 
-table.columns = [
-    d.strftime("%d/%m")
-    for d in table.columns
-]
+    # ------------------------------------
+    # Mapping màu
+    # ------------------------------------
 
-# -------------------------
-# HTML TABLE
-# -------------------------
+    color_map = {
+        "Tiếp tục đổ vào": "#00C853",
+        "Nhen nhóm đổ vào": "#8BC34A",
+        "Đang thoát ra": "#FB8C00",
+        "Tiếp tục thoát ra": "#E53935"
+    }
 
-html = """
-<div style="
-overflow-x:auto;
-border:1px solid #E5E5E5;
-border-radius:10px;
-">
+    # ------------------------------------
+    # Sắp xếp ngành mạnh lên trên
+    # ------------------------------------
 
-<table style="
-border-collapse:collapse;
-width:max-content;
-font-size:15px;
-">
+    score_map = {
+        "Tiếp tục đổ vào":2,
+        "Nhen nhóm đổ vào":1,
+        "Đang thoát ra":-1,
+        "Tiếp tục thoát ra":-2
+    }
 
-<thead>
+    df["score"] = df["cashflow"].map(score_map).fillna(0)
 
-<tr>
+    sector_order = (
+        df.groupby("nganh")["score"]
+        .sum()
+        .sort_values(ascending=False)
+        .index
+    )
 
-<th style="
-position:sticky;
-left:0;
-background:white;
-padding:10px;
-text-align:left;
-border-bottom:1px solid #EEE;
-z-index:3;
-">
-Ngành
-</th>
+    fig = go.Figure()
 
-"""
+    # ------------------------------------
+    # Vẽ từng trạng thái
+    # ------------------------------------
 
-for d in table.columns:
+    for state, color in color_map.items():
 
-    html += f"""
-    <th style="
-    min-width:65px;
-    padding:10px;
-    text-align:center;
-    border-bottom:1px solid #EEE;
-    ">
-    {d}
-    </th>
-    """
+        tmp = df[df["cashflow"] == state]
 
-html += "</tr></thead><tbody>"
+        fig.add_trace(
 
-for sector in table.index:
+            go.Scatter(
 
-    html += f"""
+                x=tmp["date"],
 
-<tr>
+                y=pd.Categorical(
+                    tmp["nganh"],
+                    categories=sector_order,
+                    ordered=True
+                ),
 
-<td style="
-position:sticky;
-left:0;
-background:white;
-font-weight:600;
-padding:10px;
-border-bottom:1px solid #F2F2F2;
-">
-{sector}
-</td>
+                mode="markers",
 
-"""
+                marker=dict(
+                    size=13,
+                    color=color,
+                    line=dict(
+                        color="white",
+                        width=1
+                    )
+                ),
 
-    for value in table.loc[sector]:
+                name=state,
 
-        if value == "--":
+                customdata=tmp[["cashflow","smdt"]],
 
-            cell = "--"
+                hovertemplate=
+                "<b>%{y}</b><br>"
+                "Ngày: %{x|%d/%m/%Y}<br>"
+                "Cashflow: %{customdata[0]}<br>"
+                "SMDT: %{customdata[1]:.2f}"
+                "<extra></extra>"
+            )
+        )
 
-        else:
+    # ------------------------------------
+    # Layout
+    # ------------------------------------
 
-            cell = f"""
-            <span style="
-            font-size:22px;
-            ">
-            {value}
-            </span>
-            """
+    fig.update_layout(
 
-        html += f"""
-        <td style="
-        text-align:center;
-        padding:8px;
-        border-bottom:1px solid #F5F5F5;
-        ">
-        {cell}
-        </td>
-        """
+        height=max(500, len(sector_order)*32),
 
-    html += "</tr>"
+        template="plotly_white",
 
-html += "</tbody></table></div>"
+        plot_bgcolor="white",
 
-st.markdown(
-    html,
-    unsafe_allow_html=True
-)
+        paper_bgcolor="white",
 
-# -------------------------
-# Legend
-# -------------------------
+        xaxis=dict(
 
-st.markdown("""
+            title="",
 
-🟢 Tiếp tục đổ vào
+            showgrid=True,
 
-🟩 Nhen nhóm đổ vào
+            gridcolor="#F3F3F3",
 
-🟠 Đang thoát ra
+            tickformat="%d/%m",
 
-🔴 Tiếp tục thoát ra
+            dtick="D7"
 
--- Không có dữ liệu
+        ),
 
-""")
+        yaxis=dict(
+
+            title="",
+
+            categoryorder="array",
+
+            categoryarray=sector_order,
+
+            autorange="reversed"
+
+        ),
+
+        legend=dict(
+
+            orientation="h",
+
+            y=1.08,
+
+            x=0
+
+        ),
+
+        margin=dict(
+
+            l=20,
+
+            r=20,
+
+            t=40,
+
+            b=20
+
+        )
+
+    )
+
+    return fig
