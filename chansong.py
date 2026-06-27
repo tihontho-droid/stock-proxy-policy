@@ -1624,3 +1624,85 @@ else:
         ],
         key=f"smdt_line_{selected_sector}"
     )
+
+vnindex_chart = {
+    "chart": {
+        "height": 700,
+        "layout": {
+            "background": {"type": "solid", "color": "#ffffff"},
+            "textColor": "#000000"
+        },
+        "grid": {
+            "vertLines": {"color": "#eeeeee"},
+            "horzLines": {"color": "#eeeeee"}
+        },
+        "timeScale": {
+            "timeVisible": True,
+            "secondsVisible": False
+        },
+        "crosshair": {"mode": 1}
+    },
+
+    "series": [
+        # =========================
+        # VNINDEX (MAIN CHART)
+        # =========================
+        {
+            "type": "Candlestick",
+            "data": candles,
+            "options": {
+                "priceScaleId": "right"
+            },
+            "markers": up_markers
+        },
+
+        # =========================
+        # REGIME LINES
+        # =========================
+        *regime_lines,
+        *transitions,
+
+        # =========================
+        # SMDT (RSI-LIKE PANE)
+        # =========================
+        {
+            "type": "Line",
+            "data": chart_data,
+            "options": {
+                "color": "#1976D2",
+                "lineWidth": 2,
+                "priceScaleId": "smdt",   # 🔥 TẠO PANE RIÊNG
+                "crosshairMarkerVisible": True
+            }
+        },
+
+        # =========================
+        # NGƯỠNG 70
+        # =========================
+        {
+            "type": "Line",
+            "data": threshold_data,
+            "options": {
+                "color": "#E53935",
+                "lineWidth": 1,
+                "lineStyle": 2,
+                "priceScaleId": "smdt",
+                "crosshairMarkerVisible": False
+            }
+        }
+    ],
+
+    # =========================
+    # DEFINE PANE SCALE
+    # =========================
+    "rightPriceScale": {
+        "visible": True
+    },
+
+    "priceScale": {
+        "smdt": {
+            "position": "none",   # 🔥 hidden scale giống RSI pane
+            "mode": 0
+        }
+    }
+}
