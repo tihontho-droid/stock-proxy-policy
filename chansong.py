@@ -1519,15 +1519,14 @@ renderLightweightCharts(
 import plotly.graph_objects as go
 
 # =========================
-# TỔNG QUAN SÓNG NGÀNH
+# CƯỜNG ĐỘ DÒNG TIỀN NGÀNH
 # =========================
 
-st.subheader("Tổng quan sóng ngành")
+st.subheader("Cường độ dòng tiền ngành")
 
 sector_cycle = (
     sector_all_df[
-        (sector_all_df["date"] >= cycle_start)
-        &
+        (sector_all_df["date"] >= cycle_start) &
         (sector_all_df["date"] <= cycle_end)
     ]
     .copy()
@@ -1539,177 +1538,100 @@ if sector_cycle.empty:
 
 else:
 
-    # ------------------------
-    # MÀU CASHFLOW
-    # ------------------------
-
-    color_map = {
-        "Tiếp tục đổ vào": "#00C853",
-        "Nhen nhóm đổ vào": "#81C784",
-        "Đang thoát ra": "#FFA000",
-        "Tiếp tục thoát ra": "#E53935"
+    # Quy đổi trạng thái dòng tiền thành điểm
+    flow_score = {
+        "Tiếp tục đổ vào": 2,
+        "Nhen nhóm đổ vào": 1,
+        "Đang thoát ra": -2,
+        "Tiếp tục thoát ra": -1
     }
 
-    # ------------------------
-    # PIVOT
-    # ------------------------
+    sector_cycle["score"] = (
+        sector_cycle["cashflow"]
+        .map(flow_score)
+        .fillna(0)
+    )
 
-    table = (
+    # Tổng điểm của cả chu kỳ
+    sector_strength = (
         sector_cycle
-        .pivot_table(
-            index="nganh",
-            columns="date",
-            values="cashflow",
-            aggfunc="last"
-        )
+        .groupby("nganh")["score"]
+        .sum()
+        .sort_values(ascending=False)
     )
 
-    table = table.sort_index()
+    max_score = sector_strength.abs().max()
 
-    dates = table.columns
-    sectors = table.index.tolist()
+    if max_score == 0:
+        max_score = 1
 
-    fig = go.Figure()
+    html = """
+    <div style="
+        border:1px solid #EEEEEE;
+        border-radius:10px;
+        padding:15px;
+    ">
+    """
 
-    # =========================
-    # VẼ CHẤM
-    # =========================
+    for sector, score in sector_strength.items():
 
-    for y, sector in enumerate(sectors):
+        # chiều dài thanh
+        width = int(abs(score) / max_score * 250)
 
-        for x, d in enumerate(dates):
+        if score > 0:
 
-            value = table.loc[sector, d]
+            color = "#00C853"
 
-            if pd.isna(value):
+        elif score < 0:
 
-                fig.add_trace(
+            color = "#E53935"
 
-                    go.Scatter(
+        else:
 
-                        x=[x],
+            color = "#BDBDBD"
 
-                        y=[y],
+        html += f"""
+        <div style="
+            display:flex;
+            align-items:center;
+            margin-bottom:12px;
+        ">
 
-                        mode="text",
+            <div style="
+                width:170px;
+                font-weight:600;
+            ">
+                {sector}
+            </div>
 
-                        text=["--"],
+            <div style="
+                width:260px;
+                height:18px;
+                background:#F3F3F3;
+                border-radius:10px;
+                overflow:hidden;
+            ">
 
-                        textfont=dict(
-                            size=13,
-                            color="#999999"
-                        ),
+                <div style="
+                    width:{width}px;
+                    height:18px;
+                    background:{color};
+                    border-radius:10px;
+                ">
+                </div>
 
-                        hoverinfo="skip",
+            </div>
 
-                        showlegend=False
+            <div style="
+                margin-left:10px;
+                font-weight:600;
+            ">
+                {score:.0f}
+            </div>
 
-                    )
+        </div>
+        """
 
-                )
+    html += "</div>"
 
-            else:
-
-                fig.add_trace(
-
-                    go.Scatter(
-
-                        x=[x],
-
-                        y=[y],
-
-                        mode="markers",
-
-                        marker=dict(
-
-                            size=16,
-
-                            color=color_map.get(
-                                value,
-                                "#CCCCCC"
-                            )
-
-                        ),
-
-                        hovertemplate=
-                        f"<b>{sector}</b><br>"
-                        f"{d.strftime('%d/%m/%Y')}<br>"
-                        f"{value}"
-                        "<extra></extra>",
-
-                        showlegend=False
-
-                    )
-
-                )
-
-    # =========================
-    # AXIS
-    # =========================
-
-    fig.update_xaxes(
-
-        tickmode="array",
-
-        tickvals=list(range(len(dates))),
-
-        ticktext=[
-            d.strftime("%d/%m")
-            for d in dates
-        ],
-
-        side="top"
-
-    )
-
-    fig.update_yaxes(
-
-        tickmode="array",
-
-        tickvals=list(range(len(sectors))),
-
-        ticktext=sectors,
-
-        autorange="reversed"
-
-    )
-
-    fig.update_layout(
-
-        height=max(500, len(sectors) * 40),
-
-        margin=dict(
-            l=140,
-            r=20,
-            t=40,
-            b=20
-        ),
-
-        plot_bgcolor="white",
-
-        paper_bgcolor="white"
-
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-# =========================
-# LEGEND
-# =========================
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.markdown("🟢 Tiếp tục đổ vào")
-
-with c2:
-    st.markdown("🟩 Nhen nhóm đổ vào")
-
-with c3:
-    st.markdown("🟠 Đang thoát ra")
-
-with c4:
-    st.markdown("🔴 Tiếp tục thoát ra")
+    st.markdown(html, unsafe_allow_html=True)
