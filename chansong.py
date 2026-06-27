@@ -1646,7 +1646,7 @@ for _, row in sector_plot.iterrows():
 
 
 # =========================
-# GỘP 1 CHART
+# CHART
 # =========================
 vnindex_chart = {
     "chart": {
@@ -1669,7 +1669,7 @@ vnindex_chart = {
     "series": [
 
         # =========================
-        # VNINDEX (CANDLESTICK)
+        # VNINDEX (MAIN)
         # =========================
         {
             "type": "Candlestick",
@@ -1680,14 +1680,11 @@ vnindex_chart = {
             }
         },
 
-        # =========================
-        # REGIME LINES
-        # =========================
         *regime_lines,
         *transitions,
 
         # =========================
-        # SMDT (OVERLAY LINE)
+        # SMDT (LEFT SCALE - SMALL PANE FEEL)
         # =========================
         {
             "type": "Line",
@@ -1695,12 +1692,8 @@ vnindex_chart = {
             "options": {
                 "color": "#1976D2",
                 "lineWidth": 2,
-                "priceLineVisible": True,
-                "lastValueVisible": True,
-                "crosshairMarkerVisible": True,
-                "crosshairMarkerRadius": 4,
 
-                # 🔥 QUAN TRỌNG: tách scale để không ảnh hưởng VNINDEX
+                # 🔥 QUAN TRỌNG: scale riêng bên trái
                 "priceScaleId": "smdt"
             }
         },
@@ -1715,9 +1708,6 @@ vnindex_chart = {
                 "color": "#E53935",
                 "lineWidth": 1,
                 "lineStyle": 2,
-                "priceLineVisible": False,
-                "lastValueVisible": False,
-                "crosshairMarkerVisible": False,
                 "priceScaleId": "smdt"
             }
         }
@@ -1730,9 +1720,15 @@ vnindex_chart = {
         "visible": True
     },
 
+    "leftPriceScale": {
+        "visible": True,   # 🔥 bật trái cho SMDT
+        "borderVisible": False
+    },
+
     "priceScale": {
         "smdt": {
-            "position": "none"  # giống indicator hidden scale
+            "position": "left",   # 🔥 SMDT nằm bên trái
+            "mode": 0
         }
     }
 }
@@ -1743,5 +1739,5 @@ vnindex_chart = {
 # =========================
 renderLightweightCharts(
     [vnindex_chart],
-    key="vnindex_smdt_overlay"
+    key="vnindex_smdt_left_scale"
 )
