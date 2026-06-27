@@ -1516,3 +1516,4 @@ renderLightweightCharts(
 )
 
 st.write(sector_all_df.columns.tolist())
+st.dataframe(sector_all_df.head())
