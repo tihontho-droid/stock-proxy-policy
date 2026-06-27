@@ -1598,7 +1598,7 @@ else:
                     "priceLineVisible": True,
                     "lastValueVisible": True,
                     "crosshairMarkerVisible": True,
-                    "crosshairMarkerRadius": 5
+                    "crosshairMarkerRadius": 5,
                     # -----------------------
                     # ĐƯỜNG NGƯỠNG 70
                     # -----------------------
