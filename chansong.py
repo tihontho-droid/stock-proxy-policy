@@ -1599,6 +1599,29 @@ else:
                     "lastValueVisible": True,
                     "crosshairMarkerVisible": True,
                     "crosshairMarkerRadius": 5
+                    # -----------------------
+                    # ĐƯỜNG NGƯỠNG 70
+                    # -----------------------
+                    "priceLines": [
+    
+                        {
+    
+                            "price": 70,
+    
+                            "color": "#E53935",
+    
+                            "lineWidth": 2,
+    
+                            "lineStyle": 2,      # 0=solid, 1=dotted, 2=dashed
+    
+                            "axisLabelVisible": True,
+    
+                            "title": "70"
+    
+                        }
+    
+                    ]
+
                 }
             }
         ]
