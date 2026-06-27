@@ -1625,3 +1625,123 @@ else:
         key=f"smdt_line_{selected_sector}"
     )
 
+# =========================
+# DATA SMDT
+# =========================
+smdt_data = []
+threshold_data = []
+
+for _, row in sector_plot.iterrows():
+    t = row["date"].strftime("%Y-%m-%d")
+
+    smdt_data.append({
+        "time": t,
+        "value": float(row["smdt"])
+    })
+
+    threshold_data.append({
+        "time": t,
+        "value": 70
+    })
+
+
+# =========================
+# GỘP 1 CHART
+# =========================
+vnindex_chart = {
+    "chart": {
+        "height": 700,
+        "layout": {
+            "background": {"type": "solid", "color": "#ffffff"},
+            "textColor": "#000000"
+        },
+        "grid": {
+            "vertLines": {"color": "#eeeeee"},
+            "horzLines": {"color": "#eeeeee"}
+        },
+        "timeScale": {
+            "timeVisible": True,
+            "secondsVisible": False
+        },
+        "crosshair": {"mode": 1}
+    },
+
+    "series": [
+
+        # =========================
+        # VNINDEX (CANDLESTICK)
+        # =========================
+        {
+            "type": "Candlestick",
+            "data": candles,
+            "markers": up_markers,
+            "options": {
+                "priceScaleId": "right"
+            }
+        },
+
+        # =========================
+        # REGIME LINES
+        # =========================
+        *regime_lines,
+        *transitions,
+
+        # =========================
+        # SMDT (OVERLAY LINE)
+        # =========================
+        {
+            "type": "Line",
+            "data": smdt_data,
+            "options": {
+                "color": "#1976D2",
+                "lineWidth": 2,
+                "priceLineVisible": True,
+                "lastValueVisible": True,
+                "crosshairMarkerVisible": True,
+                "crosshairMarkerRadius": 4,
+
+                # 🔥 QUAN TRỌNG: tách scale để không ảnh hưởng VNINDEX
+                "priceScaleId": "smdt"
+            }
+        },
+
+        # =========================
+        # NGƯỠNG 70
+        # =========================
+        {
+            "type": "Line",
+            "data": threshold_data,
+            "options": {
+                "color": "#E53935",
+                "lineWidth": 1,
+                "lineStyle": 2,
+                "priceLineVisible": False,
+                "lastValueVisible": False,
+                "crosshairMarkerVisible": False,
+                "priceScaleId": "smdt"
+            }
+        }
+    ],
+
+    # =========================
+    # SCALE CONFIG
+    # =========================
+    "rightPriceScale": {
+        "visible": True
+    },
+
+    "priceScale": {
+        "smdt": {
+            "position": "none"  # giống indicator hidden scale
+        }
+    }
+}
+
+
+# =========================
+# RENDER
+# =========================
+renderLightweightCharts(
+    [vnindex_chart],
+    key="vnindex_smdt_overlay"
+)
