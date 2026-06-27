@@ -1516,185 +1516,184 @@ renderLightweightCharts(
 )
 
 # =========================
-# HEATMAP DÒNG TIỀN NGÀNH
+# TỔNG QUAN SÓNG NGÀNH
 # =========================
 
 st.write("")
-st.subheader("Luân chuyển dòng tiền ngành")
+st.subheader("Tổng quan sóng ngành")
 
-st.caption(
-    "Màu sắc thể hiện trạng thái dòng tiền của từng ngành trong giai đoạn thị trường được chọn."
-)
-
-# =========================
-# LỌC THEO CHU KỲ
-# =========================
+# -------------------------
+# Lọc theo chu kỳ
+# -------------------------
 
 sector_cycle = (
     sector_all_df[
-        (sector_all_df["date"] >= cycle_start)
-        &
+        (sector_all_df["date"] >= cycle_start) &
         (sector_all_df["date"] <= cycle_end)
     ]
     .copy()
 )
 
 if sector_cycle.empty:
+    st.info("Không có dữ liệu.")
+    st.stop()
 
-    st.info("Không có dữ liệu dòng tiền ngành trong giai đoạn này.")
+# -------------------------
+# Mapping icon
+# -------------------------
 
-else:
+icon_map = {
+    "Tiếp tục đổ vào": "🟢",
+    "Nhen nhóm đổ vào": "🟩",
+    "Đang thoát ra": "🟠",
+    "Tiếp tục thoát ra": "🔴"
+}
 
-    # =========================
-    # MAP CASHFLOW
-    # =========================
+sector_cycle["signal"] = (
+    sector_cycle["cashflow"]
+    .map(icon_map)
+    .fillna("--")
+)
 
-    flow_map = {
-        "Tiếp tục đổ vào": 2,
-        "Nhen nhóm đổ vào": 1,
-        "Đang thoát ra": -2,
-        "Tiếp tục thoát ra": -1
-    }
+# -------------------------
+# Pivot
+# -------------------------
 
-    sector_cycle["flow_state"] = (
-        sector_cycle["cashflow"]
-        .map(flow_map)
-        .fillna(0)
+table = (
+    sector_cycle
+    .pivot_table(
+        index="nganh",
+        columns="date",
+        values="signal",
+        aggfunc="last"
     )
+)
 
-    # =========================
-    # SẮP XẾP NGÀNH
-    # =========================
+table = table.fillna("--")
 
-    sector_order = (
-        sector_cycle
-        .groupby("nganh")["flow_state"]
-        .sum()
-        .sort_values(ascending=False)
-        .index
-    )
+table.columns = [
+    d.strftime("%d/%m")
+    for d in table.columns
+]
 
-    # =========================
-    # PIVOT
-    # =========================
+# -------------------------
+# HTML TABLE
+# -------------------------
 
-    heatmap_df = (
-        sector_cycle
-        .pivot_table(
-            index="nganh",
-            columns="date",
-            values="flow_state",
-            aggfunc="last"
-        )
-        .fillna(0)
-    )
+html = """
+<div style="
+overflow-x:auto;
+border:1px solid #E5E5E5;
+border-radius:10px;
+">
 
-    heatmap_df = heatmap_df.loc[sector_order]
+<table style="
+border-collapse:collapse;
+width:max-content;
+font-size:15px;
+">
 
-    # đổi format ngày cho đẹp
-    heatmap_df.columns = [
-        d.strftime("%Y-%m-%d")
-        for d in heatmap_df.columns
-    ]
+<thead>
 
-    # =========================
-    # VẼ HEATMAP
-    # =========================
+<tr>
 
-    import plotly.graph_objects as go
+<th style="
+position:sticky;
+left:0;
+background:white;
+padding:10px;
+text-align:left;
+border-bottom:1px solid #EEE;
+z-index:3;
+">
+Ngành
+</th>
 
-    colorscale = [
-
-        [0.00, "#C62828"],   # đỏ
-        [0.25, "#FB8C00"],   # cam
-        [0.50, "#E0E0E0"],   # xám
-        [0.75, "#81C784"],   # xanh nhạt
-        [1.00, "#1B5E20"]    # xanh đậm
-
-    ]
-
-    fig = go.Figure(
-
-        data=go.Heatmap(
-
-            z=heatmap_df.values,
-
-            x=heatmap_df.columns,
-
-            y=heatmap_df.index,
-
-            zmin=-2,
-
-            zmax=2,
-
-            colorscale=colorscale,
-
-            colorbar=dict(
-
-                title="Cashflow",
-
-                tickvals=[-2, -1, 0, 1, 2],
-
-                ticktext=[
-                    "Đang thoát ra",
-                    "Tiếp tục thoát ra",
-                    "Không tín hiệu",
-                    "Nhen nhóm đổ vào",
-                    "Tiếp tục đổ vào"
-                ]
-
-            ),
-
-            hovertemplate=(
-                "<b>%{y}</b><br>"
-                "Ngày: %{x}<br>"
-                "Trạng thái: %{z}<extra></extra>"
-            )
-
-        )
-
-    )
-
-    fig.update_layout(
-
-        height=max(500, len(heatmap_df) * 35),
-
-        margin=dict(
-            l=20,
-            r=20,
-            t=40,
-            b=20
-        ),
-
-        xaxis_title="Ngày",
-
-        yaxis_title="Ngành",
-
-        yaxis=dict(
-            autorange="reversed"
-        )
-
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-    # =========================
-    # CHÚ THÍCH
-    # =========================
-
-    st.markdown(
-        """
-🟩 **Xanh đậm** : Tiếp tục đổ vào
-
-🟢 **Xanh nhạt** : Nhen nhóm đổ vào
-
-⬜ **Xám** : Không có tín hiệu
-
-🟠 **Cam** : Tiếp tục thoát ra
-
-🟥 **Đỏ** : Đang thoát ra
 """
-    )
+
+for d in table.columns:
+
+    html += f"""
+    <th style="
+    min-width:65px;
+    padding:10px;
+    text-align:center;
+    border-bottom:1px solid #EEE;
+    ">
+    {d}
+    </th>
+    """
+
+html += "</tr></thead><tbody>"
+
+for sector in table.index:
+
+    html += f"""
+
+<tr>
+
+<td style="
+position:sticky;
+left:0;
+background:white;
+font-weight:600;
+padding:10px;
+border-bottom:1px solid #F2F2F2;
+">
+{sector}
+</td>
+
+"""
+
+    for value in table.loc[sector]:
+
+        if value == "--":
+
+            cell = "--"
+
+        else:
+
+            cell = f"""
+            <span style="
+            font-size:22px;
+            ">
+            {value}
+            </span>
+            """
+
+        html += f"""
+        <td style="
+        text-align:center;
+        padding:8px;
+        border-bottom:1px solid #F5F5F5;
+        ">
+        {cell}
+        </td>
+        """
+
+    html += "</tr>"
+
+html += "</tbody></table></div>"
+
+st.markdown(
+    html,
+    unsafe_allow_html=True
+)
+
+# -------------------------
+# Legend
+# -------------------------
+
+st.markdown("""
+
+🟢 Tiếp tục đổ vào
+
+🟩 Nhen nhóm đổ vào
+
+🟠 Đang thoát ra
+
+🔴 Tiếp tục thoát ra
+
+-- Không có dữ liệu
+
+""")
