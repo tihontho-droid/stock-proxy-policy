@@ -1516,167 +1516,170 @@ renderLightweightCharts(
     key="vnindex_regime_final_clean_markers"
 )
 
-# ============================================
-# DOT HEATMAP - SECTOR CASHFLOW
-# ============================================
+# =========================
+# TỔNG QUAN SÓNG NGÀNH
+# =========================
 
-def plot_sector_dot_heatmap(
-    sector_df,
-    cycle_start,
-    cycle_end,
-):
+st.write("")
+st.subheader("Tổng quan sóng ngành")
 
-    df = (
-        sector_df[
-            (sector_df["date"] >= cycle_start)
-            &
-            (sector_df["date"] <= cycle_end)
-        ]
-        .copy()
-    )
+sector_cycle = (
+    sector_all_df[
+        (sector_all_df["date"] >= cycle_start)
+        &
+        (sector_all_df["date"] <= cycle_end)
+    ]
+    .copy()
+)
 
-    if df.empty:
-        return go.Figure()
-
-    # ------------------------------------
-    # Mapping màu
-    # ------------------------------------
+if sector_cycle.empty:
+    st.info("Không có dữ liệu.")
+else:
 
     color_map = {
         "Tiếp tục đổ vào": "#00C853",
-        "Nhen nhóm đổ vào": "#8BC34A",
-        "Đang thoát ra": "#FB8C00",
+        "Nhen nhóm đổ vào": "#81C784",
+        "Đang thoát ra": "#FFA000",
         "Tiếp tục thoát ra": "#E53935"
     }
 
-    # ------------------------------------
-    # Sắp xếp ngành mạnh lên trên
-    # ------------------------------------
-
-    score_map = {
-        "Tiếp tục đổ vào":2,
-        "Nhen nhóm đổ vào":1,
-        "Đang thoát ra":-1,
-        "Tiếp tục thoát ra":-2
-    }
-
-    df["score"] = df["cashflow"].map(score_map).fillna(0)
-
-    sector_order = (
-        df.groupby("nganh")["score"]
-        .sum()
-        .sort_values(ascending=False)
-        .index
+    table = (
+        sector_cycle
+        .pivot_table(
+            index="nganh",
+            columns="date",
+            values="cashflow",
+            aggfunc="last"
+        )
     )
 
-    fig = go.Figure()
+    table.columns = [
+        d.strftime("%d/%m")
+        for d in table.columns
+    ]
 
-    # ------------------------------------
-    # Vẽ từng trạng thái
-    # ------------------------------------
+    html = """
+    <div style="
+        overflow-x:auto;
+        border:1px solid #EEEEEE;
+        border-radius:10px;
+    ">
 
-    for state, color in color_map.items():
+    <table style="
+        border-collapse:collapse;
+        width:max-content;
+        font-size:15px;
+    ">
+    """
 
-        tmp = df[df["cashflow"] == state]
+    # Header
+    html += "<thead><tr>"
 
-        fig.add_trace(
+    html += """
+    <th style="
+        position:sticky;
+        left:0;
+        background:white;
+        min-width:180px;
+        padding:12px;
+        text-align:left;
+        border-bottom:1px solid #EEEEEE;
+        z-index:2;
+    ">
+    Ngành
+    </th>
+    """
 
-            go.Scatter(
+    for d in table.columns:
 
-                x=tmp["date"],
+        html += f"""
+        <th style="
+            min-width:60px;
+            text-align:center;
+            padding:10px;
+            border-bottom:1px solid #EEEEEE;
+            background:white;
+        ">
+        {d}
+        </th>
+        """
 
-                y=pd.Categorical(
-                    tmp["nganh"],
-                    categories=sector_order,
-                    ordered=True
-                ),
+    html += "</tr></thead>"
 
-                mode="markers",
+    html += "<tbody>"
 
-                marker=dict(
-                    size=13,
-                    color=color,
-                    line=dict(
-                        color="white",
-                        width=1
-                    )
-                ),
+    for sector in table.index:
 
-                name=state,
+        html += f"""
+        <tr>
 
-                customdata=tmp[["cashflow","smdt"]],
+        <td style="
+            position:sticky;
+            left:0;
+            background:white;
+            padding:10px;
+            font-weight:600;
+            border-bottom:1px solid #F5F5F5;
+        ">
+        {sector}
+        </td>
+        """
 
-                hovertemplate=
-                "<b>%{y}</b><br>"
-                "Ngày: %{x|%d/%m/%Y}<br>"
-                "Cashflow: %{customdata[0]}<br>"
-                "SMDT: %{customdata[1]:.2f}"
-                "<extra></extra>"
-            )
-        )
+        for value in table.loc[sector]:
 
-    # ------------------------------------
-    # Layout
-    # ------------------------------------
+            if pd.isna(value):
 
-    fig.update_layout(
+                html += """
+                <td style="
+                    text-align:center;
+                    border-bottom:1px solid #F5F5F5;
+                ">
+                --
+                </td>
+                """
 
-        height=max(500, len(sector_order)*32),
+            else:
 
-        template="plotly_white",
+                color = color_map.get(value, "#BDBDBD")
 
-        plot_bgcolor="white",
+                html += f"""
+                <td style="
+                    text-align:center;
+                    border-bottom:1px solid #F5F5F5;
+                    padding:8px;
+                ">
+                    <div style="
+                        width:16px;
+                        height:16px;
+                        border-radius:50%;
+                        background:{color};
+                        margin:auto;
+                    ">
+                    </div>
+                </td>
+                """
 
-        paper_bgcolor="white",
+        html += "</tr>"
 
-        xaxis=dict(
+    html += "</tbody></table></div>"
 
-            title="",
-
-            showgrid=True,
-
-            gridcolor="#F3F3F3",
-
-            tickformat="%d/%m",
-
-            dtick="D7"
-
-        ),
-
-        yaxis=dict(
-
-            title="",
-
-            categoryorder="array",
-
-            categoryarray=sector_order,
-
-            autorange="reversed"
-
-        ),
-
-        legend=dict(
-
-            orientation="h",
-
-            y=1.08,
-
-            x=0
-
-        ),
-
-        margin=dict(
-
-            l=20,
-
-            r=20,
-
-            t=40,
-
-            b=20
-
-        )
-
+    st.markdown(
+        html,
+        unsafe_allow_html=True
     )
 
-    return fig
+    st.write("")
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.markdown("🟢 Tiếp tục đổ vào")
+
+    with c2:
+        st.markdown("🟩 Nhen nhóm đổ vào")
+
+    with c3:
+        st.markdown("🟠 Đang thoát ra")
+
+    with c4:
+        st.markdown("🔴 Tiếp tục thoát ra")
