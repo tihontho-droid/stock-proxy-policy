@@ -1524,10 +1524,6 @@ import plotly.graph_objects as go
 
 st.subheader("Tổng quan sóng ngành")
 
-# ----------------------------------
-# Lọc theo chu kỳ
-# ----------------------------------
-
 sector_cycle = (
     sector_all_df[
         (sector_all_df["date"] >= cycle_start) &
@@ -1540,139 +1536,122 @@ if sector_cycle.empty:
     st.info("Không có dữ liệu.")
     st.stop()
 
-# ----------------------------------
-# Mapping màu
-# ----------------------------------
+# --------------------------
+# Mapping icon
+# --------------------------
 
-color_map = {
-    "Tiếp tục đổ vào": "#00C853",      # xanh đậm
-    "Nhen nhóm đổ vào": "#81C784",     # xanh nhạt
-    "Đang thoát ra": "#FFA000",        # cam
-    "Tiếp tục thoát ra": "#F44336"     # đỏ
+icon_map = {
+    "Tiếp tục đổ vào": "🟢",
+    "Nhen nhóm đổ vào": "🟩",
+    "Đang thoát ra": "🟠",
+    "Tiếp tục thoát ra": "🔴"
 }
 
-# ----------------------------------
-# Chuẩn bị dữ liệu
-# ----------------------------------
-
-sector_cycle["date_str"] = sector_cycle["date"].dt.strftime("%d/%m")
-
-dates = sorted(sector_cycle["date_str"].unique())
-
-sectors = (
-    sector_cycle.groupby("nganh")["flow_num"]
-    .sum()
-    .sort_values(ascending=False)
-    .index.tolist()
+sector_cycle["signal"] = (
+    sector_cycle["cashflow"]
+    .map(icon_map)
 )
 
-fig = go.Figure()
+# --------------------------
+# Pivot
+# --------------------------
 
-# ----------------------------------
-# Vẽ từng ngành
-# ----------------------------------
-
-for sector in sectors:
-
-    df_sector = (
-        sector_cycle[
-            sector_cycle["nganh"] == sector
-        ]
-        .set_index("date_str")
+matrix = (
+    sector_cycle
+    .pivot_table(
+        index="nganh",
+        columns="date",
+        values="signal",
+        aggfunc="last"
     )
+)
 
-    for d in dates:
+matrix = matrix.fillna("--")
 
-        if d not in df_sector.index:
+matrix.columns = [
+    d.strftime("%d/%m")
+    for d in matrix.columns
+]
 
-            fig.add_trace(
-                go.Scatter(
-                    x=[d],
-                    y=[sector],
-                    mode="text",
-                    text=["--"],
-                    textfont=dict(
-                        size=14,
-                        color="#666666"
-                    ),
-                    hoverinfo="skip",
-                    showlegend=False
+# --------------------------
+# Sắp xếp ngành
+# --------------------------
+
+order = (
+    sector_cycle
+    .groupby("nganh")["flow_num"]
+    .sum()
+    .sort_values(ascending=False)
+    .index
+)
+
+matrix = matrix.loc[order]
+
+# --------------------------
+# Plotly Table
+# --------------------------
+
+header = ["Ngành"] + matrix.columns.tolist()
+
+cells = [matrix.index.tolist()]
+
+for col in matrix.columns:
+    cells.append(matrix[col].tolist())
+
+fig = go.Figure(
+    data=[
+        go.Table(
+
+            columnwidth=[180] + [40] * len(matrix.columns),
+
+            header=dict(
+
+                values=header,
+
+                fill_color="#1976D2",
+
+                font=dict(
+                    color="white",
+                    size=13
+                ),
+
+                align="center",
+
+                height=32
+
+            ),
+
+            cells=dict(
+
+                values=cells,
+
+                fill_color="white",
+
+                align="center",
+
+                height=28,
+
+                font=dict(
+                    size=16
                 )
+
             )
 
-        else:
-
-            row = df_sector.loc[d]
-
-            color = color_map.get(
-                row["cashflow"],
-                "#BDBDBD"
-            )
-
-            fig.add_trace(
-                go.Scatter(
-                    x=[d],
-                    y=[sector],
-                    mode="markers",
-                    marker=dict(
-                        size=15,
-                        color=color
-                    ),
-                    hovertemplate=
-                        "<b>%{y}</b><br>"
-                        "Ngày: %{x}<br>"
-                        f"Cashflow: {row['cashflow']}<br>"
-                        f"SMDT: {row['smdt']:.2f}"
-                        "<extra></extra>",
-                    showlegend=False
-                )
-            )
-
-# ----------------------------------
-# Layout
-# ----------------------------------
+        )
+    ]
+)
 
 fig.update_layout(
-
-    height=max(500, len(sectors) * 45),
-
-    plot_bgcolor="white",
-
-    paper_bgcolor="white",
-
+    height=min(
+        900,
+        80 + len(matrix) * 30
+    ),
     margin=dict(
-        l=20,
-        r=20,
-        t=20,
-        b=20
-    ),
-
-    xaxis=dict(
-
-        title="",
-
-        side="top",
-
-        tickangle=0,
-
-        showgrid=False,
-
-        zeroline=False
-
-    ),
-
-    yaxis=dict(
-
-        title="",
-
-        autorange="reversed",
-
-        showgrid=True,
-
-        gridcolor="#EEEEEE"
-
+        l=10,
+        r=10,
+        t=10,
+        b=10
     )
-
 )
 
 st.plotly_chart(
@@ -1680,23 +1659,12 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# ----------------------------------
-# Chú thích
-# ----------------------------------
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-with c1:
-    st.markdown("🟢 Tiếp tục đổ vào")
-
-with c2:
-    st.markdown("🟩 Nhen nhóm đổ vào")
-
-with c3:
-    st.markdown("🟠 Đang thoát ra")
-
-with c4:
-    st.markdown("🔴 Tiếp tục thoát ra")
-
-with c5:
-    st.markdown("-- Không tín hiệu")
+st.caption(
+"""
+🟢 Tiếp tục đổ vào  
+🟩 Nhen nhóm đổ vào  
+🟠 Đang thoát ra  
+🔴 Tiếp tục thoát ra  
+-- Không tín hiệu
+"""
+)
