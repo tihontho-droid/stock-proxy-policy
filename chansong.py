@@ -1516,122 +1516,76 @@ renderLightweightCharts(
     key="vnindex_regime_final_clean_markers"
 )
 
-import plotly.graph_objects as go
 
 # =========================
-# CƯỜNG ĐỘ DÒNG TIỀN NGÀNH
+# SMDT THEO NGÀNH
 # =========================
 
-st.subheader("Cường độ dòng tiền ngành")
+st.subheader("Diễn biến SMDT theo ngành")
 
-sector_cycle = (
+# Danh sách ngành
+sector_list = sorted(sector_all_df["nganh"].dropna().unique())
+
+selected_sector = st.selectbox(
+    "Chọn ngành",
+    sector_list
+)
+
+# Lọc theo chu kỳ + ngành
+sector_plot = (
     sector_all_df[
-        (sector_all_df["date"] >= cycle_start) &
+        (sector_all_df["nganh"] == selected_sector)
+        &
+        (sector_all_df["date"] >= cycle_start)
+        &
         (sector_all_df["date"] <= cycle_end)
     ]
+    .sort_values("date")
     .copy()
 )
 
-if sector_cycle.empty:
+if sector_plot.empty:
 
     st.info("Không có dữ liệu.")
 
 else:
 
-    # Quy đổi trạng thái dòng tiền thành điểm
-    flow_score = {
-        "Tiếp tục đổ vào": 2,
-        "Nhen nhóm đổ vào": 1,
-        "Đang thoát ra": -2,
-        "Tiếp tục thoát ra": -1
-    }
+    import plotly.express as px
 
-    sector_cycle["score"] = (
-        sector_cycle["cashflow"]
-        .map(flow_score)
-        .fillna(0)
+    sector_plot["date_str"] = sector_plot["date"].dt.strftime("%d/%m")
+
+    fig = px.bar(
+        sector_plot,
+        x="smdt",
+        y="date_str",
+        orientation="h",
+        text="smdt"
     )
 
-    # Tổng điểm của cả chu kỳ
-    sector_strength = (
-        sector_cycle
-        .groupby("nganh")["score"]
-        .sum()
-        .sort_values(ascending=False)
+    fig.update_traces(
+        texttemplate="%{text:.1f}",
+        textposition="outside"
     )
 
-    max_score = sector_strength.abs().max()
+    fig.update_layout(
 
-    if max_score == 0:
-        max_score = 1
+        title=f"SMDT ngành {selected_sector}",
 
-    html = """
-    <div style="
-        border:1px solid #EEEEEE;
-        border-radius:10px;
-        padding:15px;
-    ">
-    """
+        height=max(500, len(sector_plot) * 28),
 
-    for sector, score in sector_strength.items():
+        xaxis_title="SMDT",
 
-        # chiều dài thanh
-        width = int(abs(score) / max_score * 250)
+        yaxis_title="",
 
-        if score > 0:
+        yaxis=dict(
+            autorange="reversed"
+        ),
 
-            color = "#00C853"
+        showlegend=False
 
-        elif score < 0:
+    )
 
-            color = "#E53935"
-
-        else:
-
-            color = "#BDBDBD"
-
-        html += f"""
-        <div style="
-            display:flex;
-            align-items:center;
-            margin-bottom:12px;
-        ">
-
-            <div style="
-                width:170px;
-                font-weight:600;
-            ">
-                {sector}
-            </div>
-
-            <div style="
-                width:260px;
-                height:18px;
-                background:#F3F3F3;
-                border-radius:10px;
-                overflow:hidden;
-            ">
-
-                <div style="
-                    width:{width}px;
-                    height:18px;
-                    background:{color};
-                    border-radius:10px;
-                ">
-                </div>
-
-            </div>
-
-            <div style="
-                margin-left:10px;
-                font-weight:600;
-            ">
-                {score:.0f}
-            </div>
-
-        </div>
-        """
-
-    html += "</div>"
-
-    st.markdown(html, unsafe_allow_html=True)
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
