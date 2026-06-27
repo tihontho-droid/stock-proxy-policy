@@ -1625,32 +1625,24 @@ else:
         key=f"smdt_line_{selected_sector}"
     )
 
+
+import streamlit as st
+
 # =========================
-# DATA SMDT
+# INIT STATE
 # =========================
-smdt_data = []
-threshold_data = []
-
-for _, row in sector_plot.iterrows():
-    t = row["date"].strftime("%Y-%m-%d")
-
-    smdt_data.append({
-        "time": t,
-        "value": float(row["smdt"])
-    })
-
-    threshold_data.append({
-        "time": t,
-        "value": 70
-    })
+if "time_range" not in st.session_state:
+    st.session_state["time_range"] = None
 
 
 # =========================
-# CHART
+# VNINDEX CHART (TOP)
 # =========================
+st.subheader("Diễn biến thị trường trong từng giai đoạn")
+
 vnindex_chart = {
     "chart": {
-        "height": 700,
+        "height": 600,
         "layout": {
             "background": {"type": "solid", "color": "#ffffff"},
             "textColor": "#000000"
@@ -1667,10 +1659,6 @@ vnindex_chart = {
     },
 
     "series": [
-
-        # =========================
-        # VNINDEX (MAIN)
-        # =========================
         {
             "type": "Candlestick",
             "data": candles,
@@ -1679,65 +1667,116 @@ vnindex_chart = {
                 "priceScaleId": "right"
             }
         },
-
         *regime_lines,
-        *transitions,
-
-        # =========================
-        # SMDT (LEFT SCALE - SMALL PANE FEEL)
-        # =========================
-        {
-            "type": "Line",
-            "data": smdt_data,
-            "options": {
-                "color": "#1976D2",
-                "lineWidth": 2,
-
-                # 🔥 QUAN TRỌNG: scale riêng bên trái
-                "priceScaleId": "smdt"
-            }
-        },
-
-        # =========================
-        # NGƯỠNG 70
-        # =========================
-        {
-            "type": "Line",
-            "data": threshold_data,
-            "options": {
-                "color": "#E53935",
-                "lineWidth": 1,
-                "lineStyle": 2,
-                "priceScaleId": "smdt"
-            }
-        }
-    ],
-
-    # =========================
-    # SCALE CONFIG
-    # =========================
-    "rightPriceScale": {
-        "visible": True
-    },
-
-    "leftPriceScale": {
-        "visible": True,   # 🔥 bật trái cho SMDT
-        "borderVisible": False
-    },
-
-    "priceScale": {
-        "smdt": {
-            "position": "left",   # 🔥 SMDT nằm bên trái
-            "mode": 0
-        }
-    }
+        *transitions
+    ]
 }
 
-
-# =========================
-# RENDER
-# =========================
 renderLightweightCharts(
     [vnindex_chart],
-    key="vnindex_smdt_left_scale"
+    key="vnindex_main_chart"
 )
+
+
+# =========================
+# SMDT SECTION (BOTTOM)
+# =========================
+st.subheader("Sức mạnh dòng tiền SMDT theo ngành")
+
+sector_list = sorted(sector_all_df["nganh"].dropna().unique())
+
+selected_sector = st.selectbox(
+    "Chọn ngành",
+    sector_list,
+    key="sector_smdt"
+)
+
+sector_plot = (
+    sector_all_df[
+        sector_all_df["nganh"] == selected_sector
+    ]
+    .sort_values("date")
+    .copy()
+)
+
+
+# =========================
+# CHECK DATA
+# =========================
+if sector_plot.empty:
+    st.warning("Không có dữ liệu.")
+else:
+
+    # =========================
+    # BUILD DATA
+    # =========================
+    smdt_data = []
+    threshold_data = []
+
+    for _, row in sector_plot.iterrows():
+
+        t = row["date"].strftime("%Y-%m-%d")
+
+        smdt_data.append({
+            "time": t,
+            "value": float(row["smdt"])
+        })
+
+        threshold_data.append({
+            "time": t,
+            "value": 70
+        })
+
+    # =========================
+    # SMDT CHART (RSI STYLE PANEL)
+    # =========================
+    smdt_chart = {
+        "chart": {
+            "height": 250,
+            "layout": {
+                "background": {"type": "solid", "color": "#ffffff"},
+                "textColor": "#333333"
+            },
+            "grid": {
+                "vertLines": {"color": "#f0f0f0"},
+                "horzLines": {"color": "#f0f0f0"}
+            },
+            "timeScale": {
+                "timeVisible": True,
+                "secondsVisible": False
+            },
+            "crosshair": {"mode": 1}
+        },
+
+        "series": [
+            {
+                "type": "Line",
+                "data": smdt_data,
+                "options": {
+                    "color": "#1976D2",
+                    "lineWidth": 2,
+                    "lastValueVisible": True,
+                    "crosshairMarkerVisible": True
+                }
+            },
+            {
+                "type": "Line",
+                "data": threshold_data,
+                "options": {
+                    "color": "#E53935",
+                    "lineWidth": 1,
+                    "lineStyle": 2,
+                    "lastValueVisible": False,
+                    "crosshairMarkerVisible": False
+                }
+            }
+        ]
+    }
+
+    # =========================
+    # RENDER SMDT
+    # =========================
+    renderLightweightCharts(
+        [smdt_chart],
+        key=f"smdt_panel_{selected_sector}"
+    )
