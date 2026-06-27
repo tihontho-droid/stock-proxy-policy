@@ -1520,13 +1520,17 @@ renderLightweightCharts(
 # TỔNG QUAN SÓNG NGÀNH
 # =========================
 
-st.write("")
+import plotly.graph_objects as go
+
 st.subheader("Tổng quan sóng ngành")
+
+# ----------------------------------
+# Lọc theo chu kỳ
+# ----------------------------------
 
 sector_cycle = (
     sector_all_df[
-        (sector_all_df["date"] >= cycle_start)
-        &
+        (sector_all_df["date"] >= cycle_start) &
         (sector_all_df["date"] <= cycle_end)
     ]
     .copy()
@@ -1534,152 +1538,165 @@ sector_cycle = (
 
 if sector_cycle.empty:
     st.info("Không có dữ liệu.")
-else:
+    st.stop()
 
-    color_map = {
-        "Tiếp tục đổ vào": "#00C853",
-        "Nhen nhóm đổ vào": "#81C784",
-        "Đang thoát ra": "#FFA000",
-        "Tiếp tục thoát ra": "#E53935"
-    }
+# ----------------------------------
+# Mapping màu
+# ----------------------------------
 
-    table = (
-        sector_cycle
-        .pivot_table(
-            index="nganh",
-            columns="date",
-            values="cashflow",
-            aggfunc="last"
-        )
+color_map = {
+    "Tiếp tục đổ vào": "#00C853",      # xanh đậm
+    "Nhen nhóm đổ vào": "#81C784",     # xanh nhạt
+    "Đang thoát ra": "#FFA000",        # cam
+    "Tiếp tục thoát ra": "#F44336"     # đỏ
+}
+
+# ----------------------------------
+# Chuẩn bị dữ liệu
+# ----------------------------------
+
+sector_cycle["date_str"] = sector_cycle["date"].dt.strftime("%d/%m")
+
+dates = sorted(sector_cycle["date_str"].unique())
+
+sectors = (
+    sector_cycle.groupby("nganh")["flow_num"]
+    .sum()
+    .sort_values(ascending=False)
+    .index.tolist()
+)
+
+fig = go.Figure()
+
+# ----------------------------------
+# Vẽ từng ngành
+# ----------------------------------
+
+for sector in sectors:
+
+    df_sector = (
+        sector_cycle[
+            sector_cycle["nganh"] == sector
+        ]
+        .set_index("date_str")
     )
 
-    table.columns = [
-        d.strftime("%d/%m")
-        for d in table.columns
-    ]
+    for d in dates:
 
-    html = """
-    <div style="
-        overflow-x:auto;
-        border:1px solid #EEEEEE;
-        border-radius:10px;
-    ">
+        if d not in df_sector.index:
 
-    <table style="
-        border-collapse:collapse;
-        width:max-content;
-        font-size:15px;
-    ">
-    """
+            fig.add_trace(
+                go.Scatter(
+                    x=[d],
+                    y=[sector],
+                    mode="text",
+                    text=["--"],
+                    textfont=dict(
+                        size=14,
+                        color="#666666"
+                    ),
+                    hoverinfo="skip",
+                    showlegend=False
+                )
+            )
 
-    # Header
-    html += "<thead><tr>"
+        else:
 
-    html += """
-    <th style="
-        position:sticky;
-        left:0;
-        background:white;
-        min-width:180px;
-        padding:12px;
-        text-align:left;
-        border-bottom:1px solid #EEEEEE;
-        z-index:2;
-    ">
-    Ngành
-    </th>
-    """
+            row = df_sector.loc[d]
 
-    for d in table.columns:
+            color = color_map.get(
+                row["cashflow"],
+                "#BDBDBD"
+            )
 
-        html += f"""
-        <th style="
-            min-width:60px;
-            text-align:center;
-            padding:10px;
-            border-bottom:1px solid #EEEEEE;
-            background:white;
-        ">
-        {d}
-        </th>
-        """
+            fig.add_trace(
+                go.Scatter(
+                    x=[d],
+                    y=[sector],
+                    mode="markers",
+                    marker=dict(
+                        size=15,
+                        color=color
+                    ),
+                    hovertemplate=
+                        "<b>%{y}</b><br>"
+                        "Ngày: %{x}<br>"
+                        f"Cashflow: {row['cashflow']}<br>"
+                        f"SMDT: {row['smdt']:.2f}"
+                        "<extra></extra>",
+                    showlegend=False
+                )
+            )
 
-    html += "</tr></thead>"
+# ----------------------------------
+# Layout
+# ----------------------------------
 
-    html += "<tbody>"
+fig.update_layout(
 
-    for sector in table.index:
+    height=max(500, len(sectors) * 45),
 
-        html += f"""
-        <tr>
+    plot_bgcolor="white",
 
-        <td style="
-            position:sticky;
-            left:0;
-            background:white;
-            padding:10px;
-            font-weight:600;
-            border-bottom:1px solid #F5F5F5;
-        ">
-        {sector}
-        </td>
-        """
+    paper_bgcolor="white",
 
-        for value in table.loc[sector]:
+    margin=dict(
+        l=20,
+        r=20,
+        t=20,
+        b=20
+    ),
 
-            if pd.isna(value):
+    xaxis=dict(
 
-                html += """
-                <td style="
-                    text-align:center;
-                    border-bottom:1px solid #F5F5F5;
-                ">
-                --
-                </td>
-                """
+        title="",
 
-            else:
+        side="top",
 
-                color = color_map.get(value, "#BDBDBD")
+        tickangle=0,
 
-                html += f"""
-                <td style="
-                    text-align:center;
-                    border-bottom:1px solid #F5F5F5;
-                    padding:8px;
-                ">
-                    <div style="
-                        width:16px;
-                        height:16px;
-                        border-radius:50%;
-                        background:{color};
-                        margin:auto;
-                    ">
-                    </div>
-                </td>
-                """
+        showgrid=False,
 
-        html += "</tr>"
+        zeroline=False
 
-    html += "</tbody></table></div>"
+    ),
 
-    st.markdown(
-        html,
-        unsafe_allow_html=True
+    yaxis=dict(
+
+        title="",
+
+        autorange="reversed",
+
+        showgrid=True,
+
+        gridcolor="#EEEEEE"
+
     )
 
-    st.write("")
+)
 
-    c1, c2, c3, c4 = st.columns(4)
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
 
-    with c1:
-        st.markdown("🟢 Tiếp tục đổ vào")
+# ----------------------------------
+# Chú thích
+# ----------------------------------
 
-    with c2:
-        st.markdown("🟩 Nhen nhóm đổ vào")
+c1, c2, c3, c4, c5 = st.columns(5)
 
-    with c3:
-        st.markdown("🟠 Đang thoát ra")
+with c1:
+    st.markdown("🟢 Tiếp tục đổ vào")
 
-    with c4:
-        st.markdown("🔴 Tiếp tục thoát ra")
+with c2:
+    st.markdown("🟩 Nhen nhóm đổ vào")
+
+with c3:
+    st.markdown("🟠 Đang thoát ra")
+
+with c4:
+    st.markdown("🔴 Tiếp tục thoát ra")
+
+with c5:
+    st.markdown("-- Không tín hiệu")
