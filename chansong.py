@@ -1549,6 +1549,13 @@ if sector_plot.empty:
 else:
 
     line_data = []
+    threshold_data = [
+        {
+            "time": row["date"].strftime("%Y-%m-%d"),
+            "value": 70
+        }
+        for _, row in sector_plot.iterrows()
+    ]
 
     for _, row in sector_plot.iterrows():
 
@@ -1604,21 +1611,25 @@ else:
                     # -----------------------
                     "priceLines": [
     
-                        {
-    
-                            "price": 70,
-    
-                            "color": "#E53935",
-    
-                            "lineWidth": 2,
-    
-                            "lineStyle": 2,      # 0=solid, 1=dotted, 2=dashed
-    
-                            "axisLabelVisible": True,
-    
-                            "title": "70"
-    
-                        }
+                           {
+                               "type": "Line",
+                           
+                               "data": threshold_data,
+                           
+                               "options": {
+                           
+                                   "color": "#E53935",
+                           
+                                   "lineWidth": 2,
+                           
+                                   "lineStyle": 2,      # dashed
+                           
+                                   "lastValueVisible": False,
+                           
+                                   "priceLineVisible": False
+                           
+                               }
+                           }
     
                     ]
 
