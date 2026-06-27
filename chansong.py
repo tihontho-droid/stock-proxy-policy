@@ -1520,8 +1520,6 @@ renderLightweightCharts(
 # BIỂU ĐỒ SMDT THEO NGÀNH
 # =========================
 
-st.subheader("Diễn biến SMDT ngành")
-
 sector_list = sorted(
     sector_all_df["nganh"].dropna().unique()
 )
@@ -1600,7 +1598,7 @@ else:
     # CHART OPTIONS
     # =========================
     chart = {
-        "height": 450,
+        "height": 250,
         "layout": {
             "background": {
                 "type": "solid",
