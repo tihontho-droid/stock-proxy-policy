@@ -1515,5 +1515,64 @@ renderLightweightCharts(
     key="vnindex_regime_final_clean_markers"
 )
 
-st.write(sector_all_df.columns.tolist())
-st.dataframe(sector_all_df.head())
+# =========================
+# SECTOR FLOW HEATMAP
+# =========================
+
+st.write("")
+st.subheader("Luân chuyển dòng tiền ngành")
+
+sector_cycle = (
+    sector_all_df[
+        (sector_all_df["date"] >= cycle_start) &
+        (sector_all_df["date"] <= cycle_end)
+    ]
+    .copy()
+)
+
+sector_cycle["score"] = (
+      sector_cycle["flow_vua_tich_cuc"].astype(int)
+    + sector_cycle["smdt_vua_vuot_70"].astype(int)
+    + sector_cycle["nganh_vua_dep"].astype(int)
+)
+
+heatmap_df = (
+    sector_cycle
+    .pivot_table(
+        index="nganh",
+        columns="date",
+        values="score",
+        aggfunc="max"
+    )
+    .fillna(0)
+)
+
+import plotly.express as px
+
+fig = px.imshow(
+    heatmap_df,
+    aspect="auto",
+    color_continuous_scale=[
+        [0.0, "#eeeeee"],
+        [0.33, "#FFD54F"],
+        [0.66, "#42A5F5"],
+        [1.0, "#00C853"]
+    ],
+    labels=dict(
+        x="Ngày",
+        y="Ngành",
+        color="Điểm tín hiệu"
+    )
+)
+
+fig.update_layout(
+    height=650,
+    coloraxis_colorbar=dict(
+        title="Score"
+    )
+)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
