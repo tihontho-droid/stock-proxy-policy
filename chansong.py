@@ -1551,40 +1551,35 @@ if sector_plot.empty:
 else:
 
     import plotly.express as px
-
+    
     sector_plot["date_str"] = sector_plot["date"].dt.strftime("%d/%m")
-
-    fig = px.bar(
+    
+    fig = px.line(
         sector_plot,
-        x="smdt",
-        y="date_str",
-        orientation="h",
-        text="smdt"
+        x="date_str",
+        y="smdt",
+        markers=True
     )
-
+    
     fig.update_traces(
-        texttemplate="%{text:.1f}",
-        textposition="outside"
+        line=dict(width=3),
+        marker=dict(size=8)
     )
-
+    
     fig.update_layout(
-
+    
         title=f"SMDT ngành {selected_sector}",
-
-        height=max(500, len(sector_plot) * 28),
-
-        xaxis_title="SMDT",
-
-        yaxis_title="",
-
-        yaxis=dict(
-            autorange="reversed"
-        ),
-
-        showlegend=False
-
+    
+        xaxis_title="",
+    
+        yaxis_title="SMDT",
+    
+        hovermode="x unified",
+    
+        height=500
+    
     )
-
+    
     st.plotly_chart(
         fig,
         use_container_width=True
