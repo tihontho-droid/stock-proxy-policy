@@ -1625,6 +1625,29 @@ else:
         key=f"smdt_line_{selected_sector}"
     )
 
+# =========================
+# DATA SMDT
+# =========================
+chart_data = []
+threshold_data = []
+
+for _, row in sector_plot.iterrows():
+    t = row["date"].strftime("%Y-%m-%d")
+
+    chart_data.append({
+        "time": t,
+        "value": float(row["smdt"])
+    })
+
+    threshold_data.append({
+        "time": t,
+        "value": 70
+    })
+
+
+# =========================
+# VNINDEX + SMDT (RSI STYLE PANE)
+# =========================
 vnindex_chart = {
     "chart": {
         "height": 700,
@@ -1644,8 +1667,9 @@ vnindex_chart = {
     },
 
     "series": [
+
         # =========================
-        # VNINDEX (MAIN CHART)
+        # VNINDEX CANDLESTICK
         # =========================
         {
             "type": "Candlestick",
@@ -1657,13 +1681,13 @@ vnindex_chart = {
         },
 
         # =========================
-        # REGIME LINES
+        # REGIME LINES + TRANSITIONS
         # =========================
         *regime_lines,
         *transitions,
 
         # =========================
-        # SMDT (RSI-LIKE PANE)
+        # SMDT (RSI PANE)
         # =========================
         {
             "type": "Line",
@@ -1671,8 +1695,13 @@ vnindex_chart = {
             "options": {
                 "color": "#1976D2",
                 "lineWidth": 2,
-                "priceScaleId": "smdt",   # 🔥 TẠO PANE RIÊNG
-                "crosshairMarkerVisible": True
+
+                # 🔥 PANE RIÊNG GIỐNG RSI
+                "priceScaleId": "smdt",
+
+                "lastValueVisible": True,
+                "crosshairMarkerVisible": True,
+                "crosshairMarkerRadius": 4
             }
         },
 
@@ -1685,15 +1714,17 @@ vnindex_chart = {
             "options": {
                 "color": "#E53935",
                 "lineWidth": 1,
-                "lineStyle": 2,
+                "lineStyle": 2,  # dashed
+
                 "priceScaleId": "smdt",
+                "lastValueVisible": False,
                 "crosshairMarkerVisible": False
             }
         }
     ],
 
     # =========================
-    # DEFINE PANE SCALE
+    # PRICE SCALE CONFIG (RSI PANE STYLE)
     # =========================
     "rightPriceScale": {
         "visible": True
@@ -1701,8 +1732,17 @@ vnindex_chart = {
 
     "priceScale": {
         "smdt": {
-            "position": "none",   # 🔥 hidden scale giống RSI pane
+            "position": "none",  # 🔥 ẨN SCALE GIỐNG RSI PANE
             "mode": 0
         }
     }
 }
+
+
+# =========================
+# RENDER
+# =========================
+renderLightweightCharts(
+    [vnindex_chart],
+    key="vnindex_with_smdt_rsi_pane"
+)
