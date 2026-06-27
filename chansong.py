@@ -1514,3 +1514,5 @@ renderLightweightCharts(
     [chart],
     key="vnindex_regime_final_clean_markers"
 )
+
+st.write(sector_all_df.columns.tolist())
