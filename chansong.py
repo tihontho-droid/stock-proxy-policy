@@ -1543,27 +1543,24 @@ sector_plot = (
 )
 
 if sector_plot.empty:
-
     st.warning("Không có dữ liệu.")
 
 else:
 
-    line_data = []
-    threshold_data = [
+    # =========================
+    # LINE DATA (SMDT)
+    # =========================
+    line_data = [
         {
             "time": row["date"].strftime("%Y-%m-%d"),
-            "value": 70
+            "value": float(row["smdt"])
         }
         for _, row in sector_plot.iterrows()
     ]
 
-    for _, row in sector_plot.iterrows():
-
-        line_data.append({
-            "time": row["date"].strftime("%Y-%m-%d"),
-            "value": float(row["smdt"])
-        })
-
+    # =========================
+    # CHART CONFIG
+    # =========================
     chart = {
         "chart": {
             "height": 450,
@@ -1575,12 +1572,8 @@ else:
                 "textColor": "#333333"
             },
             "grid": {
-                "vertLines": {
-                    "color": "#f0f0f0"
-                },
-                "horzLines": {
-                    "color": "#f0f0f0"
-                }
+                "vertLines": {"color": "#f0f0f0"},
+                "horzLines": {"color": "#f0f0f0"}
             },
             "rightPriceScale": {
                 "borderVisible": False
@@ -1606,38 +1599,28 @@ else:
                     "lastValueVisible": True,
                     "crosshairMarkerVisible": True,
                     "crosshairMarkerRadius": 5,
-                    # -----------------------
-                    # ĐƯỜNG NGƯỠNG 70
-                    # -----------------------
-                    "priceLines": [
-    
-                           {
-                               "type": "Line",
-                           
-                               "data": threshold_data,
-                           
-                               "options": {
-                           
-                                   "color": "#E53935",
-                           
-                                   "lineWidth": 2,
-                           
-                                   "lineStyle": 2,      # dashed
-                           
-                                   "lastValueVisible": False,
-                           
-                                   "priceLineVisible": False
-                           
-                               }
-                           }
-    
-                    ]
 
+                    # =========================
+                    # NGƯỠNG 70 (LINE ĐỨT KHÚC)
+                    # =========================
+                    "priceLines": [
+                        {
+                            "price": 70,
+                            "color": "#E53935",
+                            "lineWidth": 2,
+                            "lineStyle": 2,  # dashed
+                            "axisLabelVisible": True,
+                            "title": "Ngưỡng 70"
+                        }
+                    ]
                 }
             }
         ]
     }
 
+    # =========================
+    # RENDER
+    # =========================
     renderLightweightCharts(
         [chart],
         key=f"smdt_line_{selected_sector}"
