@@ -1318,7 +1318,7 @@ if ticker_input:
         
         )
         
-        st.markdown("### 📋 Lịch sử giao dịch")
+        st.markdown("### Lịch sử giao dịch")
         
         if history_stock.empty:
         
@@ -1382,7 +1382,7 @@ if ticker_input:
             ]
         )
         
-        st.markdown("### 📊 Hiệu suất")
+        st.markdown("### Hiệu suất")
         
         if performance_stock.empty:
         
@@ -1420,6 +1420,6 @@ if ticker_input:
             )
         
             c6.metric(
-                "Reward/Risk",
+                "TB lãi/ TB lỗ",
                 f"{p['TB lãi/TB lỗ']:.2f}"
             )
