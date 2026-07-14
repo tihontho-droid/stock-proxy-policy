@@ -1302,142 +1302,142 @@ if ticker_input:
         
         )
 
-       # =========================
-       # HISTORY
-       # =========================
-       
-       history_stock = (
-       
-           history_all[
-               history_all["ticker"] == ticker_input
-           ]
-       
-           .sort_values("date")
-       
-           .copy()
-       
-       )
-       
-       st.markdown("### 📋 Lịch sử giao dịch")
-       
-       if history_stock.empty:
-       
-           st.info("Chưa có lịch sử giao dịch.")
-       
-       else:
-       
-           st.dataframe(
-       
-               history_stock[
-                   [
-       
-                       "date",
-       
-                       "action",
-       
-                       "invested_percent",
-       
-                       "close",
-       
-                       "PnL"
-       
-                   ]
-       
-               ].rename(
-       
-                   columns={
-       
-                       "date":"Ngày",
-       
-                       "action":"Tín hiệu",
-       
-                       "invested_percent":"Tỷ trọng (%)",
-       
-                       "close":"Giá",
-       
-                       "PnL":"Lãi/Lỗ"
-       
-                   }
-       
-               ),
-       
-               hide_index=True,
-       
-               use_container_width=True
-       
-           )
-       
-       
-       # =========================
-       # PERFORMANCE
-       # =========================
-       
-       performance_stock = (
-       
-           performance_all[
-               performance_all["ticker"] == ticker_input
-           ]
-       
-       )
-       
-       st.markdown("### 📊 Hiệu suất")
-       
-       if performance_stock.empty:
-       
-           st.info("Chưa có dữ liệu hiệu suất.")
-       
-       else:
-       
-           p = performance_stock.iloc[0]
-       
-           c1,c2,c3 = st.columns(3)
-       
-           c1.metric(
-       
-               "Win Rate",
-       
-               f"{p['Win Rate']:.2f}%"
-       
-           )
-       
-           c2.metric(
-       
-               "Số trade",
-       
-               int(p["Số trade"])
-       
-           )
-       
-           c3.metric(
-       
-               "NAV cuối",
-       
-               f"{p['NAV cuối']:,.0f}"
-       
-           )
-       
-           c4,c5,c6 = st.columns(3)
-       
-           c4.metric(
-       
-               "TB lãi",
-       
-               f"{p['TB lãi']:,.0f}"
-       
-           )
-       
-           c5.metric(
-       
-               "TB lỗ",
-       
-               f"{p['TB lỗ']:,.0f}"
-       
-           )
-       
-           c6.metric(
-       
-               "Reward/Risk",
-       
-               f"{p['TB lãi/TB lỗ']:.2f}"
-       
-           )
+        # =========================
+        # HISTORY
+        # =========================
+        
+        history_stock = (
+        
+            history_all[
+                history_all["ticker"] == ticker_input
+            ]
+        
+            .sort_values("date")
+        
+            .copy()
+        
+        )
+        
+        st.markdown("### 📋 Lịch sử giao dịch")
+        
+        if history_stock.empty:
+        
+            st.info("Chưa có lịch sử giao dịch.")
+        
+        else:
+        
+            st.dataframe(
+        
+                history_stock[
+                    [
+        
+                        "date",
+        
+                        "action",
+        
+                        "invested_percent",
+        
+                        "close",
+        
+                        "PnL"
+        
+                    ]
+        
+                ].rename(
+        
+                    columns={
+        
+                        "date":"Ngày",
+        
+                        "action":"Tín hiệu",
+        
+                        "invested_percent":"Tỷ trọng (%)",
+        
+                        "close":"Giá",
+        
+                        "PnL":"Lãi/Lỗ"
+        
+                    }
+        
+                ),
+        
+                hide_index=True,
+        
+                use_container_width=True
+        
+            )
+        
+        
+        # =========================
+        # PERFORMANCE
+        # =========================
+        
+        performance_stock = (
+        
+            performance_all[
+                performance_all["ticker"] == ticker_input
+            ]
+        
+        )
+        
+        st.markdown("### 📊 Hiệu suất")
+        
+        if performance_stock.empty:
+        
+            st.info("Chưa có dữ liệu hiệu suất.")
+        
+        else:
+        
+            p = performance_stock.iloc[0]
+        
+            c1,c2,c3 = st.columns(3)
+        
+            c1.metric(
+        
+                "Win Rate",
+        
+                f"{p['Win Rate']:.2f}%"
+        
+            )
+        
+            c2.metric(
+        
+                "Số trade",
+        
+                int(p["Số trade"])
+        
+            )
+        
+            c3.metric(
+        
+                "NAV cuối",
+        
+                f"{p['NAV cuối']:,.0f}"
+        
+            )
+        
+            c4,c5,c6 = st.columns(3)
+        
+            c4.metric(
+        
+                "TB lãi",
+        
+                f"{p['TB lãi']:,.0f}"
+        
+            )
+        
+            c5.metric(
+        
+                "TB lỗ",
+        
+                f"{p['TB lỗ']:,.0f}"
+        
+            )
+        
+            c6.metric(
+        
+                "Reward/Risk",
+        
+                f"{p['TB lãi/TB lỗ']:.2f}"
+        
+            )
