@@ -1078,29 +1078,36 @@ if ticker_input:
             key=f"stock_chart_{ticker_input}"
         )
 
-# Chọn ngày 
+# =========================
+# DANH SÁCH TÍN HIỆU
+# =========================
+
 st.subheader("📈 Danh sách tín hiệu")
 
-date = st.selectbox(
+# Chọn ngày
+selected_date = st.selectbox(
 
     "Chọn ngày",
 
     sorted(
-        signal_df["date"].unique(),
+        signal_df["date"].drop_duplicates(),
         reverse=True
     ),
 
     format_func=lambda x: x.strftime("%d/%m/%Y")
+
 )
 
-# lấy tín hiệu ngày đó 
+# =========================
+# DỮ LIỆU NGÀY ĐÓ
+# =========================
+
 today_signal = signal_df[
-    signal_df["date"] == date
+    signal_df["date"] == selected_date
 ].copy()
 
-# lấy giá ngày đó
 today_price = price_df[
-    price_df["date"] == date
+    price_df["date"] == selected_date
 ][
     [
         "ticker",
@@ -1108,7 +1115,6 @@ today_price = price_df[
     ]
 ]
 
-# merge
 today_signal = today_signal.merge(
 
     today_price,
@@ -1119,157 +1125,130 @@ today_signal = today_signal.merge(
 
 )
 
-# Đếm số lượng tín hiệu 
-buy_count = today_signal["action"].str.contains(
-    "Buy",
-    case=False
-).sum()
+# =========================
+# ĐỔI TÊN CỘT
+# =========================
 
-sell_count = today_signal["action"].str.contains(
-    "Sell",
-    case=False
-).sum()
+display_cols = {
 
-hold_count = (
+    "ticker": "Mã",
+
+    "action": "Tín hiệu",
+
+    "invested_percent": "Tỷ trọng (%)",
+
+    "close": "Giá",
+
+    "final_score": "Final Score"
+
+}
+
+# =========================
+# THỐNG KÊ
+# =========================
+
+buy_df = today_signal[
+    today_signal["action"].str.contains(
+        "Buy",
+        case=False,
+        na=False
+    )
+]
+
+sell_df = today_signal[
+    today_signal["action"].str.contains(
+        "Sell",
+        case=False,
+        na=False
+    )
+]
+
+hold_df = today_signal[
     today_signal["action"] == "Hold"
-).sum()
+]
 
-all_count = len(today_signal)
-
-# Hiện thống kê 
 c1,c2,c3,c4 = st.columns(4)
 
 c1.metric(
-    "Tất cả",
-    all_count
+    "📋 Tất cả",
+    len(today_signal)
 )
 
 c2.metric(
-    "🟢 Mua vào",
-    buy_count
+    "🟢 Mua",
+    len(buy_df)
 )
 
 c3.metric(
-    "🔴 Bán ra",
-    sell_count
+    "🔴 Bán",
+    len(sell_df)
 )
 
 c4.metric(
     "🟡 Nắm giữ",
-    hold_count
+    len(hold_df)
 )
 
-# Tạo Tabs
+# =========================
+# TAB
+# =========================
+
 tab1,tab2,tab3,tab4 = st.tabs(
 
     [
 
         "📋 Tất cả",
 
-        "🟢 Mua vào",
+        "🟢 Mua",
 
-        "🔴 Bán ra",
+        "🔴 Bán",
 
-        "🟡 Nắm giữ"
+        "🟡 Hold"
 
     ]
 
 )
 
-# Tab tất cả
+# =========================
+# HÀM HIỂN THỊ
+# =========================
+
+def show_table(df):
+
+    if df.empty:
+
+        st.info("Không có tín hiệu.")
+
+    else:
+
+        st.dataframe(
+
+            df[
+                list(display_cols.keys())
+            ].rename(columns=display_cols),
+
+            hide_index=True,
+
+            use_container_width=True
+
+        )
+
+# =========================
+# CÁC TAB
+# =========================
+
 with tab1:
 
-    st.dataframe(
+    show_table(today_signal)
 
-        today_signal[
-            [
-                "ticker",
-                "action",
-                "invested_percent",
-                "close",
-                "final_score"
-            ]
-        ],
-
-        use_container_width=True,
-        hide_index=True
-
-    )
-
-# Tab Mua 
 with tab2:
 
-    buy_df = today_signal[
-        today_signal["action"].str.contains(
-            "Buy",
-            case=False
-        )
-    ]
+    show_table(buy_df)
 
-    st.dataframe(
-
-        buy_df[
-            [
-                "ticker",
-                "action",
-                "invested_percent",
-                "close",
-                "final_score"
-            ]
-        ],
-
-        use_container_width=True,
-        hide_index=True
-
-    )
-
-# Tab Bán
 with tab3:
 
-    sell_df = today_signal[
-        today_signal["action"].str.contains(
-            "Sell",
-            case=False
-        )
-    ]
+    show_table(sell_df)
 
-    st.dataframe(
-
-        sell_df[
-            [
-                "ticker",
-                "action",
-                "invested_percent",
-                "close",
-                "final_score"
-            ]
-        ],
-
-        use_container_width=True,
-        hide_index=True
-
-    )
-
-# Tab Hold
 with tab4:
 
-    hold_df = today_signal[
-        today_signal["action"] == "Hold"
-    ]
-
-    st.dataframe(
-
-        hold_df[
-            [
-                "ticker",
-                "action",
-                "invested_percent",
-                "close",
-                "final_score"
-            ]
-        ],
-
-        use_container_width=True,
-        hide_index=True
-
-    )
+    show_table(hold_df)
