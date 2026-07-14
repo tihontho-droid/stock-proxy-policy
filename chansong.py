@@ -1106,8 +1106,8 @@ today_signal = signal_df[
     signal_df["date"] == selected_date
 ].copy()
 
-today_price = price_df[
-    price_df["date"] == selected_date
+today_price = price_all[
+    price_all["date"] == selected_date
 ][
     [
         "ticker",
