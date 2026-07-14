@@ -1336,17 +1336,17 @@ if ticker_input:
         
             c3.metric(
                 "NAV cuối",
-                f"{p['NAV cuối']:,.0f}"
+                f"{p['NAV cuối']*1000:,.0f}"
             )
         
             c4.metric(
                 "TB lãi",
-                f"{p['TB lãi']:,.0f}"
+                f"{p['TB lãi']*1000:,.0f}"
             )
         
             c5.metric(
                 "TB lỗ",
-                f"{p['TB lỗ']:,.0f}"
+                f"{p['TB lỗ']*1000:,.0f}"
             )
         
             c6.metric(
