@@ -1140,52 +1140,6 @@ display_cols = {
 }
 
 # =========================
-# THỐNG KÊ
-# =========================
-
-buy_df = today_signal[
-    today_signal["action"].str.contains(
-        "Buy",
-        case=False,
-        na=False
-    )
-]
-
-sell_df = today_signal[
-    today_signal["action"].str.contains(
-        "Sell",
-        case=False,
-        na=False
-    )
-]
-
-hold_df = today_signal[
-    today_signal["action"] == "Hold"
-]
-
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric(
-    "📋 Tất cả",
-    len(today_signal)
-)
-
-c2.metric(
-    "🟢 Mua",
-    len(buy_df)
-)
-
-c3.metric(
-    "🔴 Bán",
-    len(sell_df)
-)
-
-c4.metric(
-    "🟡 Nắm giữ",
-    len(hold_df)
-)
-
-# =========================
 # TAB
 # =========================
 
@@ -1193,13 +1147,13 @@ tab1, tab2, tab3, tab4 = st.tabs(
 
     [
 
-        "📋 Tất cả",
+        "Tất cả",
 
-        "🟢 Mua",
+        "Mua",
 
-        "🔴 Bán",
+        "Bán",
 
-        "🟡 Hold"
+        "Hold"
 
     ]
 
