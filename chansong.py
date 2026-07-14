@@ -1026,7 +1026,7 @@ with tab4:
 # BOX TÌM MÃ VÀ VẼ ZIGZAG CỔ PHIẾU
 # =========================
 
-st.subheader("Tra cứu biểu đồ ZigZag theo mã cổ phiếu")
+st.subheader("Tín hiệu theo mã cổ phiếu")
 
 ticker_input = st.text_input(
     "Nhập mã cổ phiếu",
