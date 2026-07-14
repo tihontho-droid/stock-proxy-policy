@@ -1081,31 +1081,44 @@ if ticker_input:
         )
 
 # =========================
-# DANH SÁCH TÍN HIỆU
+# CHỌN NGÀY
 # =========================
 
 st.subheader("📈 Danh sách tín hiệu")
 
-# Chọn ngày
+date_list = (
+
+    trade_signal_df["date"]
+
+    .drop_duplicates()
+
+    .dropna()
+
+    .sort_values(ascending=False)
+
+    .tolist()
+
+)
+
 selected_date = st.selectbox(
 
     "Chọn ngày",
 
-    sorted(
-        trade_signal_df["date"].drop_duplicates(),
-        reverse=True
-    ),
+    date_list,
 
     format_func=lambda x: x.strftime("%d/%m/%Y")
 
 )
+
 
 # =========================
 # DỮ LIỆU NGÀY ĐÓ
 # =========================
 
 today_signal = trade_signal_df[
+
     trade_signal_df["date"] == selected_date
+
 ].copy()
 
 # =========================
