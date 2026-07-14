@@ -1330,8 +1330,8 @@ if ticker_input:
             )
         
             c2.metric(
-                "Số trade",
-                int(p["Số trade"])
+                "Lợi nhuận",
+                f"{((p['NAV cuối'] - 1000) / 1000 * 100):.2f}%"
             )
         
             c3.metric(
@@ -1418,8 +1418,4 @@ if ticker_input:
         
             )
         
-        
-        # =========================
-        # PERFORMANCE
-        # =========================
 
