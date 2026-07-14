@@ -1106,30 +1106,6 @@ today_signal = signal_df[
     signal_df["date"] == selected_date
 ].copy()
 
-today_price = price_all[
-    price_all["date"] == selected_date
-][
-    [
-        "ticker",
-        "close"
-    ]
-]
-st.write(today_signal.columns)
-st.write(today_price.columns)
-
-st.write(today_signal.head())
-st.write(today_price.head())
-
-today_signal = today_signal.merge(
-
-    today_price,
-
-    on="ticker",
-
-    how="left"
-
-)
-
 # =========================
 # ĐỔI TÊN CỘT
 # =========================
@@ -1172,7 +1148,7 @@ hold_df = today_signal[
     today_signal["action"] == "Hold"
 ]
 
-c1,c2,c3,c4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
 c1.metric(
     "📋 Tất cả",
@@ -1198,7 +1174,7 @@ c4.metric(
 # TAB
 # =========================
 
-tab1,tab2,tab3,tab4 = st.tabs(
+tab1, tab2, tab3, tab4 = st.tabs(
 
     [
 
