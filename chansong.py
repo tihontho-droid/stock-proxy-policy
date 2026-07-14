@@ -1360,7 +1360,7 @@ if ticker_input:
         history_stock = (
             history_all[
                 (history_all["ticker"] == ticker_input) &
-                (history_all["action"].str.startswith(("BUY", "SELL"), na=False))
+                (history_all["action"].str.startswith(("Buy", "Sell"), na=False))
             ]
             .sort_values("date")
             .copy()
