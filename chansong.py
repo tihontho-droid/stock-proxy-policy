@@ -1170,7 +1170,7 @@ if ticker_input:
         
                     "color": "#00C853",
         
-                    "text": f"B\n{int(row['invested_percent'])}%"
+                    "text": row["action"]
         
                 })
         
@@ -1187,7 +1187,7 @@ if ticker_input:
         
                     "color": "#F23645",
         
-                    "text": f"S\n{int(row['invested_percent'])}%"
+                    "text": row["action"]
         
                 })
         
