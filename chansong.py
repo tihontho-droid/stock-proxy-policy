@@ -1402,11 +1402,11 @@ if ticker_input:
         
                         "action":"Tín hiệu",
         
-                        "invested_percent":"Tỷ trọng (%)",
+                        "invested_percent":"Nắm giữ (%)",
         
-                        "close":"Giá",
+                        "close":"Giá (nghìn VND)",
         
-                        "PnL":"Lãi/Lỗ"
+                        "PnL":"Lãi/Lỗ (nghìn VND)"
         
                     }
         
