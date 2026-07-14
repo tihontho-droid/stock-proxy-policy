@@ -1331,7 +1331,7 @@ if ticker_input:
         
             c2.metric(
                 "Lợi nhuận",
-                f"{((p['NAV cuối'] - 1000) / 1000 * 100):.2f}%"
+                f"{((p['NAV cuối'] - 1000000) / 1000000 * 100):.2f}%"
             )
         
             c3.metric(
