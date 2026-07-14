@@ -1301,7 +1301,58 @@ if ticker_input:
             key=f"stock_chart_{ticker_input}"
         
         )
-
+        
+        # =========================
+        # PERFORMANCE
+        # =========================
+        
+        performance_stock = (
+            performance_all[
+                performance_all["ticker"] == ticker_input
+            ]
+        )
+        
+        st.markdown("### Hiệu suất")
+        
+        if performance_stock.empty:
+        
+            st.info("Chưa có dữ liệu hiệu suất.")
+        
+        else:
+        
+            p = performance_stock.iloc[0]
+        
+            c1, c2, c3, c4, c5, c6 = st.columns(6)
+        
+            c1.metric(
+                "Win Rate",
+                f"{p['Win Rate']:.2f}%"
+            )
+        
+            c2.metric(
+                "Số trade",
+                int(p["Số trade"])
+            )
+        
+            c3.metric(
+                "NAV cuối",
+                f"{p['NAV cuối']:,.0f}"
+            )
+        
+            c4.metric(
+                "TB lãi",
+                f"{p['TB lãi']:,.0f}"
+            )
+        
+            c5.metric(
+                "TB lỗ",
+                f"{p['TB lỗ']:,.0f}"
+            )
+        
+            c6.metric(
+                "TB lãi/ TB lỗ",
+                f"{p['TB lãi/TB lỗ']:.2f}"
+            )
         # =========================
         # HISTORY
         # =========================
@@ -1371,55 +1422,4 @@ if ticker_input:
         # =========================
         # PERFORMANCE
         # =========================
-        
-        # =========================
-        # PERFORMANCE
-        # =========================
-        
-        performance_stock = (
-            performance_all[
-                performance_all["ticker"] == ticker_input
-            ]
-        )
-        
-        st.markdown("### Hiệu suất")
-        
-        if performance_stock.empty:
-        
-            st.info("Chưa có dữ liệu hiệu suất.")
-        
-        else:
-        
-            p = performance_stock.iloc[0]
-        
-            c1, c2, c3, c4, c5, c6 = st.columns(6)
-        
-            c1.metric(
-                "Win Rate",
-                f"{p['Win Rate']:.2f}%"
-            )
-        
-            c2.metric(
-                "Số trade",
-                int(p["Số trade"])
-            )
-        
-            c3.metric(
-                "NAV cuối",
-                f"{p['NAV cuối']:,.0f}"
-            )
-        
-            c4.metric(
-                "TB lãi",
-                f"{p['TB lãi']:,.0f}"
-            )
-        
-            c5.metric(
-                "TB lỗ",
-                f"{p['TB lỗ']:,.0f}"
-            )
-        
-            c6.metric(
-                "TB lãi/ TB lỗ",
-                f"{p['TB lãi/TB lỗ']:.2f}"
-            )
+
