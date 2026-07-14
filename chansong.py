@@ -1086,82 +1086,71 @@ if ticker_input:
 
 st.subheader("📈 Danh sách tín hiệu")
 
+trade_signal_df["date"] = pd.to_datetime(trade_signal_df["date"])
+
 date_list = (
-
     trade_signal_df["date"]
-
-    .drop_duplicates()
-
     .dropna()
-
+    .drop_duplicates()
     .sort_values(ascending=False)
-
     .tolist()
-
 )
 
 selected_date = st.selectbox(
-
     "Chọn ngày",
-
     date_list,
-
     format_func=lambda x: x.strftime("%d/%m/%Y")
-
 )
-
 
 # =========================
 # DỮ LIỆU NGÀY ĐÓ
 # =========================
 
 today_signal = trade_signal_df[
-
     trade_signal_df["date"] == selected_date
-
 ].copy()
 
 # =========================
-# ĐỔI TÊN CỘT
+# TÍN HIỆU
+# =========================
+
+buy_df = today_signal[
+    today_signal["action"].str.contains(
+        "Buy",
+        case=False,
+        na=False
+    )
+]
+
+sell_df = today_signal[
+    today_signal["action"].str.contains(
+        "Sell",
+        case=False,
+        na=False
+    )
+]
+
+hold_df = today_signal[
+    today_signal["action"] == "Hold"
+]
+
+
+# =========================
+# TÊN CỘT
 # =========================
 
 display_cols = {
-
     "ticker": "Mã",
-
     "action": "Tín hiệu",
-
     "invested_percent": "Tỷ trọng (%)",
-
     "close": "Giá",
-
     "final_score": "Final Score"
-
 }
-
-# =========================
-# TAB
-# =========================
-
-tab1, tab2, tab3, tab4 = st.tabs(
-
-    [
-
-        "Tất cả",
-
-        "Mua",
-
-        "Bán",
-
-        "Hold"
-
-    ]
-
-)
 
 # =========================
 # HÀM HIỂN THỊ
 # =========================
+
 def show_table(df):
 
     if df.empty:
@@ -1170,34 +1159,40 @@ def show_table(df):
 
     else:
 
+        cols = [c for c in display_cols if c in df.columns]
+
         st.dataframe(
-
-            df[
-                list(display_cols.keys())
-            ].rename(columns=display_cols),
-
+            df[cols].rename(
+                columns={
+                    k: display_cols[k]
+                    for k in cols
+                }
+            ),
             hide_index=True,
-
             use_container_width=True
-
         )
 
 # =========================
-# CÁC TAB
+# TAB
 # =========================
 
-with tab1:
+tab1, tab2, tab3, tab4 = st.tabs(
+    [
+        "Tất cả",
+        "Mua",
+        "Bán",
+        "Hold"
+    ]
+)
 
+with tab1:
     show_table(today_signal)
 
 with tab2:
-
     show_table(buy_df)
 
 with tab3:
-
     show_table(sell_df)
 
 with tab4:
-
     show_table(hold_df)
