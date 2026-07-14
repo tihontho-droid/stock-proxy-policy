@@ -1127,7 +1127,9 @@ display_cols = {
 # =========================
 # THỐNG KÊ
 # =========================
-
+st.write(type(today_signal))
+st.write(today_signal.shape)
+st.write(today_signal.columns.tolist())
 buy_df = today_signal[
     today_signal["action"].str.contains(
         "Buy",
