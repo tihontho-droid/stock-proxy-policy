@@ -1208,7 +1208,8 @@ tab1, tab2, tab3, tab4 = st.tabs(
 # =========================
 # HÀM HIỂN THỊ
 # =========================
-
+st.write(today_signal.columns.tolist())
+st.write(display_cols.keys())
 def show_table(df):
 
     if df.empty:
