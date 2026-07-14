@@ -123,6 +123,15 @@ def load_market_cycle():
     df["end_date"] = pd.to_datetime(df["end_date"])
 
     return df
+ 
+@st.cache_data
+def load_signal():
+
+    df = pd.read_parquet("signal_df.parquet")
+
+    df["date"] = pd.to_datetime(df["date"])
+
+    return df
 
 # =========================
 # LOAD DATA
@@ -140,6 +149,7 @@ sector_all_df = load_sector()
 stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
 market_cycle_df = load_market_cycle()
+signal_df = load_signal()
 
 # =========================
 # FILTER UNIVERSE (IMPORTANT)
@@ -1068,3 +1078,198 @@ if ticker_input:
             key=f"stock_chart_{ticker_input}"
         )
 
+# Chọn ngày 
+st.subheader("📈 Danh sách tín hiệu")
+
+date = st.selectbox(
+
+    "Chọn ngày",
+
+    sorted(
+        signal_df["date"].unique(),
+        reverse=True
+    ),
+
+    format_func=lambda x: x.strftime("%d/%m/%Y")
+)
+
+# lấy tín hiệu ngày đó 
+today_signal = signal_df[
+    signal_df["date"] == date
+].copy()
+
+# lấy giá ngày đó
+today_price = price_df[
+    price_df["date"] == date
+][
+    [
+        "ticker",
+        "close"
+    ]
+]
+
+# merge
+today_signal = today_signal.merge(
+
+    today_price,
+
+    on="ticker",
+
+    how="left"
+
+)
+
+# Đếm số lượng tín hiệu 
+buy_count = today_signal["action"].str.contains(
+    "Buy",
+    case=False
+).sum()
+
+sell_count = today_signal["action"].str.contains(
+    "Sell",
+    case=False
+).sum()
+
+hold_count = (
+    today_signal["action"] == "Hold"
+).sum()
+
+all_count = len(today_signal)
+
+# Hiện thống kê 
+c1,c2,c3,c4 = st.columns(4)
+
+c1.metric(
+    "Tất cả",
+    all_count
+)
+
+c2.metric(
+    "🟢 Mua vào",
+    buy_count
+)
+
+c3.metric(
+    "🔴 Bán ra",
+    sell_count
+)
+
+c4.metric(
+    "🟡 Nắm giữ",
+    hold_count
+)
+
+# Tạo Tabs
+tab1,tab2,tab3,tab4 = st.tabs(
+
+    [
+
+        "📋 Tất cả",
+
+        "🟢 Mua vào",
+
+        "🔴 Bán ra",
+
+        "🟡 Nắm giữ"
+
+    ]
+
+)
+
+# Tab tất cả
+with tab1:
+
+    st.dataframe(
+
+        today_signal[
+            [
+                "ticker",
+                "action",
+                "invested_percent",
+                "close",
+                "final_score"
+            ]
+        ],
+
+        use_container_width=True,
+        hide_index=True
+
+    )
+
+# Tab Mua 
+with tab2:
+
+    buy_df = today_signal[
+        today_signal["action"].str.contains(
+            "Buy",
+            case=False
+        )
+    ]
+
+    st.dataframe(
+
+        buy_df[
+            [
+                "ticker",
+                "action",
+                "invested_percent",
+                "close",
+                "final_score"
+            ]
+        ],
+
+        use_container_width=True,
+        hide_index=True
+
+    )
+
+# Tab Bán
+with tab3:
+
+    sell_df = today_signal[
+        today_signal["action"].str.contains(
+            "Sell",
+            case=False
+        )
+    ]
+
+    st.dataframe(
+
+        sell_df[
+            [
+                "ticker",
+                "action",
+                "invested_percent",
+                "close",
+                "final_score"
+            ]
+        ],
+
+        use_container_width=True,
+        hide_index=True
+
+    )
+
+# Tab Hold
+with tab4:
+
+    hold_df = today_signal[
+        today_signal["action"] == "Hold"
+    ]
+
+    st.dataframe(
+
+        hold_df[
+            [
+                "ticker",
+                "action",
+                "invested_percent",
+                "close",
+                "final_score"
+            ]
+        ],
+
+        use_container_width=True,
+        hide_index=True
+
+    )
