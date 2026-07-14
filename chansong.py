@@ -1148,163 +1148,134 @@ if ticker_input:
         # =========================
         # Buy Sell Marker
         # =========================
-
+        # =========================
+        # Buy / Sell Marker
+        # =========================
+        
         for _, row in df_trade.iterrows():
-
+        
             if row["action"] == "Hold":
-
                 continue
-
+        
+            # BUY
             if "Buy" in row["action"]:
-
+        
                 markers_stock.append({
-
+        
                     "time": row["date"].strftime("%Y-%m-%d"),
-
+        
                     "position": "belowBar",
-
+        
                     "shape": "circle",
-
+        
                     "color": "#00C853",
-
-                    "text":
-
-                        f"{row['action']}\n"
-
-                        f"Score: {row['final_score']:.2f}\n"
-
-                        f"Tỷ trọng: {row['invested_percent']}%\n"
-
-                        f"Close: {row['close']:.2f}"
-
+        
+                    "text": f"B\n{int(row['invested_percent'])}%"
+        
                 })
-
+        
+            # SELL
             elif "Sell" in row["action"]:
-
+        
                 markers_stock.append({
-
+        
                     "time": row["date"].strftime("%Y-%m-%d"),
-
+        
                     "position": "aboveBar",
-
-                    "shape": "square",
-
+        
+                    "shape": "circle",
+        
                     "color": "#F23645",
-
-                    "text":
-
-                        f"{row['action']}\n"
-
-                        f"Score: {row['final_score']:.2f}\n"
-
-                        f"Tỷ trọng: {row['invested_percent']}%\n"
-
-                        f"Close: {row['close']:.2f}"
-
+        
+                    "text": f"S\n{int(row['invested_percent'])}%"
+        
                 })
-
+        
         markers_stock = sorted(
-
             markers_stock,
-
             key=lambda x: x["time"]
-
         )
-
-        # =========================
-        # Chart
-        # =========================
-
         chart_stock = {
-
+        
             "chart": {
-
+        
                 "height": 520,
-
+        
                 "layout": {
-
+        
                     "background": {
-
                         "type": "solid",
-
                         "color": "#ffffff"
-
                     },
-
+        
                     "textColor": "#000000"
-
+        
                 },
-
+        
                 "grid": {
-
+        
                     "vertLines": {
-
                         "color": "#eeeeee"
-
                     },
-
+        
                     "horzLines": {
-
                         "color": "#eeeeee"
-
                     }
-
+        
                 },
-
+        
                 "rightPriceScale": {
-
                     "borderColor": "#cccccc"
-
                 },
-
+        
                 "timeScale": {
-
+        
                     "borderColor": "#cccccc",
-
+        
                     "timeVisible": True
-
+        
                 }
-
+        
             },
-
+        
             "series": [
-
+        
                 {
-
+        
                     "type": "Candlestick",
-
+        
                     "data": candles_stock,
-
+        
                     "markers": markers_stock
-
+        
                 },
-
+        
                 {
-
+        
                     "type": "Line",
-
+        
                     "data": zigzag_line_stock,
-
+        
                     "options": {
-
+        
                         "color": "#2962FF",
-
+        
                         "lineWidth": 2,
-
+        
                         "priceLineVisible": False
-
+        
                     }
-
+        
                 }
-
+        
             ]
-
+        
         }
-
+        
         renderLightweightCharts(
-
+        
             [chart_stock],
-
+        
             key=f"stock_chart_{ticker_input}"
-
+        
         )
