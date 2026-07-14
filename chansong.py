@@ -1114,6 +1114,11 @@ today_price = price_all[
         "close"
     ]
 ]
+st.write(today_signal.columns)
+st.write(today_price.columns)
+
+st.write(today_signal.head())
+st.write(today_price.head())
 
 today_signal = today_signal.merge(
 
