@@ -1312,7 +1312,7 @@ if ticker_input:
             ]
         )
         
-        st.markdown("### Hiệu suất")
+        st.markdown("### Hiệu suất ")
         
         if performance_stock.empty:
         
@@ -1335,17 +1335,17 @@ if ticker_input:
             )
         
             c3.metric(
-                "NAV cuối",
+                "NAV cuối (nghìn VND)",
                 f"{p['NAV cuối']:,.0f}"
             )
         
             c4.metric(
-                "TB lãi",
+                "TB lãi (nghìn VND)",
                 f"{p['TB lãi']:,.0f}"
             )
         
             c5.metric(
-                "TB lỗ",
+                "TB lỗ (nghìn VND)",
                 f"{p['TB lỗ']:,.0f}"
             )
         
