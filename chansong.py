@@ -1358,15 +1358,12 @@ if ticker_input:
         # =========================
         
         history_stock = (
-        
             history_all[
-                history_all["ticker"] == ticker_input
+                (history_all["ticker"] == ticker_input) &
+                (history_all["action"].isin(["BUY", "SELL"]))
             ]
-        
             .sort_values("date")
-        
             .copy()
-        
         )
         
         st.markdown("### Lịch sử giao dịch")
