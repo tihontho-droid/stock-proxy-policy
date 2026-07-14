@@ -967,7 +967,7 @@ hold_df = today_signal[
 display_cols = {
     "ticker": "Mã",
     "action": "Tín hiệu",
-    "invested_percent": "Tỷ trọng (%)",
+    "invested_percent": "Nắm giữ (%)",
     "close": "Giá",
     "final_score": "Final Score"
 }
