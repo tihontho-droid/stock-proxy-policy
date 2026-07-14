@@ -125,13 +125,16 @@ def load_market_cycle():
     return df
  
 @st.cache_data
-def load_signal():
+def load_trade_signal():
 
     df = pd.read_parquet("signal_df.parquet")
 
     df["date"] = pd.to_datetime(df["date"])
 
     return df
+
+
+trade_signal_df = load_trade_signal()
 
 # =========================
 # LOAD DATA
@@ -149,7 +152,6 @@ sector_all_df = load_sector()
 stock_signal_df = load_stock_signal()
 ticker_branch_df = load_ticker_branch()
 market_cycle_df = load_market_cycle()
-signal_df = load_signal()
 
 # =========================
 # FILTER UNIVERSE (IMPORTANT)
@@ -1090,7 +1092,7 @@ selected_date = st.selectbox(
     "Chọn ngày",
 
     sorted(
-        signal_df["date"].drop_duplicates(),
+        trade_signal_df["date"].drop_duplicates(),
         reverse=True
     ),
 
@@ -1102,8 +1104,8 @@ selected_date = st.selectbox(
 # DỮ LIỆU NGÀY ĐÓ
 # =========================
 
-today_signal = signal_df[
-    signal_df["date"] == selected_date
+today_signal = trade_signal_df[
+    trade_signal_df["date"] == selected_date
 ].copy()
 
 # =========================
@@ -1127,9 +1129,7 @@ display_cols = {
 # =========================
 # THỐNG KÊ
 # =========================
-st.write(type(today_signal))
-st.write(today_signal.shape)
-st.write(today_signal.columns.tolist())
+
 buy_df = today_signal[
     today_signal["action"].str.contains(
         "Buy",
